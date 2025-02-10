@@ -11,6 +11,10 @@ node_modules
 dist
 dist-ssr
 *.local
+src/scripts/uploadScript.js
+src/config/algoliaConfig.js
+src/services/gamesService.jsx
+src/syncData.js
 
 # Editor directories and files
 .vscode/*

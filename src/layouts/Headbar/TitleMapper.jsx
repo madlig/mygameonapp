@@ -1,7 +1,7 @@
 const pageTitles = {
   '/dashboard': 'Dashboard',
   '/games': 'Games',
-  '/tasks': 'Tasks',
+  '/task': 'Tasks',
   '/requests': 'Requests',
   '/operational': 'Operational',
   '/feedback': 'Feedback',

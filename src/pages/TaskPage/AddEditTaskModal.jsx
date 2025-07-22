@@ -15,7 +15,7 @@ const AddEditTaskModal = ({ isOpen, onClose, onSave, initialData, currentProject
   const [taskType, setTaskType] = useState(''); // State untuk jenis task
 
   // Definisikan opsi untuk dropdown lokasi dan jenis task
-  const locationOptions = ["", "Dashboard Page", "Games Page", "Tasks Page", "Requests Page", "Operational Page", "Feedback Page", "About Page", "Others"]; // Tambahkan opsi sesuai kebutuhan
+  const locationOptions = ["", "Dashboard Page", "Games Page", "Tasks Page", "Requests Page", "Operational Page", "Feedback Page", "About Page","Landing Page", "Others"]; // Tambahkan opsi sesuai kebutuhan
   const taskTypeOptions = ["", "Bug", "Feature", "Maintenance", "Research", "Testing", "Documentation", "Others"]; // Tambahkan opsi sesuai kebutuhan
   // --- AKHIR TAMBAHAN BARU ---
 

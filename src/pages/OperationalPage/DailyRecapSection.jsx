@@ -1,14 +1,47 @@
 // src/pages/OperationalPage/DailyRecapSection.jsx
+
 import React from 'react';
 
-const DailyRecapSection = ({ dailyRecap }) => {
+const StatCard = ({ title, value, isCurrency = true, currency = 'Rp', extraInfo = null }) => (
+  <div className="bg-white p-4 rounded-lg shadow">
+    <p className="text-sm font-medium text-gray-500">{title}</p>
+    <p className="mt-1 text-3xl font-semibold text-gray-900">
+      {isCurrency ? `${currency} ${value.toLocaleString('id-ID', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}` : value}
+    </p>
+    {extraInfo && <p className="text-xs text-gray-400 mt-1">{extraInfo}</p>}
+  </div>
+);
+
+const DailyRecapSection = ({ data }) => {
+  if (!data || Object.keys(data).length === 0) {
+    return <p className="text-center text-gray-500">Pilih rentang tanggal untuk melihat rekap.</p>;
+  }
+  
   return (
-    <section className="bg-white p-4 rounded-lg shadow mt-6">
-      <h2 className="text-xl font-semibold text-gray-700 mb-4">Rekap Harian Hari Ini</h2>
-      <p className="text-gray-800 mb-2">Total Gross Income (Semua Shift): <span className="font-bold text-indigo-700">Rp {dailyRecap.totalGrossIncomeToday.toLocaleString('id-ID')}</span></p>
-      <p className="text-gray-800 mb-2">Total Bayaran Admin (Semua Shift): <span className="font-bold text-green-700">Rp {dailyRecap.totalAdminPayToday.toLocaleString('id-ID')}</span></p>
-      <p className="text-gray-800 mb-2">Pemasukan Bersih Tercatat: <span className="font-bold text-blue-700">Rp {dailyRecap.netRevenueToday.toLocaleString('id-ID')}</span></p>
-      <p className="text-gray-800">Net Profit Harian (Pemasukan Bersih - Bayaran Admin): <span className="font-bold text-red-700">Rp {dailyRecap.netProfitToday.toLocaleString('id-ID')}</span></p>
+    <section className="space-y-6">
+      <div>
+        <h2 className="text-xl font-semibold text-gray-700 mb-4">Ringkasan Finansial Utama</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <StatCard title="Total Pendapatan Kotor" value={data.totalGrossRevenue} />
+          <StatCard title="Total Gaji Admin" value={data.totalAdminPay} />
+          <StatCard title="Total Pemasukan Bersih" value={data.totalNetRevenue} extraInfo="Setelah biaya Shopee, sebelum gaji" />
+          <div className="bg-green-100 p-4 rounded-lg shadow border border-green-200">
+             <p className="text-sm font-medium text-green-700">🏆 Laba Bersih (Profit)</p>
+             <p className="mt-1 text-3xl font-bold text-green-800">
+               Rp {data.netProfit.toLocaleString('id-ID', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+             </p>
+             <p className="text-xs text-green-600 mt-1">Pemasukan Bersih - Gaji Admin</p>
+          </div>
+        </div>
+      </div>
+      <div>
+        <h2 className="text-xl font-semibold text-gray-700 mb-4">Metrik Kinerja</h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <StatCard title="Rasio Gaji dari Pemasukan" value={`${data.salaryPercentage.toFixed(2)}%`} isCurrency={false} extraInfo="Semakin kecil semakin baik" />
+          <StatCard title="Rata-rata Pemasukan / Pesanan" value={data.avgRevenuePerOrder} extraInfo="Pemasukan Bersih / Pesanan Sukses" />
+          <StatCard title="Total Pesanan Sukses" value={data.totalSuccessfulOrders} isCurrency={false} />
+        </div>
+      </div>
     </section>
   );
 };

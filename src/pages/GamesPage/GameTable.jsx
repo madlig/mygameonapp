@@ -3,15 +3,15 @@ import { InformationCircleIcon } from "@heroicons/react/24/solid";
 import { Tooltip } from "react-tooltip";
 
 const getStatusClass = (status) => {
-    switch (status) {
-      case "Shopee":
-        return "bg-orange-500 text-white"; // Warna oranye untuk Shopee
-      case "Gdrive":
-        return "bg-green-500 text-white"; // Warna hijau untuk Gdrive
-      default:
-        return "bg-gray-100 text-gray-800"; // Warna default untuk status lainnya
-    }
-  };
+  switch (status) {
+    case "Shopee":
+      return "bg-orange-500 text-white"; // Warna oranye untuk Shopee
+    case "Gdrive":
+      return "bg-green-500 text-white"; // Warna hijau untuk Gdrive
+    default:
+      return "bg-gray-100 text-gray-800"; // Warna default untuk status lainnya
+  }
+};
 
 const GameTable = ({
   data,
@@ -26,23 +26,22 @@ const GameTable = ({
       <table className="min-w-full text-left border-collapse">
         <thead className="bg-gray-300 text-black-700 text-sm uppercase tracking-wide">
           <tr>
+            {/* Mengurangi spasi/newline antar <th> untuk mengatasi warning validateDOMNesting */}
             <th className="px-6 py-3 w-12 text-center">
               <input
                 type="checkbox"
                 className="form-checkbox"
                 onChange={onSelectAll}
-                checked={selectedRows.length === data.length}
+                checked={selectedRows.length === data.length && data.length > 0}
               />
-            </th>
-            <th className="px-6 py-3 cursor-pointer" onClick={() => onSort("name")}>
+            </th><th className="px-6 py-3 cursor-pointer" onClick={() => onSort("name")}>
               Name
               {sortConfig.key === "name" &&
                 (sortConfig.direction === "ascending" ? " ↑" : " ↓")}
-            </th>
-            <th className="px-6 py-3">Version</th>
+            </th><th className="px-6 py-3">Version</th>
             <th className="px-6 py-3">Size</th>
             <th className="px-1 py-3 text-center">Jumlah Part</th>
-            <th className="px-1 py-3 text-center">Category</th>
+            <th className="px-1 py-3 text-center">Genre</th>{/* Mengubah 'Category' menjadi 'Genre' */}
             <th className="px-6 py-3">Status</th>
             <th className="px-6 py-3">Date Added</th>
             <th className="px-6 py-3 w-10"></th> {/* Space for tooltip icon */}
@@ -64,21 +63,22 @@ const GameTable = ({
                 }`}
                 onClick={(e) => onRowClick(game.id, e)}
               >
+                {/* Mengurangi spasi/newline antar <td> untuk mengatasi warning validateDOMNesting */}
                 <td className="px-6 py-4 w-12 text-center">
                   <input
                     type="checkbox"
                     checked={selectedRows.includes(game.id)}
                     onChange={(e) => onRowClick(game.id, e)}
                     className="form-checkbox"
+                    onClick={(e) => e.stopPropagation()} // Mencegah event dari checkbox memicu onClick pada <tr>
                   />
-                </td>
-                <td className="px-6 py-4 truncate">{game.name}</td>
+                </td><td className="px-6 py-4 truncate">{game.name}</td>
                 <td className="px-6 py-4 truncate">{game.version}</td>
                 <td className="px-6 py-4 truncate">{game.size}</td>
                 <td className="px-6 py-4 text-center">{game.jumlahPart}</td>
                 <td className="px-6 py-4 text-center">
-                  {game.category && game.category.length > 0 ? (
-                    game.category.map((cat, index) => (
+                  {game.genre && game.genre.length > 0 ? ( // Asumsi data masih game.category
+                    game.genre.map((cat, index) => (
                       <span
                         key={index}
                         className="inline-block px-3 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-full mr-2 mb-2"
@@ -87,24 +87,21 @@ const GameTable = ({
                       </span>
                     ))
                   ) : (
-                    <span className="text-gray-500">No Category</span>
+                    <span className="text-gray-500">No Genre</span>
                   )}
-                </td>
-                <td className="px-6 py-4">
-                <span
+                </td><td className="px-6 py-4">
+                  <span
                     className={`px-2 py-1 rounded text-sm font-medium ${getStatusClass(
-                    game.status
+                      game.status
                     )}`}
-                >
+                  >
                     {game.status}
                   </span>
-                </td>
-                <td className="px-6 py-4 truncate">
+                </td><td className="px-6 py-4 truncate">
                   {game.dateAdded
                     ? new Date(game.dateAdded.seconds * 1000).toLocaleDateString("en-US")
                     : "N/A"}
-                </td>
-                <td className="px-6 py-4 text-center">
+                </td><td className="px-6 py-4 text-center">
                   <span
                     className="text-gray-500 cursor-pointer hover:text-gray-700"
                     data-tooltip-id={`tooltip-${game.id}`}

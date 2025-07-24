@@ -2,7 +2,7 @@ import React from "react";
 
 const FilterTabs = ({ activeTab, onTabChange }) => {
   const tabs = [
-    { key: "category", label: "Filter by Category" },
+    { key: "genre", label: "Filter by Genre" }, // <-- Mengubah 'category' menjadi 'genre'
     { key: "status", label: "Filter by Status" },
     { key: "size", label: "Filter by Size" },
     { key: "dateAdded", label: "Filter by Date" },

@@ -1,5 +1,8 @@
+// src/LocationSelector.jsx
 import React, { useState, useEffect } from "react";
-import { getFirestore, collection, getDocs } from "firebase/firestore";
+// Tidak perlu getFirestore lagi di sini, cukup collection dan getDocs
+import { collection, getDocs } from "firebase/firestore";
+import { db } from "../config/firebaseConfig"; // Import konfigurasi Firebase yang sudah ada
 import AddLocationModal from "../modals/InputModal/AddLocationModal"; // Sesuaikan dengan lokasi modal Anda
 
 const LocationSelector = ({ selectedLocation, onLocationChange }) => {
@@ -11,7 +14,7 @@ const LocationSelector = ({ selectedLocation, onLocationChange }) => {
   // Mengambil lokasi dari Firestore
   const fetchLocations = async () => {
     try {
-      const db = getFirestore();
+      // *** PERUBAHAN DI SINI: Gunakan 'db' yang sudah diimpor di atas ***
       const querySnapshot = await getDocs(collection(db, "emailLocations"));
       const fetchedLocations = querySnapshot.docs.map((doc) => doc.data().email);
       setLocations(fetchedLocations);
@@ -23,6 +26,13 @@ const LocationSelector = ({ selectedLocation, onLocationChange }) => {
   useEffect(() => {
     fetchLocations();
   }, []);
+
+  // Sinkronisasi temporarySelection dengan selectedLocation dari prop
+  // Penting jika parent mengubah selectedLocation dari luar
+  useEffect(() => {
+    setTemporarySelection(selectedLocation || "");
+  }, [selectedLocation]);
+
 
   const handleLocationChange = (location) => {
     setTemporarySelection(location);

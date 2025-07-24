@@ -1,22 +1,28 @@
-import { useState, useEffect, React } from "react";
+// src/AddNewGameForm.jsx
+import React, { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import * as yup from "yup";
 import { db } from "../../config/firebaseConfig";
 import { collection, addDoc } from "firebase/firestore";
 import { yupResolver } from "@hookform/resolvers/yup";
-import CategorySelector from "../../hooks/CategorySelector";
+
+import GenreSelector from "../../hooks/GenreSelector";
 import UnitSelector from "../../hooks/UnitSelector";
 import StatusSelector from "../../hooks/StatusSelector";
-import AddLocationModal from "./AddLocationModal";
 import LocationSelector from "../../hooks/LocationSelector";
 
 const schema = yup.object().shape({
   name: yup.string().required("Name is required"),
-  size: yup.number().required("Size is required"),
+  version: yup.string().nullable(),
+  size: yup.number().typeError("Size must be a number").required("Size is required").positive("Size must be positive"),
   unit: yup.string().required("Unit is required"),
-  jumlahPart: yup.number().required("Jumlah Part is required"),
+  jumlahPart: yup.number().typeError("Jumlah Part must be a number").required("Jumlah Part is required").integer("Jumlah Part must be an integer").min(1, "Jumlah Part must be at least 1"),
+  platform: yup.string().required("Platform is required"),
+  // --- PERUBAHAN DI SINI: coverArtUrl tidak lagi required ---
+  coverArtUrl: yup.string().url("Must be a valid URL if provided").nullable(), // Tidak required, dan boleh null/undefined
+  // --------------------------------------------------------
   location: yup.string().email("Invalid email format").required("Location is required"),
-  category: yup.array().min(1, "At least one category is required"),
+  genre: yup.array().min(1, "At least one genre is required"),
   status: yup.string().required("Status is required"),
   dateAdded: yup.date().required("Date Added is required"),
   description: yup.string().nullable(),
@@ -28,36 +34,73 @@ const AddNewGameForm = ({ onSubmit, onClose }) => {
     handleSubmit,
     setValue,
     formState: { errors },
+    reset
   } = useForm({
     resolver: yupResolver(schema),
     defaultValues: {
-      description: "", // Default nilai untuk description
+      description: "",
+      version: "",
+      size: "",
+      jumlahPart: "",
+      platform: "",
+      coverArtUrl: "", // Tetap inisialisasi sebagai string kosong
+      location: "",
+      genre: [],
+      status: "",
+      dateAdded: "",
     },
   });
 
-  // Fungsi untuk mengirimkan data ke Firestore
+  const [selectedGenres, setSelectedGenres] = useState([]);
+  const [selectedUnit, setSelectedUnit] = useState("MB");
+  const [selectedStatus, setSelectedStatus] = useState("");
+  const [selectedLocation, setSelectedLocation] = useState("");
+
+  useEffect(() => {
+    setValue("genre", selectedGenres);
+  }, [selectedGenres, setValue]);
+
+  useEffect(() => {
+    setValue("unit", selectedUnit);
+  }, [selectedUnit, setValue]);
+
+  useEffect(() => {
+    setValue("status", selectedStatus);
+  }, [selectedStatus, setValue]);
+
+  useEffect(() => {
+    setValue("location", selectedLocation);
+  }, [selectedLocation, setValue]);
+  
   const onSubmitHandler = async (data) => {
     console.log("Submitting data to Firestore:", data);
     try {
-      // Gabungkan Size dan Unit
       const gameData = {
         name: data.name,
-        version: data.version,
-        size: `${data.size} ${data.unit}`, // Gabungkan Size dan Unit
+        version: data.version || "",
+        size: `${data.size} ${data.unit}`,
         jumlahPart: data.jumlahPart,
-        category: data.category, // Menyertakan kategori yang dipilih
+        platform: data.platform,
+        // --- PERUBAHAN DI SINI: Logika fallback untuk coverArtUrl ---
+        coverArtUrl: data.coverArtUrl || data.name, // Jika kosong, gunakan nama game sebagai fallback
+        // ---------------------------------------------------------
+        genre: data.genre,
         status: data.status,
-        dateAdded: data.dateAdded,
-        description: data.description || "", // Pastikan string kosong jika tidak ada
-        location: data.location, // Disimpan meskipun tidak ditampilkan
+        dateAdded: new Date(data.dateAdded),
+        description: data.description || "",
+        location: data.location,
       };
 
-      // Menyimpan data ke Firestore
       await addDoc(collection(db, "games"), gameData);
       console.log("Data successfully added to Firestore!");
       alert("Game added successfully!");
 
-      // Menutup form setelah submit
+      reset();
+      setSelectedGenres([]);
+      setSelectedUnit("MB");
+      setSelectedStatus("");
+      setSelectedLocation("");
+      
       if (onClose) onClose();
     } catch (error) {
       console.error("Error adding document to Firestore:", error);
@@ -65,70 +108,40 @@ const AddNewGameForm = ({ onSubmit, onClose }) => {
     }
   };
 
-  const [categories, setCategories] = useState([]); // Inisialisasi dengan array kosong
-  const [selectedCategories, setSelectedCategories] = useState([]);
-  
-  const [selectedUnit, setSelectedUnit] = useState("MB");
-  const [selectedStatus, setSelectedStatus] = useState("Shopee");
-
-  const [locations, setLocations] = useState([]);
-  const [selectedLocation, setSelectedLocation] = useState("");
-  const [showAddLocationModal, setShowAddLocationModal] = useState(false);
-
-  const handleLocationChange = (location) => {
-    setSelectedLocation(location);
-    setValue("location", location); // Set location value in form
-  };
-
-  const handleAddLocationClick = () => {
-    setShowAddLocationModal(true);
-  };
-
-  const handleAddLocation = async (newLocation) => {
-    try {
-      // Menyimpan lokasi baru ke Firestore
-      await addDoc(collection(db, "emailLocations"), { email: newLocation });
-      setLocations((prevLocations) => [...prevLocations, newLocation]);
-      setSelectedLocation(newLocation);
-      setValue("location", newLocation); // Set location value in form
-      setShowAddLocationModal(false); // Close modal
-    } catch (error) {
-      console.error("Error adding location to Firestore:", error);
-    }
-  };
-
-  useEffect(() => {
-    setValue("category", selectedCategories);
-  }, [selectedCategories, setValue]);
-
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
-      <div className="bg-white rounded-lg shadow-lg w-full max-w-lg p-6">
-        <h2 className="text-xl font-bold mb-4">Add New Game</h2>
+      <div className="bg-white rounded-lg shadow-lg w-full max-w-lg max-h-[90vh] flex flex-col">
+        <div className="p-6 pb-4 border-b">
+          <h2 className="text-xl font-bold">Add New Game</h2>
+        </div>
+
         <form 
-            onSubmit={handleSubmit(onSubmitHandler)}
-            className="space-y-4"
-          >
+          onSubmit={handleSubmit(onSubmitHandler)}
+          className="p-6 overflow-y-auto flex-grow space-y-4"
+        >
           <div>
-            <label className="block text-sm font-medium mb-1">Name</label>
+            <label htmlFor="name" className="block text-sm font-medium mb-1">Name</label>
             <input
+              id="name"
               {...register("name")}
               className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
             {errors.name && <p className="text-red-500 text-sm">{errors.name.message}</p>}
           </div>
           <div>
-            <label className="block text-sm font-medium mb-1">Version</label>
+            <label htmlFor="version" className="block text-sm font-medium mb-1">Version</label>
             <input
+              id="version"
               {...register("version")}
               className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
-            {errors.name && <p className="text-red-500 text-sm">{errors.name.message}</p>}
+            {errors.version && <p className="text-red-500 text-sm">{errors.version.message}</p>}
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium mb-1">Size</label>
+              <label htmlFor="size" className="block text-sm font-medium mb-1">Size</label>
               <input
+                id="size"
                 type="number"
                 {...register("size")}
                 className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -136,7 +149,7 @@ const AddNewGameForm = ({ onSubmit, onClose }) => {
               {errors.size && <p className="text-red-500 text-sm">{errors.size.message}</p>}
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Unit</label>
+              <label htmlFor="unit" className="block text-sm font-medium mb-1">Unit</label>
               <UnitSelector
                 selectedUnit={selectedUnit}
                 onSelect={(unit) => {
@@ -148,31 +161,59 @@ const AddNewGameForm = ({ onSubmit, onClose }) => {
             </div>
           </div>
           <div>
-            <label className="block text-sm font-medium mb-1">Jumlah Part</label>
+            <label htmlFor="jumlahPart" className="block text-sm font-medium mb-1">Jumlah Part</label>
             <input
+              id="jumlahPart"
               type="number"
               {...register("jumlahPart")}
               className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
             {errors.jumlahPart && <p className="text-red-500 text-sm">{errors.jumlahPart.message}</p>}
           </div>
+          {/* New Field: Platform */}
+          <div>
+            <label htmlFor="platform" className="block text-sm font-medium mb-1">Platform</label>
+            <input
+              id="platform"
+              {...register("platform")}
+              className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            {errors.platform && <p className="text-red-500 text-sm">{errors.platform.message}</p>}
+          </div>
+          {/* Cover Art URL (Sekarang Opsional) */}
+          <div>
+            <label htmlFor="coverArtUrl" className="block text-sm font-medium mb-1">Cover Art URL (Opsional)</label>
+            <input
+              id="coverArtUrl"
+              type="url"
+              {...register("coverArtUrl")}
+              placeholder="Akan menggunakan Nama Game jika kosong" // Remove the JS comment from here
+              className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            {errors.coverArtUrl && <p className="text-red-500 text-sm">{errors.coverArtUrl.message}</p>}
+          </div>
+
           {/* Location Selector */}
-          <label className="block text-sm font-medium mb-2">Location</label>
-          <LocationSelector
-            locations={locations}
-            selectedLocation={selectedLocation}
-            onLocationChange={handleLocationChange}
-            onAddLocationClick={handleAddLocationClick}
-          />
-        <div>
-        <label className="block text-sm font-medium mb-2">Category</label>
-        <CategorySelector
-          availableCategories={categories}
-          selectedCategories={selectedCategories}
-          onChange={setSelectedCategories}
-        />
-      </div>
-      {/* Input Status */}
+          <div>
+            <label className="block text-sm font-medium mb-2">Location</label>
+            <LocationSelector
+              selectedLocation={selectedLocation}
+              onLocationChange={setSelectedLocation}
+            />
+            {errors.location && <p className="text-red-500 text-sm">{errors.location.message}</p>}
+          </div>
+          
+          {/* Genre Selector */}
+          <div>
+            <label className="block text-sm font-medium mb-2">Genre</label>
+            <GenreSelector
+              selectedGenres={selectedGenres}
+              onChange={setSelectedGenres}
+            />
+            {errors.genre && <p className="text-red-500 text-sm">{errors.genre.message}</p>}
+          </div>
+          
+          {/* Status Selector */}
           <div>
             <label className="block text-sm font-medium mb-1">Status</label>
             <StatusSelector
@@ -184,46 +225,48 @@ const AddNewGameForm = ({ onSubmit, onClose }) => {
             />
             {errors.status && <p className="text-red-500 text-sm">{errors.status.message}</p>}
           </div>
+          
+          {/* Date Added */}
           <div>
-            <label className="block text-sm font-medium mb-1">Date Added</label>
+            <label htmlFor="dateAdded" className="block text-sm font-medium mb-1">Date Added</label>
             <input
+              id="dateAdded"
               type="date"
               {...register("dateAdded")}
               className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
             {errors.dateAdded && <p className="text-red-500 text-sm">{errors.dateAdded.message}</p>}
           </div>
+          
+          {/* Description */}
           <div>
-            <label className="block text-sm font-medium mb-1">Deskripsi</label>
+            <label htmlFor="description" className="block text-sm font-medium mb-1">Description</label>
             <textarea
+              id="description"
               {...register("description")}
               className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
             ></textarea>
             {errors.description && <p className="text-red-500 text-sm">{errors.description.message}</p>}
           </div>
-          <div className="flex justify-end space-x-4">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-            >
-              Add New Game
-            </button>
-          </div>
         </form>
+
+        <div className="p-6 pt-4 border-t flex justify-end space-x-4">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            onClick={handleSubmit(onSubmitHandler)}
+            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+          >
+            Add New Game
+          </button>
+        </div>
       </div>
-      {/* Add Location Modal */}
-      <AddLocationModal
-        showModal={showAddLocationModal}
-        onClose={() => setShowAddLocationModal(false)}
-        onAddLocation={handleAddLocation}
-      />
     </div>
   );
 };

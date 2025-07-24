@@ -1,5 +1,8 @@
+// src/AddLocationModal.jsx
 import React, { useState } from "react";
-import { getFirestore, addDoc, collection } from "firebase/firestore";
+// Import db dari firebaseConfig, bukan getFirestore di dalam fungsi
+import { addDoc, collection } from "firebase/firestore";
+import { db } from "../../config/firebaseConfig"; // *** TAMBAHKAN BARIS INI ***
 
 const AddLocationModal = ({ showModal, onClose, onAddLocation }) => {
   const [newEmail, setNewEmail] = useState("");
@@ -20,8 +23,12 @@ const AddLocationModal = ({ showModal, onClose, onAddLocation }) => {
     }
 
     setLoading(true);
+    setStatusMessage(""); // Clear previous status message
+
     try {
-      const db = getFirestore();
+      // *** PERUBAHAN DI SINI: Gunakan 'db' yang sudah diimpor ***
+      // const db = getFirestore(); // <<< HAPUS BARIS INI
+      
       // Menambahkan lokasi baru ke Firestore
       await addDoc(collection(db, "emailLocations"), { email: newEmail });
 
@@ -30,15 +37,23 @@ const AddLocationModal = ({ showModal, onClose, onAddLocation }) => {
 
       // Reset input field dan status
       setNewEmail("");
-      setStatusMessage("");
+      // setStatusMessage(""); // Tidak perlu direset di sini jika modal akan ditutup
       onClose(); // Tutup modal setelah berhasil
     } catch (error) {
       console.error("Error adding email:", error);
-      setStatusMessage("Failed to add email");
+      setStatusMessage("Failed to add email. Please try again."); // Pesan lebih informatif
     } finally {
       setLoading(false);
     }
   };
+
+  // Reset statusMessage saat modal dibuka
+  React.useEffect(() => {
+    if (showModal) {
+      setStatusMessage("");
+      setNewEmail(""); // Reset input saat modal dibuka
+    }
+  }, [showModal]);
 
   if (!showModal) return null;
 

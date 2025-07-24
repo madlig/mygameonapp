@@ -87,12 +87,22 @@ const OperationalPage = () => {
             const totalGrossRevenue = calculatedRevenueReport.reduce((sum, report) => sum + report.grossIncome, 0);
             const totalNetRevenue = calculatedRevenueReport.reduce((sum, report) => sum + (report.calculatedNetRevenue || 0), 0);
             const totalSuccessfulOrders = calculatedRevenueReport.reduce((sum, report) => sum + report.successfulOrders, 0);
+            const totalAdSpend = calculatedRevenueReport.reduce((sum, report) => sum + report.adSpend || 0, 0);
 
-            const netProfit = totalNetRevenue - totalAdminPay;
+            const netProfit = totalNetRevenue - totalAdminPay - totalAdSpend;
             const salaryPercentage = totalNetRevenue > 0 ? (totalAdminPay / totalNetRevenue) * 100 : 0;
             const avgRevenuePerOrder = totalSuccessfulOrders > 0 ? totalNetRevenue / totalSuccessfulOrders : 0;
 
-            setRecapData({ totalGrossRevenue, totalAdminPay, totalNetRevenue, netProfit, salaryPercentage, avgRevenuePerOrder, totalSuccessfulOrders });
+            setRecapData({
+              totalGrossRevenue,
+              totalAdminPay,
+              totalNetRevenue,
+              netProfit,
+              salaryPercentage,
+              avgRevenuePerOrder,
+              totalSuccessfulOrders,
+              totalAdSpend,
+            });
 
         } catch (error) { console.error("Error fetching data:", error); } 
         finally { setLoading(false); }

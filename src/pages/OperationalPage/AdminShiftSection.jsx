@@ -66,7 +66,7 @@ const AdminShiftSection = ({
         {shiftReport.length === 0 ? ( <p>Tidak ada shift pada periode ini.</p> ) : 
         (
           <div className="space-y-4">
-            <div className="p-4 bg-indigo-50 rounded-lg"><p className="font-semibold text-indigo-800">Total Gaji Periode Ini: <span className="block text-2xl font-bold">Rp {totalGaji.toLocaleString('id-ID')}</span></p></div>
+            <div className="p-4 bg-indigo-50 rounded-lg"><p className="font-semibold text-indigo-800">Total Gaji Periode Ini: <span className="block text-2xl font-bold">Rp {totalGaji.toLocaleString('id-ID', {minimumFractionDigts:0, maximumFractionDigits:0})}</span></p></div>
             <div className="overflow-x-auto border rounded-md">
               <table className="min-w-full divide-y">
                 <thead className="bg-gray-50"><tr><th className="px-4 py-2 text-left text-xs uppercase">Tanggal</th><th className="px-4 py-2 text-left text-xs uppercase">Admin</th><th className="px-4 py-2 text-left text-xs uppercase">Total Durasi</th><th className="px-4 py-2 text-left text-xs uppercase">Total Pendapatan</th><th className="px-4 py-2 text-left text-xs uppercase">Total Pesanan</th><th className="px-4 py-2 text-left text-xs uppercase">Total Gaji</th><th className="px-4 py-2 text-left text-xs uppercase">Aksi</th></tr></thead>
@@ -78,7 +78,7 @@ const AdminShiftSection = ({
                       <td className="px-4 py-2 text-sm">{report.totalDurationHours.toFixed(2)} jam</td>
                       <td className="px-4 py-2 text-sm">Rp {report.totalGrossIncome.toLocaleString('id-ID')}</td>
                       <td className="px-4 py-2 text-sm">{report.totalOrders}</td>
-                      <td className="px-4 py-2 text-sm font-bold text-purple-700">Rp {report.pay.toLocaleString('id-ID')}</td>
+                      <td className="px-4 py-2 text-sm font-bold text-purple-700">Rp {report.pay.toLocaleString('id-ID', {minimumFractionDigts:0, maximumFractionDigits:0})}</td>
                       <td className="px-4 py-2 text-sm"><button onClick={() => handleDeleteRow(report)} className="text-red-600 hover:text-red-900">Hapus</button></td>
                     </tr>
                   ))}

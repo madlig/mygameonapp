@@ -53,7 +53,7 @@ const NetRevenueSection = ({ revenueReport, onRefreshRequest }) => {
     const adminFeeBase = actualGrossIncome - inputs.voucherCost;
     const adminFee = adminFeeBase * 0.075;
     const fixedFee = successfulOrders * 1250;
-    const netRevenue = actualGrossIncome - inputs.voucherCost - adminFee - fixedFee;
+    const netRevenue = actualGrossIncome - inputs.voucherCost - adminFee - fixedFee - inputs.adSpend;
     const reportDateToSave = new Date(reportDate); reportDateToSave.setHours(0, 0, 0, 0);
     const newReport = {
       date: reportDateToSave,
@@ -63,6 +63,7 @@ const NetRevenueSection = ({ revenueReport, onRefreshRequest }) => {
       month: reportDateToSave.getMonth(),
       year: reportDateToSave.getFullYear(),
       createdAt: serverTimestamp(),
+      voucherCost: inputs.voucherCost,
       adSpend: inputs.adSpend,
     };
     try {
@@ -105,7 +106,7 @@ const NetRevenueSection = ({ revenueReport, onRefreshRequest }) => {
     const adminFeeBase = actualGrossIncome - inputs.voucherCost;
     const adminFee = adminFeeBase * 0.075;
     const fixedFee = successfulOrders * 1250;
-    const netRevenue = actualGrossIncome - inputs.voucherCost - adminFee - fixedFee;
+    const netRevenue = actualGrossIncome - inputs.voucherCost - adminFee - fixedFee - inputs.adSpend;
 
     // 3. Siapkan data LENGKAP untuk di-update
     const updatedData = {
@@ -197,7 +198,7 @@ const NetRevenueSection = ({ revenueReport, onRefreshRequest }) => {
         const adminFeeBase = actualGrossIncome - inputs.voucherCost;
         const adminFee = adminFeeBase * 0.075;
         const fixedFee = successfulOrders * 1250;
-        const netRevenue = actualGrossIncome - inputs.voucherCost - adminFee - fixedFee;
+        const netRevenue = actualGrossIncome - inputs.voucherCost - adminFee - fixedFee - inputs.adSpend;
         
         // Tambahkan operasi update ke batch
         batch.update(reportDocRef, {
@@ -404,6 +405,12 @@ const NetRevenueSection = ({ revenueReport, onRefreshRequest }) => {
                     Pesanan Sukses
                   </th>
                   <th className="px-4 py-2 text-left text-xs uppercase">
+                    Biaya Voucher
+                  </th>
+                  <th className="px-4 py-2 text-left text-xs uppercase">
+                    Biaya Iklan
+                  </th>
+                  <th className="px-4 py-2 text-left text-xs uppercase">
                     Pemasukan Bersih
                   </th>
                   <th className="px-4 py-2 text-left text-xs uppercase">
@@ -426,6 +433,20 @@ const NetRevenueSection = ({ revenueReport, onRefreshRequest }) => {
                       </td>
                       <td className="px-4 py-2 text-sm">
                         {report.successfulOrders}
+                      </td>
+                      <td className="px-4 py-2 text-sm">
+                        Rp{' '}
+                        {(report.voucherCost || 0).toLocaleString(
+                          'id-ID',
+                          {minimumFractionDigts:0, maximumFractionDigits:0}
+                        )}
+                      </td>
+                      <td className="px-4 py-2 text-sm">
+                        Rp{' '}
+                        {(report.adSpend || 0).toLocaleString(
+                          'id-ID',
+                          {minimumFractionDigts:0, maximumFractionDigits:0}
+                        )}
                       </td>
                       <td className="px-4 py-2 text-sm font-bold text-green-700">
                         Rp{' '}

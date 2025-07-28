@@ -89,7 +89,7 @@ const OperationalPage = () => {
             const totalSuccessfulOrders = calculatedRevenueReport.reduce((sum, report) => sum + report.successfulOrders, 0);
             const totalAdSpend = calculatedRevenueReport.reduce((sum, report) => sum + report.adSpend || 0, 0);
 
-            const netProfit = totalNetRevenue - totalAdminPay - totalAdSpend;
+            const netProfit = totalNetRevenue - totalAdminPay;
             const salaryPercentage = totalNetRevenue > 0 ? (totalAdminPay / totalNetRevenue) * 100 : 0;
             const avgRevenuePerOrder = totalSuccessfulOrders > 0 ? totalNetRevenue / totalSuccessfulOrders : 0;
 

@@ -24,13 +24,13 @@ const DailyRecapSection = ({ data }) => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard title="Total Pendapatan Kotor" value={data.totalGrossRevenue || 0} />
           <StatCard title="Total Biaya Iklan" value={data.totalAdSpend || 0} />
-          <StatCard title="Total Pemasukan Bersih" value={data.totalNetRevenue || 0} extraInfo="Setelah biaya Shopee, sebelum gaji & iklan" />
+          <StatCard title="Total Pemasukan Bersih" value={data.totalNetRevenue || 0} extraInfo="Setelah biaya Shopee & iklan, sebelum gaji" />
           <div className="bg-green-100 p-4 rounded-lg shadow border border-green-200">
              <p className="text-sm font-medium text-green-700">🏆 Laba Bersih (Profit)</p>
              <p className="mt-1 text-3xl font-bold text-green-800">
                Rp {(data.netProfit || 0).toLocaleString('id-ID', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
              </p>
-             <p className="text-xs text-green-600 mt-1">Pemasukan Bersih - Gaji - Iklan</p>
+             <p className="text-xs text-green-600 mt-1">Pemasukan Bersih - Gaji Admin</p>
           </div>
         </div>
       </div>

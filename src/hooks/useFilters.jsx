@@ -1,15 +1,15 @@
-// src/hooks/useFilters.js
+// src/hooks/useFilters.jsx
 import { useState } from "react";
 
 const useFilters = () => {
   const [filters, setFilters] = useState({
-    genre: [], // Sudah benar sebagai array kosong
+    genre: [],
     status: "",
     size: { min: "", max: "", unit: "gb" },
     dateAdded: { start: "", end: "" },
   });
 
-  // Perbaiki handleFilterChange: Sekarang menerima filterType (string) dan value (nilai filter) secara langsung
+  // FUNGSI YANG DIPERBARUI
   const handleFilterChange = (filterType, value) => {
     setFilters((prevFilters) => ({
       ...prevFilters,
@@ -17,7 +17,6 @@ const useFilters = () => {
     }));
   };
 
-  // Tambahkan fungsi handleResetFilters untuk mereset semua filter
   const handleResetFilters = () => {
     setFilters({
       genre: [],
@@ -27,7 +26,6 @@ const useFilters = () => {
     });
   };
 
-  // Pastikan Anda mengembalikan handleResetFilters agar bisa digunakan di GamesPage
   return { filters, setFilters, handleFilterChange, handleResetFilters };
 };
 

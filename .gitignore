@@ -26,3 +26,6 @@ mygameonapp.zip
 *.njsproj
 *.sln
 *.sw?
+
+# Kunci rahasia Firebase Admin
+src/scripts/serviceAccountKey.json

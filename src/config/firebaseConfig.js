@@ -1,18 +1,21 @@
 import { initializeApp } from 'firebase/app';
 import { getFirestore, collection, addDoc, getDocs, onSnapshot, deleteDoc, doc, getDoc, setDoc, query, where, orderBy, serverTimestamp } from "firebase/firestore";
 import { getAuth } from 'firebase/auth';
+import { getStorage } from 'firebase/storage';
+
 const firebaseConfig = {
-  apiKey: "AIzaSyAb_uPu_YAdPUeWks1h_VUgPGSUJfCVYCc",
-  authDomain: "mygameonwebsite.firebaseapp.com",
-  projectId: "mygameonwebsite",
-  storageBucket: "mygameonwebsite.firebasestorage.app",
-  messagingSenderId: "66873549274",
-  appId: "1:66873549274:web:5c10c175c2374d919de0e3"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID
 };
 
 // Inisialisasi Firebase
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
+const storage = getStorage(app);
 
-export { db, collection, addDoc, getDocs, onSnapshot, deleteDoc, doc, getDoc, auth, setDoc, query, where, orderBy, serverTimestamp };
+export { db, storage, collection, addDoc, getDocs, onSnapshot, deleteDoc, doc, getDoc, auth, setDoc, query, where, orderBy, serverTimestamp };

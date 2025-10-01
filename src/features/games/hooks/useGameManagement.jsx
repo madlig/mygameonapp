@@ -6,6 +6,7 @@ import { db } from "../../../config/firebaseConfig";
 import { addGame, updateGame, deleteGame } from "../services/gamesService";
 import useFilters from "../../../hooks/useFilters";
 import Fuse from "fuse.js";
+import { useAuth } from "../../../contexts/AuthContext";
 
 export const useGameManagement = () => {
     const [gamesData, setGamesData] = useState([]);
@@ -19,6 +20,7 @@ export const useGameManagement = () => {
     const [rowsPerPage, setRowsPerPage] = useState(10);
     const [sortConfig, setSortConfig] = useState({ key: 'name', direction: 'ascending' });
     const { filters, setFilters, handleFilterChange, handleResetFilters } = useFilters();
+    const { currentUser } = useAuth();
 
     useEffect(() => {
         // ... (Fungsi fetching data tidak berubah)
@@ -45,9 +47,14 @@ export const useGameManagement = () => {
             } finally {
                 setLoading(false);
             }
+        if (currentUser) {
+            fetchGames();
+        } else {
+            setLoading(false);
+        }
         };
-        fetchGames();
-    }, [filters, searchQuery]);
+        
+    }, [filters, searchQuery, currentUser]);
 
     // Handler yang disempurnakan
     const handleSearchChange = useCallback((e) => { setSearchQuery(e.target.value); setCurrentPage(1); }, []);

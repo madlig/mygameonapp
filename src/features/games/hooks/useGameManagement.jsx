@@ -20,7 +20,6 @@ export const useGameManagement = () => {
     const [rowsPerPage, setRowsPerPage] = useState(10);
     const [sortConfig, setSortConfig] = useState({ key: 'name', direction: 'ascending' });
     const { filters, setFilters, handleFilterChange, handleResetFilters } = useFilters();
-    const { currentUser } = useAuth();
 
     useEffect(() => {
         // ... (Fungsi fetching data tidak berubah)
@@ -47,14 +46,9 @@ export const useGameManagement = () => {
             } finally {
                 setLoading(false);
             }
-        if (currentUser) {
-            fetchGames();
-        } else {
-            setLoading(false);
-        }
         };
-        
-    }, [filters, searchQuery, currentUser]);
+        fetchGames();
+    }, [filters, searchQuery]);
 
     // Handler yang disempurnakan
     const handleSearchChange = useCallback((e) => { setSearchQuery(e.target.value); setCurrentPage(1); }, []);

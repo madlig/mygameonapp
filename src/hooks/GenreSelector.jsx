@@ -1,5 +1,5 @@
 // src/GenreSelector.jsx
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { collection, getDocs } from "firebase/firestore";
 import { db } from "../config/firebaseConfig"; // Import konfigurasi Firebase
 import AddGenreModal from "../modals/AddGenreModal"; // Import AddGenreModal yang sudah disesuaikan

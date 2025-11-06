@@ -1,5 +1,5 @@
 // src/AddGenreModal.jsx
-import React, { useState } from "react";
+import { useState } from "react";
 import { collection, getDocs, addDoc } from "firebase/firestore"; // Menggunakan addDoc
 import { db } from "../config/firebaseConfig"; // Import konfigurasi Firebase
 

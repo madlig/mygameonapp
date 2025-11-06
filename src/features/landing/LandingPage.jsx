@@ -1,5 +1,5 @@
 // src/pages/LandingPage/index.jsx
-import React, { Suspense, lazy } from "react";
+import { Suspense, lazy } from "react";
 import { algoliasearch } from "algoliasearch";
 import { 
   InstantSearch,
@@ -30,7 +30,7 @@ const GameCardPlaceholder = () => (
 );
 
 const CustomHits = () => {
-    const { results, status } = useInstantSearch();
+    const { results } = useInstantSearch();
 
     return (
         <>

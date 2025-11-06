@@ -1,5 +1,5 @@
 // src/LocationSelector.jsx
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 // Tidak perlu getFirestore lagi di sini, cukup collection dan getDocs
 import { collection, getDocs } from "firebase/firestore";
 import { db } from "../config/firebaseConfig"; // Import konfigurasi Firebase yang sudah ada

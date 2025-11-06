@@ -6,7 +6,6 @@ import { db } from "../../../config/firebaseConfig";
 import { addGame, updateGame, deleteGame } from "../services/gamesService";
 import useFilters from "../../../hooks/useFilters";
 import Fuse from "fuse.js";
-import { useAuth } from "../../../contexts/AuthContext";
 
 export const useGameManagement = () => {
     const [gamesData, setGamesData] = useState([]);
@@ -100,7 +99,7 @@ export const useGameManagement = () => {
 
     const toggleRowSelection = useCallback((gameId) => {
         setSelectedRows((prev) =>
-            prev.includes(gameId) ? prev.filter((id) => id !== gameId) : [...prev, id]
+            prev.includes(gameId) ? prev.filter((rowId) => rowId !== gameId) : [...prev, gameId]
         );
     }, []);
 

@@ -1,5 +1,5 @@
 // src/pages/LandingPage/RequestGame.jsx
-import React, { useState } from "react";
+import { useState } from "react";
 import { collection, addDoc } from "firebase/firestore";
 import { db } from "../../config/firebaseConfig";
 import { Link } from "react-router-dom"; // Import Link

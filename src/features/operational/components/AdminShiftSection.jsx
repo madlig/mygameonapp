@@ -1,8 +1,7 @@
 // src/pages/OperationalPage/AdminShiftSection.jsx
 
-import { useState, useEffect } from 'react';
 import { db } from '../../../config/firebaseConfig';
-import { collection, getDocs, query, where, writeBatch, doc } from 'firebase/firestore';
+import { collection, getDocs, query, where, writeBatch } from 'firebase/firestore';
 import Swal from 'sweetalert2';
 
 const AdminShiftSection = ({
@@ -30,7 +29,7 @@ const AdminShiftSection = ({
         await batch.commit();
         Swal.fire('Terhapus!', 'Data shift telah dihapus.', 'success');
         onRefreshRequest();
-    } catch (error) { Swal.fire('Error!', 'Gagal menghapus data.', 'error'); }
+    } catch { Swal.fire('Error!', 'Gagal menghapus data.', 'error'); }
   };
   
   return (

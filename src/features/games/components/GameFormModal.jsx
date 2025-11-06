@@ -64,8 +64,6 @@ const GameFormModal = ({ isOpen, onClose, onSubmit, initialData = null }) => {
   const [uploading, setUploading] = useState(false);
   const [imagePreview, setImagePreview] = useState('');
   const [isImageRemoved, setIsImageRemoved] = useState(false);
-  const [selectedUnit, setSelectedUnit] = useState("MB");
-  const [selectedStatus, setSelectedStatus] = useState("");
 
   // State untuk data dropdown
   const [allGenres, setAllGenres] = useState([]);
@@ -116,9 +114,6 @@ const GameFormModal = ({ isOpen, onClose, onSubmit, initialData = null }) => {
       setValue('dateAdded', formattedDate);
 
       // 3. Atur state untuk komponen kustom
-      const unit = (initialData.size || " MB").split(" ")[1] || "MB";
-      setSelectedUnit(unit);
-      setSelectedStatus(initialData.status || "");
       if (initialData.coverArtUrl) {
         setImagePreview(initialData.coverArtUrl);
       }
@@ -133,8 +128,6 @@ const GameFormModal = ({ isOpen, onClose, onSubmit, initialData = null }) => {
       // Kosongkan juga state kustom
       setImagePreview('');
       setCoverImage(null);
-      setSelectedStatus("");
-      setSelectedUnit("MB");
     }
   }, [initialData, isEditMode, reset]);
 

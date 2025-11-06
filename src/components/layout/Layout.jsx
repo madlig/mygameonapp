@@ -1,4 +1,3 @@
-import React from "react";
 import Sidebar from "./Sidebar";
 import Footer from "./Footer";
 import Content from "./Content";

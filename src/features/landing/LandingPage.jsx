@@ -32,8 +32,6 @@ const GameCardPlaceholder = () => (
 const CustomHits = () => {
     const { results, status } = useInstantSearch();
 
-    const isLoading = status === 'loading' || status === 'stalled';
-
     return (
         <>
             <div className="flex justify-between items-center mb-6">

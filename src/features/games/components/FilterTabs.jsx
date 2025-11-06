@@ -1,4 +1,3 @@
-import React from "react";
 
 const FilterTabs = ({ activeTab, onTabChange }) => {
   const tabs = [

@@ -1,4 +1,3 @@
-import React from "react";
 
 const UnitSelector = ({ selectedUnit, onSelect }) => {
   const units = ["MB", "GB"];

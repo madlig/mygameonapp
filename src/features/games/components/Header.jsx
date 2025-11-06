@@ -1,5 +1,4 @@
 // src/pages/GamesPage/Header.jsx
-import React from "react";
 
 const Header = ({ title, onAddNew, searchQuery, onSearchChange }) => {
   return (

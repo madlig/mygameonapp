@@ -1,4 +1,3 @@
-import React from "react";
 import { useLocation } from "react-router-dom";
 import { getPageTitle } from "./TitleMapper";
 import RightActions from "./RightActions";

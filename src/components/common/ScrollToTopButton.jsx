@@ -1,4 +1,3 @@
-import React from "react";
 import { ChevronUpIcon } from "@heroicons/react/24/outline";
 
 const ScrollToTopButton = ({ isScrolled }) => {

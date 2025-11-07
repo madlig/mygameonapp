@@ -1,4 +1,3 @@
-import React from "react";
 import MenuSection from "./MenuSection.jsx";
 import QuickActions from "./QuickActions.jsx";
 import { menuConfig } from "./menuConfig.jsx";

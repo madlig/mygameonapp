@@ -1,5 +1,5 @@
 // src/services/taskProjectService.js
-import { db, collection, addDoc, getDocs, onSnapshot, deleteDoc, doc, getDoc, setDoc  } from "../../../config/firebaseConfig";
+import { db, collection, addDoc, onSnapshot, deleteDoc, doc, setDoc  } from "../../../config/firebaseConfig";
 import { query, where, orderBy, serverTimestamp } from "firebase/firestore";
 
 // --- PROJECT FUNCTIONS ---

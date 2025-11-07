@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { useDrop } from "react-dnd";
 import RequestCard from "./RequestCard";
 
@@ -8,7 +8,7 @@ const StatusColumn = ({ id, items, moveCard, onEdit, onDone, onDelete }) => { //
   const [hoverIndex, setHoverIndex] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
 
-  const [{ isOver }, dropRef] = useDrop({
+  const [, dropRef] = useDrop({
     accept: ITEM_TYPE,
     hover: (draggedItem, monitor) => {
       if (!monitor.isOver()) return;

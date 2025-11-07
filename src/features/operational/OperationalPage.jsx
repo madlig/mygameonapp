@@ -1,6 +1,6 @@
 // src/pages/OperationalPage/index.jsx
 
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from "react";
 import { db } from '../../config/firebaseConfig';
 import { collection, addDoc, getDocs, query, where, orderBy, serverTimestamp, doc, updateDoc } from 'firebase/firestore';
 import Swal from 'sweetalert2';
@@ -111,7 +111,9 @@ const OperationalPage = () => {
     const handlePresetClick = (preset) => {
         const now = new Date();
         let start = new Date(), end = new Date();
-        if (preset === 'today') {} 
+        if (preset === 'today') {
+            // Today is the default, start and end are already set to today
+        } 
         else if (preset === 'yesterday') { start.setDate(now.getDate() - 1); end.setDate(now.getDate() - 1); } 
         else if (preset === 'thisMonth') { start = new Date(now.getFullYear(), now.getMonth(), 1); end = new Date(now.getFullYear(), now.getMonth() + 1, 0); } 
         else if (preset === 'lastMonth') { start = new Date(now.getFullYear(), now.getMonth() - 1, 1); end = new Date(now.getFullYear(), now.getMonth(), 0); }
@@ -145,7 +147,7 @@ const OperationalPage = () => {
             await addDoc(collection(db, 'adminShifts'), { adminName: adminName.trim(), startTime: serverTimestamp(), status: 'active' });
             Swal.fire('Berhasil!', `Shift untuk ${adminName.trim()} dimulai.`, 'success');
             fetchActiveShift();
-        } catch (error) { Swal.fire('Error!', 'Gagal memulai shift.', 'error'); }
+        } catch { Swal.fire('Error!', 'Gagal memulai shift.', 'error'); }
     };
 
     const handleEndShift = async () => {
@@ -165,7 +167,7 @@ const OperationalPage = () => {
             setGrossIncomeInput(''); setOrdersCountInput('');
             fetchActiveShift(); // Refresh active shift status
             fetchDataForPeriod(startDate, endDate); // Refresh reports
-        } catch (error) { Swal.fire('Error!', 'Gagal menyelesaikan shift.', 'error'); }
+        } catch { Swal.fire('Error!', 'Gagal menyelesaikan shift.', 'error'); }
     };
 
     const getActiveShiftDuration = () => {

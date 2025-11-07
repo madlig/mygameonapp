@@ -1,4 +1,3 @@
-import React from "react";
 import { useDrag } from "react-dnd";
 import { XMarkIcon } from "@heroicons/react/24/solid"; // Tambahkan icon X
 

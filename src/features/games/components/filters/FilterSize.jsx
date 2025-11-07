@@ -1,12 +1,6 @@
 // src/pages/GamesPage/filters/FilterSize.jsx
-import React from "react";
 
 const FilterSize = ({ sizeInput, onApply, onReset, onInputChange }) => {
-  const handleInputChange = (field, value) => {
-    // Langsung panggil fungsi dari parent dengan object size yang baru
-    onSizeChange({ ...sizeFilter, [field]: value });
-  };
-
   return (
     <div className="space-y-4">
       <div className="flex items-center space-x-4">

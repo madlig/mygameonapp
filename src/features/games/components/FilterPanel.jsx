@@ -1,6 +1,5 @@
 // src/pages/GamesPage/FilterPanel.jsx
 
-import React from 'react';
 import FilterGenre from "./filters/FilterGenre";
 import FilterStatus from "./filters/FilterStatus";
 import FilterSize from "./filters/FilterSize";

@@ -1,6 +1,6 @@
 // src/pages/OperationalPage/NetRevenueSection.jsx
 
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from "react";
 import { db } from '../../../config/firebaseConfig';
 import { collection, addDoc, getDocs, query, where, doc, updateDoc, serverTimestamp, deleteDoc, writeBatch } from 'firebase/firestore';
 import Swal from 'sweetalert2';
@@ -76,7 +76,7 @@ const NetRevenueSection = ({ revenueReport, onRefreshRequest }) => {
         } else { await addDoc(collection(db, 'dailyRevenues'), newReport); Swal.fire('Berhasil!', 'Laporan disimpan.', 'success'); }
         setGrossIncome(''); setTotalOrders(''); setVoucherCost(''); setCanceledOrders(''); setCanceledValue(''); setReturnedOrders(''); setReturnedValue(''), setAdSpend('');
         onRefreshRequest();
-    } catch (error) { Swal.fire('Error', 'Gagal menyimpan laporan.', 'error'); }
+    } catch { Swal.fire('Error', 'Gagal menyimpan laporan.', 'error'); }
   };
   
   const handleOpenEditModal = (report) => {
@@ -138,7 +138,7 @@ const NetRevenueSection = ({ revenueReport, onRefreshRequest }) => {
         await deleteDoc(doc(db, 'dailyRevenues', reportId));
         Swal.fire('Terhapus!', 'Laporan harian dihapus.', 'success');
         onRefreshRequest();
-    } catch (error) { Swal.fire('Error!', 'Gagal menghapus laporan.', 'error'); }
+    } catch { Swal.fire('Error!', 'Gagal menghapus laporan.', 'error'); }
   };
 
   const handleStagedUpdateChange = (id, field, value) => {

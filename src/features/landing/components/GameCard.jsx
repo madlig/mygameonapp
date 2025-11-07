@@ -1,5 +1,4 @@
 // src/components/GameCard.jsx
-import React from 'react';
 
 const GameCard = ({ game }) => {
   // Fallback untuk coverArtUrl jika kosong atau tidak ada

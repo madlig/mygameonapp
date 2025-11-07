@@ -1,4 +1,3 @@
-import React from "react";
 import { NavLink } from "react-router-dom";
 import { PlusIcon } from "@heroicons/react/24/outline";
 

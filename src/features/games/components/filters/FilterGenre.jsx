@@ -1,5 +1,4 @@
 // src/pages/GamesPage/filters/FilterGenre.jsx (sebelumnya FilterCategory.jsx)
-import React from 'react';
 
 // Asumsi FilterGenre menerima props 'genres' dan 'selectedGenres'
 const FilterGenre = ({ genres, selectedGenres, onChange }) => {

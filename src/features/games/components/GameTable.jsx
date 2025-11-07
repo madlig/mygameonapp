@@ -1,4 +1,3 @@
-import React from "react";
 import { InformationCircleIcon } from "@heroicons/react/24/solid";
 import { Tooltip } from "react-tooltip";
 

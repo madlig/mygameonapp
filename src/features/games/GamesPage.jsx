@@ -1,6 +1,6 @@
 // src/pages/GamesPage/index.jsx
 
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useGameManagement } from "./hooks/useGameManagement";
 import { db, collection, getDocs } from "../../config/firebaseConfig";
 
@@ -74,7 +74,7 @@ const GamesPage = () => {
                     {loading ? (<p className="text-center py-10">Memuat data game...</p>) : (
                         <>
                             <div className="space-y-4 mb-4">
-                                <ActiveFilters filters={filters} onRemoveFilter={(type, value) => { /* ... (logika sama) ... */ }} onResetAll={handleResetFilters} />
+                                <ActiveFilters filters={filters} onRemoveFilter={() => { /* ... (logika sama) ... */ }} onResetAll={handleResetFilters} />
                                 {selectedRows.length > 0 && (
                                     <SectionActions
                                         selectedRows={selectedRows}

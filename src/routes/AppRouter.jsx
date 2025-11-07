@@ -1,6 +1,5 @@
 // src/routes/AppRouter.jsx
 
-import React from "react";
 import { Routes, Route } from "react-router-dom";
 import 'react-datepicker/dist/react-datepicker.css';
 

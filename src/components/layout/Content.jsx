@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import Breadcrumbs from "../common/Breadcrumbs";
 import ScrollToTopButton from "../common/ScrollToTopButton";
 import LoadingOverlay from "../common/LoadingOverlay"
 
 const Content = ({ children }) => {
   const [isScrolled, setIsScrolled] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => {

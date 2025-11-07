@@ -1,5 +1,4 @@
 // src/FilterStatus.jsx
-import React from "react";
 
 const FilterStatus = ({ statuses, selectedStatus, onChange }) => {
   return (

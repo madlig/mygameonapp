@@ -1,8 +1,7 @@
 // src/pages/OperationalPage/AdminShiftSection.jsx
 
-import React, { useState, useEffect } from 'react';
 import { db } from '../../../config/firebaseConfig';
-import { collection, getDocs, query, where, writeBatch, doc } from 'firebase/firestore';
+import { collection, getDocs, query, where, writeBatch } from 'firebase/firestore';
 import Swal from 'sweetalert2';
 
 const AdminShiftSection = ({
@@ -11,15 +10,8 @@ const AdminShiftSection = ({
   handleStartShift, handleEndShift, getActiveShiftDuration,
   grossIncomeInput, setGrossIncomeInput, ordersCountInput, setOrdersCountInput
 }) => {
-  const [currentTime, setCurrentTime] = useState(new Date());
   const adminList = ["Fariz", "Adli"];
   const totalGaji = shiftReport.reduce((sum, report) => sum + report.pay, 0);
-
-  useEffect(() => {
-    let intervalId = null;
-    if (activeShift) { intervalId = setInterval(() => setCurrentTime(new Date()), 1000); }
-    return () => clearInterval(intervalId);
-  }, [activeShift]);
   
   const handleDeleteRow = async (report) => {
     const confirmation = await Swal.fire({ title: 'Anda Yakin?', html: `Hapus semua shift untuk <b>${report.adminName}</b> pada <b>${report.date.toLocaleDateString('id-ID')}</b>?`, icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33', confirmButtonText: 'Ya, Hapus!' });
@@ -37,7 +29,7 @@ const AdminShiftSection = ({
         await batch.commit();
         Swal.fire('Terhapus!', 'Data shift telah dihapus.', 'success');
         onRefreshRequest();
-    } catch (error) { Swal.fire('Error!', 'Gagal menghapus data.', 'error'); }
+    } catch { Swal.fire('Error!', 'Gagal menghapus data.', 'error'); }
   };
   
   return (

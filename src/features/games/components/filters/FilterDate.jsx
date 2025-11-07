@@ -1,5 +1,4 @@
 // src/pages/GamesPage/filters/FilterDate.jsx
-import React from "react";
 
 const FilterDate = ({ dateInput, onApply, onReset, onInputChange }) => {
   return (

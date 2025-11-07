@@ -1,5 +1,5 @@
 // src/hooks/MultiSelectDropdown.jsx
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 
 const MultiSelectDropdown = ({
   options, // Daftar pilihan (e.g., ['Action', 'RPG'])

@@ -1,4 +1,3 @@
-import React from 'react';
 import clsx from 'clsx';
 
 const Button = ({ children, onClick, variant = 'primary', className }) => {

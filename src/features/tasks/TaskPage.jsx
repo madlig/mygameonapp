@@ -1,5 +1,5 @@
 // src/pages/TaskPage/index.jsx
-import React, { useState, useEffect, useContext } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext'; // Pastikan path ini benar
 import { 
   db, 
@@ -186,14 +186,6 @@ const TaskPage = () => {
     setEditingTask(null);
     setCurrentProjectForTask(projectId);
 
-    let projectNameForTemplate = null;
-    if (projectId) {
-      const selectedProject = projects.find(p => p.id === projectId);
-      if (selectedProject) {
-        const words = selectedProject.name.split(' ');
-        projectNameForTemplate = words.map(word => word.charAt(0)).join('').toUpperCase();
-      }
-    }
     setIsTaskModalOpen(true);
   };
 

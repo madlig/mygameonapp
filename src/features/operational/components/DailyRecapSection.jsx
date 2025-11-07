@@ -1,6 +1,5 @@
 // src/pages/OperationalPage/DailyRecapSection.jsx
 
-import React from 'react';
 
 const StatCard = ({ title, value, isCurrency = true, currency = 'Rp', extraInfo = null }) => (
   <div className="bg-white p-4 rounded-lg shadow">

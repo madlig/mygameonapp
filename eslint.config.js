@@ -5,7 +5,15 @@ import reactHooks from 'eslint-plugin-react-hooks'
 import reactRefresh from 'eslint-plugin-react-refresh'
 
 export default [
-  { ignores: ['dist'] },
+  { ignores: ['dist', '*.config.js'] },
+  {
+    files: ['**/*.config.js', '**/*.config.cjs', 'postcss.config.js'],
+    languageOptions: {
+      ecmaVersion: 2020,
+      globals: globals.node,
+      sourceType: 'commonjs',
+    },
+  },
   {
     files: ['**/*.{js,jsx}'],
     languageOptions: {
@@ -29,6 +37,7 @@ export default [
       ...react.configs['jsx-runtime'].rules,
       ...reactHooks.configs.recommended.rules,
       'react/jsx-no-target-blank': 'off',
+      'react/prop-types': 'off', // Disabled as project doesn't use PropTypes
       'react-refresh/only-export-components': [
         'warn',
         { allowConstantExport: true },

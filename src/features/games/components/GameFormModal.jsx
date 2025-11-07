@@ -4,8 +4,7 @@ import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import * as yup from "yup";
 import { yupResolver } from "@hookform/resolvers/yup";
-import { db, storage, collection, getDocs, query, where, deleteDoc, doc } from "../../../config/firebaseConfig";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { db, collection, getDocs, query, where, deleteDoc, doc } from "../../../config/firebaseConfig";
 
 // Import komponen UI lainnya
 import MultiSelectDropdown from "../../../components/forms/MultiSelectDropDown";
@@ -200,14 +199,33 @@ const GameFormModal = ({ isOpen, onClose, onSubmit, initialData = null }) => {
     }
     // 1. Unggah gambar HANYA JIKA ada file baru yang dipilih
     else if (coverImage) {
-      const fileName = `covers/${data.name.replace(/\s+/g, '-').toLowerCase()}-${Date.now()}`;
-      const storageRef = ref(storage, fileName);
       try {
-        const snapshot = await uploadBytes(storageRef, coverImage);
-        finalCoverArtUrl = await getDownloadURL(snapshot.ref);
+        // Upload to Cloudinary
+        const formData = new FormData();
+        formData.append('file', coverImage);
+        formData.append('upload_preset', import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET);
+        
+        // Optional: Add folder organization
+        const folderName = `game-covers/${data.name.replace(/\s+/g, '-').toLowerCase()}`;
+        formData.append('folder', folderName);
+
+        const cloudinaryResponse = await fetch(
+          `https://api.cloudinary.com/v1_1/${import.meta.env.VITE_CLOUDINARY_CLOUD_NAME}/image/upload`,
+          {
+            method: 'POST',
+            body: formData
+          }
+        );
+
+        if (!cloudinaryResponse.ok) {
+          throw new Error('Failed to upload image to Cloudinary');
+        }
+
+        const cloudinaryData = await cloudinaryResponse.json();
+        finalCoverArtUrl = cloudinaryData.secure_url;
       } catch (error) {
         console.error("Error uploading image:", error);
-        alert("Gagal mengunggah gambar.");
+        alert("Gagal mengunggah gambar ke Cloudinary. Pastikan kredensial Cloudinary sudah dikonfigurasi dengan benar.");
         setUploading(false);
         return;
       }

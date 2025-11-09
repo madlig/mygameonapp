@@ -6,7 +6,6 @@ import { db } from "../../../config/firebaseConfig";
 import { addGame, updateGame, deleteGame } from "../services/gamesService";
 import useFilters from "../../../hooks/useFilters";
 import Fuse from "fuse.js";
-import { useAuth } from "../../../contexts/AuthContext";
 
 export const useGameManagement = () => {
     const [gamesData, setGamesData] = useState([]);
@@ -28,7 +27,7 @@ export const useGameManagement = () => {
             try {
                 const gamesCollectionRef = collection(db, "games");
                 const queryConstraints = [];
-                if (filters.genre.length > 0) queryConstraints.push(where("genre", "array-contains-any", filters.genre));
+                if (Array.isArray(filters.genre) && filters.genre.length > 0) queryConstraints.push(where("genre", "array-contains-any", filters.genre));
                 if (filters.status) queryConstraints.push(where("status", "==", filters.status));
                 
                 const q = query(gamesCollectionRef, ...queryConstraints, orderBy("name"));
@@ -39,7 +38,7 @@ export const useGameManagement = () => {
                     const fuse = new Fuse(fetchedGames, { keys: ["name", "genre", "status"], threshold: 0.3 });
                     fetchedGames = fuse.search(searchQuery).map(result => result.item);
                 }
-                setGamesData(fetchedGames);
+                setGamesData(fetchedGames || []);
             } catch (error) {
                 console.error("Error fetching games:", error);
                 setNotification("Gagal memuat data game.");
@@ -100,7 +99,7 @@ export const useGameManagement = () => {
 
     const toggleRowSelection = useCallback((gameId) => {
         setSelectedRows((prev) =>
-            prev.includes(gameId) ? prev.filter((id) => id !== gameId) : [...prev, id]
+            prev.includes(gameId) ? prev.filter((id) => id !== gameId) : [...prev, gameId]
         );
     }, []);
 

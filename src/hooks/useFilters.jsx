@@ -5,7 +5,7 @@ const useFilters = () => {
   const [filters, setFilters] = useState({
     genre: [],
     status: "",
-    size: { min: "", max: "", unit: "gb" },
+    size: { min: "", max: "", unit: "MB" },
     dateAdded: { start: "", end: "" },
   });
 
@@ -21,7 +21,7 @@ const useFilters = () => {
     setFilters({
       genre: [],
       status: "",
-      size: { min: "", max: "", unit: "gb" },
+      size: { min: "", max: "", unit: "MB" },
       dateAdded: { start: "", end: "" },
     });
   };

@@ -13,6 +13,42 @@ const getStatusClass = (status) => {
   }
 };
 
+// Robust formatDate function to handle Firestore Timestamp, JS Date, ISO string
+const formatDate = (dateValue) => {
+  if (!dateValue) return "N/A";
+  
+  let date;
+  
+  // Handle Firestore Timestamp (has seconds property)
+  if (dateValue.seconds) {
+    date = new Date(dateValue.seconds * 1000);
+  }
+  // Handle JS Date object
+  else if (dateValue instanceof Date) {
+    date = dateValue;
+  }
+  // Handle ISO string or other string formats
+  else if (typeof dateValue === 'string') {
+    date = new Date(dateValue);
+  }
+  // Fallback
+  else {
+    return "N/A";
+  }
+  
+  // Check if date is valid
+  if (isNaN(date.getTime())) {
+    return "N/A";
+  }
+  
+  return date.toLocaleDateString("id-ID", {
+    timeZone: 'UTC',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
+};
+
 const GameTable = ({
   data,
   selectedRows,
@@ -70,9 +106,12 @@ const GameTable = ({
                   <input
                     type="checkbox"
                     checked={selectedRows.includes(game.id)}
-                    onChange={(e) => onRowClick(game.id, e)}
+                    onChange={() => {}}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onRowClick(game.id, e);
+                    }}
                     className="form-checkbox"
-                    onClick={(e) => e.stopPropagation()} // Mencegah event dari checkbox memicu onClick pada <tr>
                   />
                 </td><td className="px-6 py-4 truncate">{game.name}</td>
                 <td className="px-6 py-4 truncate">{game.type}</td>
@@ -114,16 +153,7 @@ const GameTable = ({
                     {game.status}
                   </span>
                 </td><td className="px-6 py-4 truncate">
-                  
-                  
-                  {game.dateAdded
-                    ? new Date(game.dateAdded.seconds * 1000).toLocaleDateString("id-ID", {
-                        timeZone: 'UTC', // <-- Ini sangat penting!
-                        day: 'numeric',
-                        month: 'long',
-                        year: 'numeric',
-                      })
-                    : "N/A"}
+                  {formatDate(game.dateAdded)}
                 </td><td className="px-6 py-4 text-center">
                   <span
                     className="text-gray-500 cursor-pointer hover:text-gray-700"

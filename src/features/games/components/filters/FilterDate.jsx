@@ -1,7 +1,7 @@
 // src/pages/GamesPage/filters/FilterDate.jsx
 import React from "react";
 
-const FilterDate = ({ dateInput, onApply, onReset, onInputChange }) => {
+const FilterDate = ({ dateInput = { startDate: "", endDate: "" }, onApply, onReset, onInputChange }) => {
   return (
     <div className="space-y-4">
       <div className="flex items-center space-x-4">
@@ -9,7 +9,7 @@ const FilterDate = ({ dateInput, onApply, onReset, onInputChange }) => {
           <label className="block text-sm font-medium text-gray-700">Start Date</label>
           <input
             type="date"
-            value={dateInput.startDate}
+            value={dateInput.startDate || ""}
             onChange={(e) => onInputChange("startDate", e.target.value)}
             className="w-40 border border-gray-300 rounded-lg px-2 py-1 focus:ring-2 focus:ring-blue-500"
           />
@@ -18,7 +18,7 @@ const FilterDate = ({ dateInput, onApply, onReset, onInputChange }) => {
           <label className="block text-sm font-medium text-gray-700">End Date</label>
           <input
             type="date"
-            value={dateInput.endDate}
+            value={dateInput.endDate || ""}
             onChange={(e) => onInputChange("endDate", e.target.value)}
             className="w-40 border border-gray-300 rounded-lg px-2 py-1 focus:ring-2 focus:ring-blue-500"
           />

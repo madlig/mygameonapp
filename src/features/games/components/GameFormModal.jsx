@@ -89,25 +89,42 @@ const GameFormModal = ({ isOpen, onClose, onSubmit, initialData = null }) => {
     fetchDropdownData();
   }, []);
 
-  
   // Efek untuk mengisi form saat initialData berubah (mode edit)
   useEffect(() => {
     if (isEditMode && initialData) {
-      const dateFromFirestore = initialData.dateAdded?.toDate ? initialData.dateAdded.toDate() : null;
-      
+      // Robust date parsing - handle Timestamp, Date, and string
       let formattedDate = '';
+      const dateFromFirestore = initialData.dateAdded;
+      
       if (dateFromFirestore) {
-        // *** PERBAIKAN: Mengatasi masalah zona waktu ***
-        // Ambil tahun, bulan, dan tanggal dari tanggal lokal untuk menghindari pergeseran
-        const year = dateFromFirestore.getFullYear();
-        const month = String(dateFromFirestore.getMonth() + 1).padStart(2, '0'); // Bulan dimulai dari 0
-        const day = String(dateFromFirestore.getDate()).padStart(2, '0');
-        formattedDate = `${year}-${month}-${day}`;
+        let date;
+        // Handle Firestore Timestamp (has seconds or toDate method)
+        if (dateFromFirestore.seconds) {
+          date = new Date(dateFromFirestore.seconds * 1000);
+        } else if (typeof dateFromFirestore.toDate === 'function') {
+          date = dateFromFirestore.toDate();
+        }
+        // Handle JS Date object
+        else if (dateFromFirestore instanceof Date) {
+          date = dateFromFirestore;
+        }
+        // Handle ISO string or other string formats
+        else if (typeof dateFromFirestore === 'string') {
+          date = new Date(dateFromFirestore);
+        }
+        
+        if (date && !isNaN(date.getTime())) {
+          // Format as yyyy-mm-dd for input[type="date"]
+          const year = date.getFullYear();
+          const month = String(date.getMonth() + 1).padStart(2, '0');
+          const day = String(date.getDate()).padStart(2, '0');
+          formattedDate = `${year}-${month}-${day}`;
+        }
       }
       
       const formValues = {
         ...initialData,
-        dateAdded: formattedDate, // Gunakan tanggal yang sudah diformat dengan benar
+        dateAdded: formattedDate,
         size: parseFloat(initialData.size) || "",
         unit: (initialData.size || " MB").split(" ")[1] || "MB",
       };
@@ -126,7 +143,7 @@ const GameFormModal = ({ isOpen, onClose, onSubmit, initialData = null }) => {
       // Atur nilai default untuk mode "Tambah Baru"
       reset({
         name: "", version: "", size: "", unit: "MB", jumlahPart: "",
-        platform: "", location: "", genre: [], status: "",
+        platform: "", locations: [], genre: [], status: "",
         dateAdded: new Date().toISOString().split("T")[0], description: "",
         shopeeLink: "",
       });
@@ -136,7 +153,7 @@ const GameFormModal = ({ isOpen, onClose, onSubmit, initialData = null }) => {
       setSelectedStatus("");
       setSelectedUnit("MB");
     }
-  }, [initialData, isEditMode, reset]);
+  }, [initialData, isEditMode, reset, setValue]);
 
   // // Efek untuk sinkronisasi selector (tidak berubah)
   // useEffect(() => {
@@ -202,10 +219,11 @@ const GameFormModal = ({ isOpen, onClose, onSubmit, initialData = null }) => {
     setUploading(true);
     let finalCoverArtUrl = initialData?.coverArtUrl || '';
 
+    // Handle image removal
     if (isImageRemoved) {
       finalCoverArtUrl = '';
     }
-    // 1. Unggah gambar HANYA JIKA ada file baru yang dipilih
+    // Upload image ONLY if a new file is selected
     else if (coverImage) {
       const fileName = `covers/${data.name.replace(/\s+/g, '-').toLowerCase()}-${Date.now()}`;
       const storageRef = ref(storage, fileName);

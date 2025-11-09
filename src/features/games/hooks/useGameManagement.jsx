@@ -28,7 +28,10 @@ export const useGameManagement = () => {
             try {
                 const gamesCollectionRef = collection(db, "games");
                 const queryConstraints = [];
-                if (filters.genre.length > 0) queryConstraints.push(where("genre", "array-contains-any", filters.genre));
+                // Defensive check: ensure filters.genre is an array and not empty
+                if (Array.isArray(filters.genre) && filters.genre.length > 0) {
+                    queryConstraints.push(where("genre", "array-contains-any", filters.genre));
+                }
                 if (filters.status) queryConstraints.push(where("status", "==", filters.status));
                 
                 const q = query(gamesCollectionRef, ...queryConstraints, orderBy("name"));
@@ -100,7 +103,7 @@ export const useGameManagement = () => {
 
     const toggleRowSelection = useCallback((gameId) => {
         setSelectedRows((prev) =>
-            prev.includes(gameId) ? prev.filter((id) => id !== gameId) : [...prev, id]
+            prev.includes(gameId) ? prev.filter((id) => id !== gameId) : [...prev, gameId]
         );
     }, []);
 

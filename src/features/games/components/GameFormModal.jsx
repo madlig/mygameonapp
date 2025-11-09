@@ -93,27 +93,45 @@ const GameFormModal = ({ isOpen, onClose, onSubmit, initialData = null }) => {
   // Efek untuk mengisi form saat initialData berubah (mode edit)
   useEffect(() => {
     if (isEditMode && initialData) {
-      const dateFromFirestore = initialData.dateAdded?.toDate ? initialData.dateAdded.toDate() : null;
-      
       let formattedDate = '';
-      if (dateFromFirestore) {
-        // *** PERBAIKAN: Mengatasi masalah zona waktu ***
-        // Ambil tahun, bulan, dan tanggal dari tanggal lokal untuk menghindari pergeseran
-        const year = dateFromFirestore.getFullYear();
-        const month = String(dateFromFirestore.getMonth() + 1).padStart(2, '0'); // Bulan dimulai dari 0
-        const day = String(dateFromFirestore.getDate()).padStart(2, '0');
-        formattedDate = `${year}-${month}-${day}`;
+      
+      try {
+        let dateFromFirestore = null;
+        // Handle Firestore Timestamp with toDate method
+        if (initialData.dateAdded?.toDate) {
+          dateFromFirestore = initialData.dateAdded.toDate();
+        }
+        // Handle Date instance
+        else if (initialData.dateAdded instanceof Date) {
+          dateFromFirestore = initialData.dateAdded;
+        }
+        // Handle ISO string or other date formats
+        else if (initialData.dateAdded) {
+          dateFromFirestore = new Date(initialData.dateAdded);
+        }
+        
+        if (dateFromFirestore && !isNaN(dateFromFirestore.getTime())) {
+          // *** PERBAIKAN: Mengatasi masalah zona waktu ***
+          // Ambil tahun, bulan, dan tanggal dari tanggal lokal untuk menghindari pergeseran
+          const year = dateFromFirestore.getFullYear();
+          const month = String(dateFromFirestore.getMonth() + 1).padStart(2, '0'); // Bulan dimulai dari 0
+          const day = String(dateFromFirestore.getDate()).padStart(2, '0');
+          formattedDate = `${year}-${month}-${day}`;
+        }
+      } catch (error) {
+        console.error("Error parsing date:", error);
+        formattedDate = new Date().toISOString().split("T")[0];
       }
       
       const formValues = {
         ...initialData,
-        dateAdded: formattedDate, // Gunakan tanggal yang sudah diformat dengan benar
+        dateAdded: formattedDate || new Date().toISOString().split("T")[0],
         size: parseFloat(initialData.size) || "",
         unit: (initialData.size || " MB").split(" ")[1] || "MB",
       };
       reset(formValues);
 
-      setValue('dateAdded', formattedDate);
+      setValue('dateAdded', formattedDate || new Date().toISOString().split("T")[0]);
 
       // 3. Atur state untuk komponen kustom
       const unit = (initialData.size || " MB").split(" ")[1] || "MB";
@@ -126,7 +144,7 @@ const GameFormModal = ({ isOpen, onClose, onSubmit, initialData = null }) => {
       // Atur nilai default untuk mode "Tambah Baru"
       reset({
         name: "", version: "", size: "", unit: "MB", jumlahPart: "",
-        platform: "", location: "", genre: [], status: "",
+        platform: "", locations: [], genre: [], status: "",
         dateAdded: new Date().toISOString().split("T")[0], description: "",
         shopeeLink: "",
       });
@@ -136,7 +154,7 @@ const GameFormModal = ({ isOpen, onClose, onSubmit, initialData = null }) => {
       setSelectedStatus("");
       setSelectedUnit("MB");
     }
-  }, [initialData, isEditMode, reset]);
+  }, [initialData, isEditMode, reset, setValue]);
 
   // // Efek untuk sinkronisasi selector (tidak berubah)
   // useEffect(() => {
@@ -205,8 +223,8 @@ const GameFormModal = ({ isOpen, onClose, onSubmit, initialData = null }) => {
     if (isImageRemoved) {
       finalCoverArtUrl = '';
     }
-    // 1. Unggah gambar HANYA JIKA ada file baru yang dipilih
-    else if (coverImage) {
+    // 1. Unggah gambar HANYA JIKA ada file baru yang dipilih (coverImage is a File object)
+    else if (coverImage instanceof File) {
       const fileName = `covers/${data.name.replace(/\s+/g, '-').toLowerCase()}-${Date.now()}`;
       const storageRef = ref(storage, fileName);
       try {

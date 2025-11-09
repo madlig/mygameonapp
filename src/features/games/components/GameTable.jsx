@@ -114,16 +114,37 @@ const GameTable = ({
                     {game.status}
                   </span>
                 </td><td className="px-6 py-4 truncate">
-                  
-                  
-                  {game.dateAdded
-                    ? new Date(game.dateAdded.seconds * 1000).toLocaleDateString("id-ID", {
-                        timeZone: 'UTC', // <-- Ini sangat penting!
-                        day: 'numeric',
-                        month: 'long',
-                        year: 'numeric',
-                      })
-                    : "N/A"}
+                  {(() => {
+                    try {
+                      let date = null;
+                      // Handle Firestore Timestamp
+                      if (game.dateAdded && game.dateAdded.seconds) {
+                        date = new Date(game.dateAdded.seconds * 1000);
+                      }
+                      // Handle Date object
+                      else if (game.dateAdded instanceof Date) {
+                        date = game.dateAdded;
+                      }
+                      // Handle ISO string or other date formats
+                      else if (game.dateAdded) {
+                        date = new Date(game.dateAdded);
+                      }
+                      
+                      // Validate the date
+                      if (date && !isNaN(date.getTime())) {
+                        return date.toLocaleDateString("id-ID", {
+                          timeZone: 'UTC',
+                          day: 'numeric',
+                          month: 'long',
+                          year: 'numeric',
+                        });
+                      }
+                      return "N/A";
+                    } catch (error) {
+                      console.error("Error formatting date:", error);
+                      return "N/A";
+                    }
+                  })()}
                 </td><td className="px-6 py-4 text-center">
                   <span
                     className="text-gray-500 cursor-pointer hover:text-gray-700"

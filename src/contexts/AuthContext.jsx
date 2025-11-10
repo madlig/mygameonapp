@@ -48,6 +48,7 @@ export function AuthProvider({ children }) {
   // Nilai yang akan disediakan oleh AuthContext
   const value = {
     currentUser,
+    loading,
     signup,
     login,
     logout

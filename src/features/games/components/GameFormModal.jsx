@@ -43,11 +43,12 @@ const GameFormModal = ({ isOpen, onClose, onSubmit, initialData = null }) => {
     reset,
   } = useForm({
     resolver: yupResolver(schema),
-    defaultValues: initialData || {
-      // Nilai default untuk form tambah
+    defaultValues: {
+      // Merge base defaults with initialData to ensure all fields exist
       name: "", version: "", size: "", unit: "MB", jumlahPart: "",
       platform: "", locations: [], genre: [], shopeeLink: "", status: "",
       dateAdded: new Date().toISOString().split("T")[0], description: "",
+      ...(initialData || {}),
     },
   });
 
@@ -89,14 +90,32 @@ const GameFormModal = ({ isOpen, onClose, onSubmit, initialData = null }) => {
     fetchDropdownData();
   }, []);
 
-  
   // Efek untuk mengisi form saat initialData berubah (mode edit)
   useEffect(() => {
     if (isEditMode && initialData) {
-      const dateFromFirestore = initialData.dateAdded?.toDate ? initialData.dateAdded.toDate() : null;
+      // Robust date parsing
+      let dateFromFirestore = null;
+      if (initialData.dateAdded) {
+        // Handle Firestore Timestamp with toDate method
+        if (typeof initialData.dateAdded.toDate === 'function') {
+          dateFromFirestore = initialData.dateAdded.toDate();
+        }
+        // Handle Date instance
+        else if (initialData.dateAdded instanceof Date) {
+          dateFromFirestore = initialData.dateAdded;
+        }
+        // Handle ISO string
+        else if (typeof initialData.dateAdded === 'string') {
+          dateFromFirestore = new Date(initialData.dateAdded);
+        }
+        // Handle Firestore Timestamp object with seconds
+        else if (initialData.dateAdded.seconds) {
+          dateFromFirestore = new Date(initialData.dateAdded.seconds * 1000);
+        }
+      }
       
       let formattedDate = '';
-      if (dateFromFirestore) {
+      if (dateFromFirestore && !isNaN(dateFromFirestore.getTime())) {
         // *** PERBAIKAN: Mengatasi masalah zona waktu ***
         // Ambil tahun, bulan, dan tanggal dari tanggal lokal untuk menghindari pergeseran
         const year = dateFromFirestore.getFullYear();
@@ -110,6 +129,8 @@ const GameFormModal = ({ isOpen, onClose, onSubmit, initialData = null }) => {
         dateAdded: formattedDate, // Gunakan tanggal yang sudah diformat dengan benar
         size: parseFloat(initialData.size) || "",
         unit: (initialData.size || " MB").split(" ")[1] || "MB",
+        locations: Array.isArray(initialData.locations) ? initialData.locations : [],
+        genre: Array.isArray(initialData.genre) ? initialData.genre : [],
       };
       reset(formValues);
 
@@ -126,7 +147,7 @@ const GameFormModal = ({ isOpen, onClose, onSubmit, initialData = null }) => {
       // Atur nilai default untuk mode "Tambah Baru"
       reset({
         name: "", version: "", size: "", unit: "MB", jumlahPart: "",
-        platform: "", location: "", genre: [], status: "",
+        platform: "", locations: [], genre: [], status: "",
         dateAdded: new Date().toISOString().split("T")[0], description: "",
         shopeeLink: "",
       });
@@ -136,7 +157,7 @@ const GameFormModal = ({ isOpen, onClose, onSubmit, initialData = null }) => {
       setSelectedStatus("");
       setSelectedUnit("MB");
     }
-  }, [initialData, isEditMode, reset]);
+  }, [initialData, isEditMode, reset, setValue]);
 
   // // Efek untuk sinkronisasi selector (tidak berubah)
   // useEffect(() => {
@@ -202,10 +223,11 @@ const GameFormModal = ({ isOpen, onClose, onSubmit, initialData = null }) => {
     setUploading(true);
     let finalCoverArtUrl = initialData?.coverArtUrl || '';
 
+    // If user explicitly removed the image, clear it
     if (isImageRemoved) {
       finalCoverArtUrl = '';
     }
-    // 1. Unggah gambar HANYA JIKA ada file baru yang dipilih
+    // Upload new image ONLY IF a new file was selected
     else if (coverImage) {
       const fileName = `covers/${data.name.replace(/\s+/g, '-').toLowerCase()}-${Date.now()}`;
       const storageRef = ref(storage, fileName);
@@ -236,12 +258,12 @@ const GameFormModal = ({ isOpen, onClose, onSubmit, initialData = null }) => {
         jumlahPart: data.jumlahPart,
         platform: data.platform,
         coverArtUrl: finalCoverArtUrl,
-        genre: data.genre,
+        genre: Array.isArray(data.genre) ? data.genre : [],
         shopeeLink: data.shopeeLink || "",
         status: data.status,
         dateAdded: dateInUTC,
         description: data.description || "",
-        locations: data.locations,
+        locations: Array.isArray(data.locations) ? data.locations : [],
     };
 
       await onSubmit(finalData, initialData?.id); // Kirim data dan ID (jika ada)

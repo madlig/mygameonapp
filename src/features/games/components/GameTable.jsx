@@ -80,7 +80,7 @@ const GameTable = ({
                 <td className="px-6 py-4 truncate">{game.size}</td>
                 <td className="px-6 py-4 text-center">{game.jumlahPart}</td>
                 <td className="px-6 py-4 text-center">
-                  {game.genre && game.genre.length > 0 ? ( // Asumsi data masih game.category
+                  {Array.isArray(game.genre) && game.genre.length > 0 ? ( // Asumsi data masih game.category
                     game.genre.map((cat, index) => (
                       <span
                         key={index}
@@ -93,7 +93,7 @@ const GameTable = ({
                     <span className="text-gray-500">No Genre</span>
                   )}
                 </td><td className="px-6 py-4 text-center">
-                  {game.locations && game.locations.length > 0 ? (
+                  {Array.isArray(game.locations) && game.locations.length > 0 ? (
                     game.locations.map((location, index) => (
                       <span
                         key={index}
@@ -114,16 +114,42 @@ const GameTable = ({
                     {game.status}
                   </span>
                 </td><td className="px-6 py-4 truncate">
-                  
-                  
-                  {game.dateAdded
-                    ? new Date(game.dateAdded.seconds * 1000).toLocaleDateString("id-ID", {
-                        timeZone: 'UTC', // <-- Ini sangat penting!
+                  {(() => {
+                    try {
+                      if (!game.dateAdded) return "N/A";
+                      
+                      let date;
+                      // Handle Firestore Timestamp
+                      if (game.dateAdded.seconds) {
+                        date = new Date(game.dateAdded.seconds * 1000);
+                      }
+                      // Handle Firestore Timestamp with toDate method
+                      else if (typeof game.dateAdded.toDate === 'function') {
+                        date = game.dateAdded.toDate();
+                      }
+                      // Handle Date object
+                      else if (game.dateAdded instanceof Date) {
+                        date = game.dateAdded;
+                      }
+                      // Handle ISO string
+                      else if (typeof game.dateAdded === 'string') {
+                        date = new Date(game.dateAdded);
+                      }
+                      else {
+                        return "N/A";
+                      }
+                      
+                      return date.toLocaleDateString("id-ID", {
+                        timeZone: 'UTC',
                         day: 'numeric',
                         month: 'long',
                         year: 'numeric',
-                      })
-                    : "N/A"}
+                      });
+                    } catch (error) {
+                      console.error("Error formatting date:", error);
+                      return "N/A";
+                    }
+                  })()}
                 </td><td className="px-6 py-4 text-center">
                   <span
                     className="text-gray-500 cursor-pointer hover:text-gray-700"

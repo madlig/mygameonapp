@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import Modal from '../../../components/common/Modal';
 
 const AddEditProjectModal = ({ isOpen, onClose, onSave, initialData }) => {
   const [projectName, setProjectName] = useState('');
@@ -26,14 +27,12 @@ const AddEditProjectModal = ({ isOpen, onClose, onSave, initialData }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex justify-center items-center z-50">
-      <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-md">
+    <Modal onClose={onClose} ariaLabel={initialData ? "Edit Project" : "Add Project"}>
+      <div className="p-6 w-full max-w-md">
         <h2 className="text-2xl font-bold mb-4">{initialData ? 'Edit Project' : 'Add New Project'}</h2>
         <form onSubmit={handleSubmit}>
           <div className="mb-4">
-            <label htmlFor="projectName" className="block text-gray-700 text-sm font-bold mb-2">
-              Project Name:
-            </label>
+            <label htmlFor="projectName" className="block text-gray-700 text-sm font-bold mb-2">Project Name:</label>
             <input
               type="text"
               id="projectName"
@@ -44,9 +43,7 @@ const AddEditProjectModal = ({ isOpen, onClose, onSave, initialData }) => {
             />
           </div>
           <div className="mb-4">
-            <label htmlFor="projectDescription" className="block text-gray-700 text-sm font-bold mb-2">
-              Description (Optional):
-            </label>
+            <label htmlFor="projectDescription" className="block text-gray-700 text-sm font-bold mb-2">Description (Optional):</label>
             <textarea
               id="projectDescription"
               value={projectDescription}
@@ -55,23 +52,14 @@ const AddEditProjectModal = ({ isOpen, onClose, onSave, initialData }) => {
             ></textarea>
           </div>
           <div className="flex justify-end gap-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="bg-gray-300 text-gray-800 px-4 py-2 rounded-md hover:bg-gray-400 transition duration-200"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition duration-200"
-            >
+            <button type="button" onClick={onClose} className="bg-gray-300 text-gray-800 px-4 py-2 rounded-md hover:bg-gray-400">Cancel</button>
+            <button type="submit" className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600">
               {initialData ? 'Update Project' : 'Add Project'}
             </button>
           </div>
         </form>
       </div>
-    </div>
+    </Modal>
   );
 };
 

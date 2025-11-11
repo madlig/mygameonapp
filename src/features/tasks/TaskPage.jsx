@@ -93,7 +93,6 @@ const TaskPage = () => {
       );
     } else {
       // Query untuk "All Tasks" (jika tidak ada project atau daily yang dipilih)
-      // Ini akan menampilkan semua tugas, baik yang punya projectId maupun tidak, dan daily/bukan daily
       currentQuery = query(
         tasksCollectionRef,
         orderBy('createdAt', 'desc')
@@ -102,7 +101,6 @@ const TaskPage = () => {
 
     // Menggunakan onSnapshot langsung di sini
     const unsubscribeTasks = onSnapshot(currentQuery, (snapshot) => {
-      console.log("Firestore tasks snapshot received. Docs:", snapshot.docs.length); // Debugging log
       const fetchedTasks = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
@@ -119,10 +117,7 @@ const TaskPage = () => {
 
     // Cleanup function untuk listener tasks
     return () => {
-      console.log("Unsubscribing from tasks listener."); // Debugging log
-      if (unsubscribeTasks) {
-        unsubscribeTasks();
-      }
+      if (unsubscribeTasks) unsubscribeTasks();
     };
   }, [userId, selectedProjectId, showDailyTasks]); // Dependensi useEffect
 
@@ -145,10 +140,8 @@ const TaskPage = () => {
     try {
       if (editingProject) {
         await updateProject(userId, editingProject.id, { name: projectName, description: projectDescription });
-        console.log('Project updated successfully!');
       } else {
         await addProject(userId, projectName, projectDescription);
-        console.log('Project added successfully!');
       }
       handleCloseProjectModal();
     } catch (err) {
@@ -173,27 +166,16 @@ const TaskPage = () => {
           setSelectedProjectId(null); // Reset selection if current project is deleted
           setShowDailyTasks(true); // Kembali ke daily tasks
         }
-        alert('Project deleted successfully!');
       } catch (err) {
         setError(`Failed to delete project: ${err.message}`);
       }
     }
   };
 
-
   // --- Handlers for Task Modals ---
   const handleOpenAddTaskModal = (projectId = null) => {
     setEditingTask(null);
     setCurrentProjectForTask(projectId);
-
-    let projectNameForTemplate = null;
-    if (projectId) {
-      const selectedProject = projects.find(p => p.id === projectId);
-      if (selectedProject) {
-        const words = selectedProject.name.split(' ');
-        projectNameForTemplate = words.map(word => word.charAt(0)).join('').toUpperCase();
-      }
-    }
     setIsTaskModalOpen(true);
   };
 
@@ -217,7 +199,6 @@ const TaskPage = () => {
     try {
       if (editingTask) {
         await updateTask(userId, editingTask.id, taskData);
-        console.log('Task updated successfully!');
       } else {
         const finalTaskData = {
           ...taskData,
@@ -225,7 +206,6 @@ const TaskPage = () => {
           isDailyTask: currentProjectForTask ? false : taskData.isDailyTask,
         };
         await addTask(userId, finalTaskData);
-        console.log('Task added successfully!');
       }
       handleCloseTaskModal();
     } catch (error) {
@@ -254,7 +234,6 @@ const TaskPage = () => {
         status: newStatus,
         completedAt: newCompletedAt,
       });
-      alert(`Task "${task.title}" status updated to: ${newStatus}`);
     } catch (error) {
       setError(`Failed to update task status: ${error.message}`);
     }
@@ -268,7 +247,6 @@ const TaskPage = () => {
       }
       try {
         await deleteTask(userId, taskId);
-        alert('Task deleted successfully!');
       } catch (err) {
         setError(`Failed to delete task: ${err.message}`);
       }
@@ -289,7 +267,7 @@ const TaskPage = () => {
   const headerTitle = showDailyTasks
     ? 'Daily Tasks'
     : selectedProjectId
-      ? projects.find(p => p.id === selectedProjectId)?.name + " Tasks"
+      ? (projects.find(p => p.id === selectedProjectId)?.name || "Project") + " Tasks"
       : 'All Tasks';
 
   if (loading) {
@@ -309,9 +287,10 @@ const TaskPage = () => {
   }
 
   return (
-    <div className="flex min-h-screen bg-gray-100">
-      {/* Sidebar / Project List (Menggunakan komponen ProjectList) */}
-      <div className="w-1/4 bg-white p-6 shadow-lg">
+    // Responsive layout: column on small screens, row on md+
+    <div className="flex flex-col md:flex-row min-h-screen bg-gray-100">
+      {/* Left: Projects area (sidebar on md+, top bar on mobile) */}
+      <aside className="w-full md:w-1/4 bg-white md:h-auto border-r md:border-r-0 md:border-r md:border-gray-100">
         <ProjectList
           projects={projects}
           selectedProjectId={selectedProjectId}
@@ -321,18 +300,23 @@ const TaskPage = () => {
           onEditProject={handleEditProject}
           onDeleteProject={handleDeleteProject}
         />
-      </div>
+      </aside>
 
       {/* Main Content */}
-      <div className="flex-1 p-6">
-        <h1 className="text-3xl font-bold text-gray-800 mb-6">{headerTitle}</h1>
+      <main className="flex-1 p-4 md:p-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-4">
+          <h1 className="text-2xl font-bold text-gray-800">{headerTitle}</h1>
 
-        <button
-          onClick={() => handleOpenAddTaskModal(selectedProjectId)}
-          className="bg-green-500 text-white px-5 py-2 rounded-md hover:bg-green-600 mb-6 transition duration-200"
-        >
-          + Add New Task
-        </button>
+          {/* Add New Task: full width on mobile, auto on md+ */}
+          <div className="w-full sm:w-auto">
+            <button
+              onClick={() => handleOpenAddTaskModal(selectedProjectId)}
+              className="w-full sm:w-auto bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600 transition"
+            >
+              + Add New Task
+            </button>
+          </div>
+        </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {tasks.length === 0 ? (
@@ -353,56 +337,31 @@ const TaskPage = () => {
                   }}
                 >
                   <div>
-                    <h3 className="text-xl font-semibold mb-2 text-gray-800">{task.title}</h3>
-                    {projectName && (
-                      <p className="text-sm text-gray-500 mb-1">
-                        Project: <span className="font-medium text-gray-700">{projectName}</span>
-                      </p>
-                    )}
-                    {task.isDailyTask && !projectName && (
-                      <p className="text-sm text-gray-500 mb-1">
-                        Type: <span className="font-medium text-purple-600">Daily Task</span>
-                      </p>
-                    )}
+                    <div className="flex items-start justify-between">
+                      <h3 className="text-xl font-semibold mb-2 text-gray-800 truncate">{task.title}</h3>
+                      {projectName && <span className="text-sm text-gray-500 ml-2 whitespace-nowrap">{projectName}</span>}
+                    </div>
+
                     {task.description && (
-                      <p className="text-sm text-gray-700 mb-1 leading-relaxed">{task.description}</p>
+                      <p className="text-sm text-gray-700 mb-2 leading-relaxed line-clamp-3">{task.description}</p>
                     )}
-                    <p className="text-sm text-gray-600 mb-1">
-                      Status: <span className={`font-medium ${task.status === 'Done' ? 'text-green-600' : task.status === 'In Progress' ? 'text-yellow-600' : 'text-gray-600'}`}>{task.status}</span>
-                    </p>
-                    <p className="text-sm text-gray-600 mb-1">
-                      Priority: <span className="font-medium">{task.priority}</span>
-                    </p>
-                    {task.deadline && (
-                      <p className="text-sm text-gray-600 mb-1">
-                        Deadline: <span className="font-medium">{new Date(task.deadline).toLocaleDateString()}</span>
-                      </p>
-                    )}
-                    <p className="text-xs text-gray-500">Created: {new Date(task.createdAt).toLocaleDateString()}</p>
+
+                    <div className="text-sm text-gray-600 space-y-1">
+                      <p>Type: <span className="font-medium text-sm text-purple-600">{task.isDailyTask ? 'Daily Task' : 'Task'}</span></p>
+                      <p>Status: <span className={`font-medium ${task.status === 'Done' ? 'text-green-600' : task.status === 'In Progress' ? 'text-yellow-600' : 'text-gray-600'}`}>{task.status}</span></p>
+                      <p>Priority: <span className="font-medium">{task.priority}</span></p>
+                      {task.createdAt && <p>Created: <span className="font-medium">{new Date(task.createdAt).toLocaleDateString()}</span></p>}
+                    </div>
                   </div>
-                  <div className="flex justify-end gap-2 mt-4">
-                    <button
-                      onClick={() => handleToggleTaskStatus(task)}
-                      className={`px-3 py-1 rounded-md text-white text-sm ${
-                        task.status === 'Not Started' ? 'bg-indigo-500 hover:bg-indigo-600' :
-                        task.status === 'In Progress' ? 'bg-green-500 hover:bg-green-600' :
-                        'bg-yellow-500 hover:bg-yellow-600'
-                      }`}
-                    >
-                      {task.status === 'Not Started' ? 'Start Task' :
-                       task.status === 'In Progress' ? 'Mark Done' :
-                       'Unmark Done'}
+
+                  <div className="flex flex-wrap gap-3 mt-4">
+                    <button onClick={() => handleToggleTaskStatus(task)} className="px-3 py-2 bg-green-500 text-white rounded hover:bg-green-600">
+                      {task.status === 'Done' ? 'Unmark' : 'Mark Done'}
                     </button>
-                    <button
-                      onClick={() => handleEditTask(task)}
-                      className="bg-blue-500 text-white px-3 py-1 rounded-md hover:bg-blue-600 text-sm"
-                    >
+                    <button onClick={() => handleEditTask(task)} className="px-3 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
                       Edit
                     </button>
-                    <button
-                      onClick={() => handleDeleteTask(task.id)}
-                      className="bg-red-500 text-white px-3 py-1 rounded-md hover:bg-red-600 text-sm"
-                    >
+                    <button onClick={() => handleDeleteTask(task.id)} className="px-3 py-2 bg-red-500 text-white rounded hover:bg-red-600">
                       Delete
                     </button>
                   </div>
@@ -411,7 +370,7 @@ const TaskPage = () => {
             })
           )}
         </div>
-      </div>
+      </main>
 
       {/* Modals */}
       {isProjectModalOpen && (

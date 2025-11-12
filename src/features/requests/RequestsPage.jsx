@@ -1,15 +1,23 @@
 import React, { useState, useEffect } from "react";
-import { DndProvider } from "react-dnd";
-import { HTML5Backend } from "react-dnd-html5-backend";
-import { collection, doc, updateDoc, deleteDoc, onSnapshot, query, where, getDocs } from "firebase/firestore";
+import Swal from "sweetalert2";
+import {
+  collection,
+  doc,
+  updateDoc,
+  deleteDoc,
+  onSnapshot,
+  query,
+  where,
+  getDocs,
+} from "firebase/firestore";
 import { db } from "../../config/firebaseConfig";
 import StatusColumn from "./components/StatusColumn";
 import AddNewRequest from "./components/AddNewRequest";
-import EditRequestModal from "./components/EditRequestModal"
+import EditRequestModal from "./components/EditRequestModal";
 import { moveGameToGamesTable } from "./services/moveGameToGamesTable.js";
 
 const RequestsPage = () => {
-  const [activeTab, setActiveTab] = useState("games"); // Default: Pending Requests
+  const [activeTab, setActiveTab] = useState("games"); // Game Requests / Pending
   const [requests, setRequests] = useState({
     "Requested List": [],
     "On Process": [],
@@ -18,26 +26,20 @@ const RequestsPage = () => {
   const [pendingRequests, setPendingRequests] = useState([]);
 
   const [showModal, setShowModal] = useState(false);
-  const [editModal, setEditModal] = useState({
-    isOpen: false,
-    requestData: null,
-  });
+  const [editModal, setEditModal] = useState({ isOpen: false, requestData: null });
 
   useEffect(() => {
     const unsubscribe = onSnapshot(collection(db, "requests"), (snapshot) => {
-      const requestsData = {
-        "Requested List": [],
-        "On Process": [],
-        Uploaded: [],
-      };
+      const requestsData = { "Requested List": [], "On Process": [], Uploaded: [] };
       const pendingData = [];
 
-      snapshot.forEach((doc) => {
-        const data = doc.data();
+      snapshot.forEach((d) => {
+        const data = d.data();
+        const item = { id: d.id, ...data };
         if (data.statusColumn === "pending") {
-          pendingData.push({ id: doc.id, ...data });
+          pendingData.push(item);
         } else if (requestsData[data.statusColumn]) {
-          requestsData[data.statusColumn].push({ id: doc.id, ...data });
+          requestsData[data.statusColumn].push(item);
         }
       });
 
@@ -48,222 +50,244 @@ const RequestsPage = () => {
     return () => unsubscribe();
   }, []);
 
+  const Toast = Swal.mixin({
+    toast: true,
+    position: "top-end",
+    showConfirmButton: false,
+    timer: 2200,
+    timerProgressBar: true,
+  });
+
   const handleAcceptRequest = async (request) => {
-    const { id, game } = request;
-  
-    // Cek apakah game sudah ada di Requested List
-    const q = query(collection(db, "requests"), where("game", "==", game), where("statusColumn", "==", "Requested List"));
+    const q = query(
+      collection(db, "requests"),
+      where("game", "==", request.game),
+      where("statusColumn", "==", "Requested List")
+    );
     const existingGameSnapshot = await getDocs(q);
-  
+
     if (!existingGameSnapshot.empty) {
-      const existingDoc = existingGameSnapshot.docs[0]; // Ambil dokumen pertama yang cocok
+      const existingDoc = existingGameSnapshot.docs[0];
       const existingData = existingDoc.data();
-      
-      const confirmMove = window.confirm("Game sudah terdaftar, apakah mau tetap dilanjutkan?");
-      
-      if (confirmMove) {
-        // Update requestCount hanya bertambah +1
+
+      const { isConfirmed } = await Swal.fire({
+        title: "Game sudah ada",
+        text: `${request.game} sudah ada di Requested List. Tambah request count?`,
+        icon: "question",
+        showCancelButton: true,
+        confirmButtonText: "Ya, tambah",
+        cancelButtonText: "Batal",
+      });
+
+      if (isConfirmed) {
         const updatedRequestCount = (existingData.requestCount || 1) + 1;
         await updateDoc(doc(db, "requests", existingDoc.id), {
           requestCount: updatedRequestCount,
-          latestDate: new Date().toISOString().split("T")[0]
+          latestDate: new Date().toISOString().split("T")[0],
         });
-  
-        // **Hapus request dari Pending Requests**
-        await deleteDoc(doc(db, "requests", id));
-      } else {
-        // Hapus request dari Firestore jika admin memilih "Tidak"
-        await deleteDoc(doc(db, "requests", id));
+        await deleteDoc(doc(db, "requests", request.id));
+        Toast.fire({ icon: "success", title: "Request merged ke Requested List" });
       }
     } else {
-      // Jika game belum ada, pindahkan ke Requested List
-      await updateDoc(doc(db, "requests", id), { statusColumn: "Requested List" });
+      await updateDoc(doc(db, "requests", request.id), { statusColumn: "Requested List" });
+      Toast.fire({ icon: "success", title: "Request dipindahkan ke Requested List" });
     }
   };
-  
 
   const handleRejectRequest = async (id) => {
+    const result = await Swal.fire({
+      title: "Tolak request?",
+      text: "Request akan dihapus dari pending.",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "Tolak",
+      cancelButtonText: "Batal",
+    });
+    if (!result.isConfirmed) return;
     await deleteDoc(doc(db, "requests", id));
+    Toast.fire({ icon: "success", title: "Request ditolak dan dihapus" });
   };
 
   const handleDeleteRequest = async (id) => {
-    const confirmDelete = window.confirm("Apakah Anda yakin ingin menghapus request ini?");
-    
-    if (!confirmDelete) return; // Jika user membatalkan, hentikan fungsi
-  
+    const result = await Swal.fire({
+      title: "Hapus request?",
+      text: "Tindakan ini tidak dapat dibatalkan.",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "Hapus",
+      cancelButtonText: "Batal",
+    });
+    if (!result.isConfirmed) return;
     try {
       await deleteDoc(doc(db, "requests", id));
-      setRequests((prevRequests) => {
-        const newRequests = { ...prevRequests };
+      setRequests((prev) => {
+        const newRequests = { ...prev };
         Object.keys(newRequests).forEach((status) => {
-          newRequests[status] = newRequests[status].filter((req) => req.id !== id);
+          newRequests[status] = newRequests[status].filter((r) => r.id !== id);
         });
         return newRequests;
       });
+      Toast.fire({ icon: "success", title: "Request dihapus" });
     } catch (error) {
       console.error("Gagal menghapus request:", error);
+      Swal.fire("Error", "Gagal menghapus request, coba lagi.", "error");
     }
   };
-  
-  
+
+  // Move request to target status with confirmation + toast
+  const handleMoveRequest = async (request, targetStatus) => {
+    const labelMap = {
+      "On Process": "Start process",
+      Uploaded: "Mark uploaded",
+      "Requested List": "Return to requested",
+    };
+    const actionLabel = labelMap[targetStatus] || `Move to ${targetStatus}`;
+
+    const { isConfirmed } = await Swal.fire({
+      title: `${actionLabel}?`,
+      html: `Apakah Anda yakin ingin <strong>${actionLabel}</strong> untuk <em>${request.game}</em>?`,
+      icon: "question",
+      showCancelButton: true,
+      confirmButtonText: actionLabel,
+      cancelButtonText: "Batal",
+    });
+
+    if (!isConfirmed) return;
+
+    try {
+      await updateDoc(doc(db, "requests", request.id), { statusColumn: targetStatus });
+      // optimistic UI update
+      setRequests((prev) => {
+        const newRequests = { ...prev };
+        Object.keys(newRequests).forEach((status) => {
+          newRequests[status] = newRequests[status].filter((r) => r.id !== request.id);
+        });
+        if (!newRequests[targetStatus]) newRequests[targetStatus] = [];
+        newRequests[targetStatus] = [{ ...request, statusColumn: targetStatus }, ...newRequests[targetStatus]];
+        return newRequests;
+      });
+      Toast.fire({ icon: "success", title: `${actionLabel} berhasil` });
+    } catch (error) {
+      console.error("Gagal memindahkan request:", error);
+      Swal.fire("Error", "Gagal memindahkan request. Coba lagi.", "error");
+    }
+  };
+
+  const handleMoveToGames = async (request) => {
+    const { isConfirmed } = await Swal.fire({
+      title: "Pindahkan ke Games?",
+      text: `Game "${request.game}" akan dipindahkan ke table Games dan dihapus dari Requests.`,
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "Move to Games",
+      cancelButtonText: "Batal",
+    });
+    if (!isConfirmed) return;
+
+    try {
+      await moveGameToGamesTable(request.id, request.game);
+      setRequests((prev) => {
+        const newRequests = { ...prev };
+        Object.keys(newRequests).forEach((status) => {
+          newRequests[status] = newRequests[status].filter((r) => r.id !== request.id);
+        });
+        return newRequests;
+      });
+      Toast.fire({ icon: "success", title: "Berhasil dipindahkan ke Games" });
+    } catch (err) {
+      console.error("Gagal memindahkan request ke games:", err);
+      Swal.fire("Error", "Gagal memindahkan ke Games.", "error");
+    }
+  };
+
   return (
-    <DndProvider backend={HTML5Backend}>
-      <div className="p-6 relative">
-        <h1 className="text-2xl font-bold mb-4">Request Management</h1>
+    <div className="p-6 relative">
+      <h1 className="text-2xl font-bold mb-4">Request Management</h1>
 
-        {/* Tab Navigation */}
-        <div className="flex border-b mb-4">
-          <button 
-              className={`px-4 py-2 text-sm font-medium focus:outline-none border-b-2 transition-all duration-200 ${activeTab === "games" ? "border-blue-500 text-blue-600" : "border-transparent text-gray-500 hover:text-gray-700"}`} 
-              onClick={() => setActiveTab("games")}
-          >
-              Game Requests
-          </button>
-          <button 
-              className={`px-4 py-2 text-sm font-medium focus:outline-none border-b-2 transition-all duration-200 ${activeTab === "pending" ? "border-blue-500 text-blue-600" : "border-transparent text-gray-500 hover:text-gray-700"}`} 
-              onClick={() => setActiveTab("pending")}
-          >
-              Pending Requests
-          </button>
-        </div>
+      <div className="flex border-b mb-4">
+        <button
+          className={`px-4 py-2 text-sm font-medium ${activeTab === "games" ? "border-b-2 border-blue-500 text-blue-600" : "text-gray-600"}`}
+          onClick={() => setActiveTab("games")}
+        >
+          Game Requests
+        </button>
+        <button
+          className={`px-4 py-2 text-sm font-medium ${activeTab === "pending" ? "border-b-2 border-blue-500 text-blue-600" : "text-gray-600"}`}
+          onClick={() => setActiveTab("pending")}
+        >
+          Pending Requests
+        </button>
+      </div>
 
-        {/* Tab Content */}
-        <div className="tab-content">
-          {activeTab === "pending" ? (
-            <div className="p-4 bg-white shadow rounded">
-              <h2 className="text-lg font-semibold mb-3">Pending Requests</h2>
-              {pendingRequests.length === 0 ? (
-                <p className="text-gray-500">Tidak ada request yang pending.</p>
-              ) : (
-                <ul className="space-y-2">
-                  {pendingRequests.map((request) => (
-                    <li key={request.id} className="p-3 flex justify-between items-center bg-gray-100 rounded shadow">
-                      <span className="font-medium">{request.game}</span>
-                      <div className="flex space-x-2">
-                        <button 
-                          className="px-3 py-1 bg-blue-500 text-white text-sm rounded hover:bg-blue-600"
-                          onClick={() => handleAcceptRequest(request)}
-                        >
-                          Terima
-                        </button>
-                        <button 
-                          className="px-3 py-1 bg-red-500 text-white text-sm rounded hover:bg-red-600"
-                          onClick={() => handleRejectRequest(request.id)}
-                        >
-                          Tolak
-                        </button>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
+      {activeTab === "pending" ? (
+        <div className="p-4 bg-white shadow rounded">
+          <h2 className="text-lg font-semibold mb-3">Pending Requests</h2>
+          {pendingRequests.length === 0 ? (
+            <p className="text-gray-500">Tidak ada request yang pending.</p>
           ) : (
-            <>
-              {/* Ini adalah Game Requests (kode yang sudah ada tetap dipertahankan) */}
-              <button
-                className="mb-4 px-4 py-2 bg-green-500 text-white text-sm font-medium rounded hover:bg-green-600"
-                onClick={() => setShowModal(true)}
-              >
-                Add Request Card
-              </button>
-
-              {/* Overlay dan Modal */}
-              {showModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center">
-                  <div
-                    className="absolute inset-0 bg-black bg-opacity-50"
-                    onClick={() => setShowModal(false)}
-                  ></div>
-                  <AddNewRequest
-                    closeModal={() => setShowModal(false)}
-                    requests={requests}
-                    setRequests={setRequests}
-                  />
-                </div>
-              )}
-
-              {/* Modal Edit */}
-              {editModal.isOpen && (
-                <EditRequestModal
-                  request={editModal.requestData}
-                  onClose={() => setEditModal({ isOpen: false, requestData: null })}
-                  onSave={(updatedRequest) => {
-                    const { id, statusColumn, ...data } = updatedRequest;
-                    const docRef = doc(db, "requests", id);
-                    updateDoc(docRef, data);
-
-                    setRequests((prev) => ({
-                      ...prev,
-                      [statusColumn]: prev[statusColumn].map((req) =>
-                        req.id === id ? { ...req, ...data } : req
-                      ),
-                    }));
-
-                    setEditModal({ isOpen: false, requestData: null });
-                  }}
-                />
-              )}
-
-              {/* Grid Status Columns */}
-              <div
-                className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 transition-all duration-300 ${
-                  showModal ? "opacity-50 pointer-events-none" : "opacity-100"
-                }`}
-              >
-                {Object.keys(requests).map((status) => (
-                  <StatusColumn
-                    key={status}
-                    id={status}
-                    items={requests[status]}
-                    moveCard={(source, destination) => {
-                      const sourceStatus = requests[source.status];
-                      const destinationStatus = requests[destination.status];
-
-                      const [movedCard] = sourceStatus.splice(source.index, 1);
-                      movedCard.statusColumn = destination.status;
-
-                      destinationStatus.splice(destination.index, 0, movedCard);
-
-                      setRequests((prev) => ({
-                        ...prev,
-                        [source.status]: sourceStatus,
-                        [destination.status]: destinationStatus,
-                      }));
-
-                      const cardDoc = doc(db, "requests", movedCard.id);
-                      updateDoc(cardDoc, { statusColumn: destination.status });
-                    }}
-                    showModal={showModal}
-                    onEdit={(request) =>
-                      setEditModal({ isOpen: true, requestData: request })
-                    }
-                    onDone={(request) => {
-                      console.log("Tombol Move to Games diklik!", request);
-                  
-                      moveGameToGamesTable(request.id, request.game)
-                          .then(() => {
-                              setRequests((prevRequests) => {
-                                  const newRequests = { ...prevRequests };
-                                  Object.keys(newRequests).forEach((status) => {
-                                      newRequests[status] = newRequests[status].filter(
-                                          (req) => req.id !== request.id
-                                      );
-                                  });
-                                  return newRequests;
-                              });
-                          })
-                          .catch((error) => console.error("Gagal memperbarui UI:", error));
-                  }}
-                  onDelete={handleDeleteRequest}                  
-                  />
-                ))}
-              </div>
-            </>
+            <ul className="space-y-2">
+              {pendingRequests.map((request) => (
+                <li key={request.id} className="p-3 flex justify-between items-center bg-gray-100 rounded shadow">
+                  <div>
+                    <div className="font-medium">{request.game}</div>
+                    {request.usernameShopee && <div className="text-sm text-gray-600">by: {request.usernameShopee}</div>}
+                  </div>
+                  <div className="flex space-x-2">
+                    <button className="px-3 py-1 bg-blue-500 text-white text-sm rounded" onClick={() => handleAcceptRequest(request)}>Terima</button>
+                    <button className="px-3 py-1 bg-red-500 text-white text-sm rounded" onClick={() => handleRejectRequest(request.id)}>Tolak</button>
+                  </div>
+                </li>
+              ))}
+            </ul>
           )}
         </div>
-      </div>
-    </DndProvider>
+      ) : (
+        <>
+          <div className="mb-4">
+            <button className="px-4 py-2 bg-green-500 text-white rounded" onClick={() => setShowModal(true)}>Add Request Card</button>
+          </div>
+
+          {showModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center">
+              <div className="absolute inset-0 bg-black bg-opacity-50" onClick={() => setShowModal(false)} />
+              <AddNewRequest closeModal={() => setShowModal(false)} requests={requests} setRequests={setRequests} />
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {Object.keys(requests).map((status) => (
+              <StatusColumn
+                key={status}
+                id={status}
+                items={requests[status]}
+                onEdit={(r) => setEditModal({ isOpen: true, requestData: r })}
+                onDelete={handleDeleteRequest}
+                onMove={handleMoveRequest}
+                onMoveToGames={handleMoveToGames}
+              />
+            ))}
+          </div>
+
+          {editModal.isOpen && (
+            <EditRequestModal
+              request={editModal.requestData}
+              onClose={() => setEditModal({ isOpen: false, requestData: null })}
+              onSave={async (updatedRequest) => {
+                const { id, statusColumn, ...data } = updatedRequest;
+                const docRef = doc(db, "requests", id);
+                await updateDoc(docRef, data);
+                setRequests((prev) => ({
+                  ...prev,
+                  [statusColumn]: prev[statusColumn].map((req) => (req.id === id ? { ...req, ...data } : req)),
+                }));
+                setEditModal({ isOpen: false, requestData: null });
+                Toast.fire({ icon: "success", title: "Request diperbarui" });
+              }}
+            />
+          )}
+        </>
+      )}
+    </div>
   );
 };
 

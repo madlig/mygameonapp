@@ -1,8 +1,5 @@
 // src/pages/OperationalPage/AdminShiftSection.jsx
-
-import React, { useState, useEffect } from 'react';
-import { db } from '../../../config/firebaseConfig';
-import { collection, getDocs, query, where, writeBatch, doc } from 'firebase/firestore';
+import React, { useState } from 'react';
 import Swal from 'sweetalert2';
 
 const AdminShiftSection = ({
@@ -11,82 +8,82 @@ const AdminShiftSection = ({
   handleStartShift, handleEndShift, getActiveShiftDuration,
   grossIncomeInput, setGrossIncomeInput, ordersCountInput, setOrdersCountInput
 }) => {
-  const [currentTime, setCurrentTime] = useState(new Date());
+  const [localAdmin, setLocalAdmin] = useState(adminName || "");
   const adminList = ["Fariz", "Adli"];
-  const totalGaji = shiftReport.reduce((sum, report) => sum + report.pay, 0);
 
-  useEffect(() => {
-    let intervalId = null;
-    if (activeShift) { intervalId = setInterval(() => setCurrentTime(new Date()), 1000); }
-    return () => clearInterval(intervalId);
-  }, [activeShift]);
-  
-  const handleDeleteRow = async (report) => {
-    const confirmation = await Swal.fire({ title: 'Anda Yakin?', html: `Hapus semua shift untuk <b>${report.adminName}</b> pada <b>${report.date.toLocaleDateString('id-ID')}</b>?`, icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33', confirmButtonText: 'Ya, Hapus!' });
-    if (!confirmation.isConfirmed) return;
+  const totalGaji = shiftReport.reduce((sum, report) => sum + (report.pay || 0), 0);
 
-    const startOfDay = new Date(report.date); startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date(report.date); endOfDay.setHours(23, 59, 59, 999);
-
-    try {
-        const q = query(collection(db, 'adminShifts'), where('adminName', '==', report.adminName), where('startTime', '>=', startOfDay), where('startTime', '<=', endOfDay));
-        const snapshot = await getDocs(q);
-        if (snapshot.empty) { Swal.fire('Info', 'Tidak ada data untuk dihapus.', 'info'); return; }
-        const batch = writeBatch(db);
-        snapshot.docs.forEach(d => batch.delete(d.ref));
-        await batch.commit();
-        Swal.fire('Terhapus!', 'Data shift telah dihapus.', 'success');
-        onRefreshRequest();
-    } catch (error) { Swal.fire('Error!', 'Gagal menghapus data.', 'error'); }
-  };
-  
   return (
-    <section className="bg-white p-4 rounded-lg shadow space-y-6">
-      <h2 className="text-xl font-semibold text-gray-700">Admin Shift Management</h2>
-      {!activeShift ? (
-        <>
-            <div className="mb-4"><label className="block text-sm">Pilih Admin:</label><select value={adminName} onChange={e => setAdminName(e.target.value)} className="mt-1 p-2 w-full border rounded-md"><option value="">-- Pilih Admin --</option>{adminList.map(name => (<option key={name} value={name}>{name}</option>))}</select></div>
-            <button onClick={handleStartShift} className="w-full bg-indigo-600 text-white px-4 py-2 rounded shadow hover:bg-indigo-700 disabled:opacity-50" disabled={!adminName.trim()}>Mulai Shift</button>
-        </>
-      ) : (
-        <div className="bg-blue-50 p-4 rounded-md shadow-inner">
-            <p className="text-lg font-semibold text-blue-800 mb-2">Shift Aktif:</p>
-            <p>Admin: <span className="font-medium">{activeShift.adminName}</span></p>
-            <p>Mulai: <span className="font-medium">{activeShift.startTime?.toLocaleTimeString('id-ID')}</span></p>
-            <p className="mb-4">Durasi: <span className="font-medium">{getActiveShiftDuration()}</span></p>
-            <div className="mb-4"><label className="block text-sm">Gross Income (Rp):</label><input type="number" value={grossIncomeInput} onChange={e => setGrossIncomeInput(e.target.value)} className="mt-1 p-2 w-full border rounded-md" /></div>
-            <div className="mb-4"><label className="block text-sm">Jumlah Pesanan:</label><input type="number" value={ordersCountInput} onChange={e => setOrdersCountInput(e.target.value)} className="mt-1 p-2 w-full border rounded-md" /></div>
-            <button onClick={handleEndShift} className="w-full bg-red-600 text-white px-4 py-2 rounded shadow hover:bg-red-700">Selesaikan Segmen Shift</button>
+    <section className="space-y-6">
+      <div className="bg-white p-4 rounded-lg shadow">
+        <h2 className="text-lg font-semibold text-gray-700 mb-4">Admin Shift Management</h2>
+
+        {/* Responsive form: single column mobile, inline on md */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
+          <div>
+            <label className="block text-sm text-gray-600">Pilih Admin:</label>
+            <select value={localAdmin} onChange={(e) => { setLocalAdmin(e.target.value); setAdminName(e.target.value); }} className="mt-1 p-2 w-full border rounded-md">
+              <option value="">-- Pilih Admin --</option>
+              {adminList.map(name => <option key={name} value={name}>{name}</option>)}
+            </select>
+          </div>
+
+          <div>
+            <button onClick={handleStartShift} className="w-full bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700">Mulai Shift</button>
+          </div>
+
+          <div>
+            <button onClick={handleEndShift} className="w-full bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700" disabled={!activeShift}>Selesaikan Shift</button>
+          </div>
         </div>
-      )}
-      
-      <hr className="my-6"/>
-      <h3 className="text-lg font-semibold text-gray-700">Laporan Gaji per Tanggal & Admin</h3>
-      <div className="mt-6">
-        {shiftReport.length === 0 ? ( <p>Tidak ada shift pada periode ini.</p> ) : 
-        (
-          <div className="space-y-4">
-            <div className="p-4 bg-indigo-50 rounded-lg"><p className="font-semibold text-indigo-800">Total Gaji Periode Ini: <span className="block text-2xl font-bold">Rp {totalGaji.toLocaleString('id-ID', {minimumFractionDigts:0, maximumFractionDigits:0})}</span></p></div>
-            <div className="overflow-x-auto border rounded-md">
-              <table className="min-w-full divide-y">
-                <thead className="bg-gray-50"><tr><th className="px-4 py-2 text-left text-xs uppercase">Tanggal</th><th className="px-4 py-2 text-left text-xs uppercase">Admin</th><th className="px-4 py-2 text-left text-xs uppercase">Total Durasi</th><th className="px-4 py-2 text-left text-xs uppercase">Total Pendapatan</th><th className="px-4 py-2 text-left text-xs uppercase">Total Pesanan</th><th className="px-4 py-2 text-left text-xs uppercase">Total Gaji</th><th className="px-4 py-2 text-left text-xs uppercase">Aksi</th></tr></thead>
-                <tbody className="bg-white divide-y">
-                  {shiftReport.map(report => (
-                    <tr key={`${report.date.toISOString()}_${report.adminName}`} className="hover:bg-gray-50">
-                      <td className="px-4 py-2 text-sm">{report.date.toLocaleDateString('id-ID', { day: 'numeric', month: 'long' })}</td>
-                      <td className="px-4 py-2 text-sm font-bold">{report.adminName}</td>
-                      <td className="px-4 py-2 text-sm">{report.totalDurationHours.toFixed(2)} jam</td>
-                      <td className="px-4 py-2 text-sm">Rp {report.totalGrossIncome.toLocaleString('id-ID')}</td>
-                      <td className="px-4 py-2 text-sm">{report.totalOrders}</td>
-                      <td className="px-4 py-2 text-sm font-bold text-purple-700">Rp {report.pay.toLocaleString('id-ID', {minimumFractionDigts:0, maximumFractionDigits:0})}</td>
-                      <td className="px-4 py-2 text-sm"><button onClick={() => handleDeleteRow(report)} className="text-red-600 hover:text-red-900">Hapus</button></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+
+        {/* Active shift info (if present) */}
+        {activeShift && (
+          <div className="mt-4 p-3 bg-gray-50 rounded">
+            <p className="text-sm">Shift Aktif: <span className="font-medium">{activeShift.adminName}</span></p>
+            <p className="text-sm">Mulai: <span className="font-medium">{activeShift.startTime?.toLocaleTimeString?.() || ''}</span></p>
+            <p className="text-sm">Durasi: <span className="font-medium">{getActiveShiftDuration()}</span></p>
           </div>
         )}
+      </div>
+
+      {/* Summary card */}
+      <div className="bg-white p-4 rounded-lg shadow">
+        <h3 className="text-md font-semibold text-gray-700 mb-2">Laporan Gaji per Tanggal & Admin</h3>
+        <div className="bg-indigo-50 p-4 rounded mb-4">
+          <div className="text-sm text-indigo-700">Total Gaji Periode Ini:</div>
+          <div className="text-2xl font-bold text-indigo-900">Rp {totalGaji.toLocaleString('id-ID')}</div>
+        </div>
+
+        {/* Table responsive */}
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-3 py-2 text-left text-xs uppercase">Tanggal</th>
+                <th className="px-3 py-2 text-left text-xs uppercase">Admin</th>
+                <th className="px-3 py-2 text-left text-xs uppercase">Total Durasi</th>
+                <th className="px-3 py-2 text-left text-xs uppercase">Total Pendapatan</th>
+                <th className="px-3 py-2 text-left text-xs uppercase">Total Pesanan</th>
+                <th className="px-3 py-2 text-left text-xs uppercase">Total Gaji</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y">
+              {shiftReport.length === 0 ? (
+                <tr><td colSpan="6" className="text-center p-4 text-gray-500">Tidak ada data shift.</td></tr>
+              ) : shiftReport.map((report, idx) => (
+                <tr key={idx} className="hover:bg-gray-50">
+                  <td className="px-3 py-2 text-sm">{report.date?.toLocaleDateString?.('id-ID', { day: 'numeric', month: 'long' })}</td>
+                  <td className="px-3 py-2 text-sm font-medium">{report.adminName}</td>
+                  <td className="px-3 py-2 text-sm">{report.totalDurationHours?.toFixed(2)} jam</td>
+                  <td className="px-3 py-2 text-sm">Rp {report.totalGrossIncome?.toLocaleString('id-ID')}</td>
+                  <td className="px-3 py-2 text-sm">{report.totalOrders || 0}</td>
+                  <td className="px-3 py-2 text-sm font-bold text-purple-700">Rp {report.pay?.toLocaleString('id-ID')}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </section>
   );

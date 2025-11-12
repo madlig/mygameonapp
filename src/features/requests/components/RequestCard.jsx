@@ -1,126 +1,120 @@
 import React from "react";
-import { useDrag } from "react-dnd";
-import { XMarkIcon } from "@heroicons/react/24/solid"; // Tambahkan icon X
-
-const ITEM_TYPE = "CARD";
-
-const calculateDeadline = (latestDate) => {
-  const deadlineDate = new Date(latestDate);
-  deadlineDate.setDate(deadlineDate.getDate() + 14);
-  const currentDate = new Date();
-  const timeDiff = deadlineDate - currentDate;
-  const daysLeft = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
-  return daysLeft > 0 ? `${daysLeft}d left` : "Expired";
-};
+import { XMarkIcon } from "@heroicons/react/24/solid";
 
 const getPriorityStyle = (requestCount) => {
-  if (requestCount > 10) return { label: "Critical", color: "bg-red-100 border-red-500 text-red-800" };
-  if (requestCount > 5) return { label: "High", color: "bg-orange-100 border-orange-500 text-orange-800" };
-  if (requestCount > 3) return { label: "Medium", color: "bg-yellow-100 border-yellow-500 text-yellow-800" };
-  return { label: "Low", color: "bg-green-100 border-green-500 text-green-800" };
+  if (requestCount > 10) return { label: "Critical", bg: "bg-red-100", text: "text-red-800" };
+  if (requestCount > 5) return { label: "High", bg: "bg-orange-100", text: "text-orange-800" };
+  if (requestCount > 3) return { label: "Medium", bg: "bg-yellow-100", text: "text-yellow-800" };
+  return { label: "Low", bg: "bg-green-100", text: "text-green-800" };
 };
 
-const getPlatformStyle = (platform) => {
-  switch (platform) {
-    case "OvaGames":
-      return "bg-pink-200 text-pink-800";
-    case "SteamRIP":
-      return "bg-purple-200 text-purple-800";
-    case "RepackGames":
-      return "bg-blue-200 text-blue-800";
-    default:
-      return "bg-gray-200 text-gray-800";
-  }
-};
+const RequestCard = ({ request, status, onEdit, onDelete, onMove, onMoveToGames }) => {
+  const priority = getPriorityStyle(request.requestCount || 0);
 
-const RequestCard = ({ id, request, data, onEdit, onDone, onDelete }) => {
-  const [{ isDragging }, dragRef] = useDrag({
-    type: ITEM_TYPE,
-    item: { id, ...data },
-    collect: (monitor) => ({
-      isDragging: monitor.isDragging(),
-    }),
-  });
-
-  const priority = getPriorityStyle(request.requestCount);
-  const deadline = priority.label === "Critical" ? calculateDeadline(request.latestDate) : null;
+  const renderMoveButtons = () => {
+    if (status === "Requested List") {
+      return (
+        <button
+          onClick={() => onMove(request, "On Process")}
+          className="flex-1 px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
+        >
+          Start Process
+        </button>
+      );
+    }
+    if (status === "On Process") {
+      return (
+        <button
+          onClick={() => onMove(request, "Uploaded")}
+          className="flex-1 px-3 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 text-sm"
+        >
+          Mark Uploaded
+        </button>
+      );
+    }
+    if (status === "Uploaded") {
+      return (
+        <div className="flex-1 flex gap-2">
+          <button
+            onClick={() => onMoveToGames && onMoveToGames(request)}
+            className="flex-1 px-3 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm"
+          >
+            Move to Games
+          </button>
+          <button
+            onClick={() => onMove(request, "Requested List")}
+            className="px-3 py-2 bg-gray-200 rounded hover:bg-gray-300 text-sm"
+          >
+            Return to Requested
+          </button>
+        </div>
+      );
+    }
+    return null;
+  };
 
   return (
-    <div
-      ref={dragRef}
-      style={{
-        opacity: isDragging ? 0.5 : 1,
-        cursor: "grab",
-      }}
-      className={`relative border rounded-lg shadow p-2 ${priority.color}`}
-      data-index={data.index}
-    >
-      {/* Tombol Hapus (X) */}
+    <div className={`relative border rounded-lg p-3 ${priority.bg} shadow-sm`}>
       <button
         onClick={() => onDelete(request.id)}
-        className="absolute top-1 right-1 text-red-600 hover:text-red-800 text-lg font-bold"
+        className="absolute top-2 right-2 text-red-600 hover:text-red-800 p-1 rounded"
+        aria-label="Delete request"
       >
-        <XMarkIcon className="w-5 h-5" />
+        <XMarkIcon className="w-4 h-4" />
       </button>
 
-      {/* Header dengan Prioritas dan Jumlah Request */}
-      <div className="flex justify-between items-center mb-2">
-        <div className="flex items-center gap-2">
-          <div className={`px-2 py-0.5 text-xs font-bold uppercase border rounded-full ${priority.color}`}>
+      <div className="flex items-start gap-3">
+        <div className="flex-shrink-0">
+          <div className={`px-2 py-0.5 text-xs font-bold uppercase rounded-full border ${priority.text}`}>
             {priority.label}
           </div>
-          <div className="px-2 py-0.5 bg-blue-500 text-white text-xs font-bold rounded-full">
-            {`Req: ${request.requestCount}`}
-          </div>
+          <div className="mt-2 px-2 py-0.5 bg-blue-500 text-white text-xs font-bold rounded-full text-center">Req: {request.requestCount}</div>
+        </div>
+
+        <div className="min-w-0 flex-1">
+          <h3 className="text-base font-semibold text-gray-800 truncate" title={request.game}>{request.game}</h3>
+
+          {request.usernameShopee && (
+            <div className="text-sm text-gray-600 mt-1">
+              Requested by: <span className="font-medium text-gray-800">{request.usernameShopee}</span>
+            </div>
+          )}
+
+          {request.earliestDate && (
+            <div className="text-xs text-gray-500 mt-1">{request.earliestDate}</div>
+          )}
+
+          {(request.platforms || []).length > 0 && (
+            <div className="flex flex-wrap gap-2 mt-2">
+              {request.platforms.map((p, i) => (
+                <span key={i} className="inline-block px-2 py-0.5 rounded-full text-xs font-semibold bg-gray-200 text-gray-800">
+                  {p}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Konten Utama */}
-      <div className="flex justify-between items-center">
-        <h3 className="text-base font-semibold text-gray-800 truncate">{request.game}</h3>
-        {deadline && (
-          <p className="text-xs font-semibold text-red-600">{deadline}</p>
-        )}
-      </div>
-
-      {/* Platform dalam bentuk badge */}
-      <div className="flex flex-wrap gap-1 mt-1">
-        {request.platforms.map((platform, index) => (
-          <span
-            key={index}
-            className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${getPlatformStyle(platform)}`}
-          >
-            {platform}
-          </span>
-        ))}
-      </div>
-
-      {/* Footer */}
-      <div className="flex justify-between items-center mt-2">
-        {/* Data Earliest Date */}
-        <p className="text-sm font-semibold text-gray-600">{request.earliestDate}</p>
-
-        {/* Tombol Edit */}
-        <button 
-          className="px-4 py-2 bg-blue-500 text-white text-sm font-medium rounded hover:bg-blue-600"
+      <div className="mt-3 flex flex-col sm:flex-row gap-2">
+        <button
           onClick={() => onEdit(request)}
+          className="w-full sm:w-auto px-3 py-2 bg-blue-500 text-white text-sm rounded hover:bg-blue-600"
         >
           Edit
         </button>
 
-        {/* Tombol Done */}
-        {data.status === "Uploaded" && (
-          <button
-            className="px-4 py-2 bg-green-500 text-white text-sm font-medium rounded hover:bg-green-600"
-            onClick={() => {
-              onDone(request)
-            }} // Ensure this passes the correct `request` object
-          >
-            Done
-          </button>
-        )}
+        {renderMoveButtons()}
+
+        <button
+          onClick={() => onDelete(request.id)}
+          className="w-full sm:w-auto px-3 py-2 bg-red-500 text-white text-sm rounded hover:bg-red-600"
+        >
+          Delete
+        </button>
       </div>
     </div>
   );
-}
+};
+
 export default RequestCard;

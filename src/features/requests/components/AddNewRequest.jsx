@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { collection, addDoc, updateDoc, doc } from "firebase/firestore";
 import { db } from "../../../config/firebaseConfig";
+import Modal from "../../../components/common/Modal";
 
 const AddNewRequest = ({ closeModal, requests, setRequests }) => {
   const [formData, setFormData] = useState({
@@ -86,14 +87,14 @@ const AddNewRequest = ({ closeModal, requests, setRequests }) => {
         return { ...prev, platforms: platforms.filter((p) => p !== platform) };
       } else {
         // Add platform if not selected
-        return { ...prev, platforms: [...platforms, platform] };
+        return { ...prev, platforms: [...prev, platform] };
       }
     });
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-30 flex justify-center items-center">
-      <div className="bg-white p-6 rounded-lg shadow-lg w-96">
+    <Modal onClose={closeModal} ariaLabel="Add Request">
+      <div className="p-6 w-full max-w-md">
         <h2 className="text-xl font-bold mb-4">Add New Request</h2>
         <form onSubmit={handleAddRequest}>
           <div className="mb-4">
@@ -108,7 +109,7 @@ const AddNewRequest = ({ closeModal, requests, setRequests }) => {
           </div>
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700">Platforms</label>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2 mt-2">
               {["OvaGames", "SteamRIP", "RepackGames"].map((platform) => (
                 <label
                   key={platform}
@@ -157,7 +158,7 @@ const AddNewRequest = ({ closeModal, requests, setRequests }) => {
           </div>
         </form>
       </div>
-    </div>
+    </Modal>
   );
 };
 

@@ -18,13 +18,16 @@ const Content = ({ children }) => {
   }, []);
 
   return (
-    <div className="relative flex-1 bg-gray-100 p-4">
-  <Breadcrumbs />
-  <LoadingOverlay isLoading={isLoading} />
-  <div className="mt-4">{children}</div>
-  <ScrollToTopButton isScrolled={isScrolled} />
-</div>
-
+    // gunakan safe-area-inset-bottom supaya konten tidak tertutup FAB/footer
+    <div
+      className="relative flex-1 bg-gray-100 p-4 sm:p-6"
+      style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 4rem)" }}
+    >
+      <Breadcrumbs />
+      <LoadingOverlay isLoading={isLoading} />
+      <div className="mt-4">{children}</div>
+      <ScrollToTopButton isScrolled={isScrolled} />
+    </div>
   );
 };
 

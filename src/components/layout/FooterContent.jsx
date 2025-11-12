@@ -6,7 +6,7 @@ const FooterContent = () => {
     <div className="absolute inset-x-0 bottom-full bg-gray-800 text-center py-4 opacity-0 translate-y-4 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300">
       {/* Tagline */}
       <p className="text-lg font-semibold text-gray-300 mb-4">
-        "Connecting Gamers, One Click at a Time"
+        Connecting Gamers, One Click at a Time
       </p>
 
       {/* Legal Links */}

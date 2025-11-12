@@ -98,17 +98,23 @@ const OperationalPage = () => {
   }, [calculateShiftPay]);
 
   const handlePresetClick = (preset) => {
-    const now = new Date();
-    let start = new Date(), end = new Date();
-    if (preset === 'today') {}
-    else if (preset === 'yesterday') { start.setDate(now.getDate() - 1); end.setDate(now.getDate() - 1); }
-    else if (preset === 'thisMonth') { start = new Date(now.getFullYear(), now.getMonth(), 1); end = new Date(now.getFullYear(), now.getMonth() + 1, 0); }
-    else if (preset === 'lastMonth') { start = new Date(now.getFullYear(), now.getMonth() - 1, 1); end = new Date(now.getFullYear(), now.getMonth(), 0); }
-    setStartDate(start); setEndDate(end);
-    setActivePreset(preset);
-    setShowManualDateRange(false);
-    fetchDataForPeriod(start, end);
-  };
+        const now = new Date();
+        let start = new Date(), end = new Date();
+        if (preset === 'today') {
+            // set start to today's 00:00:00 and end to today's 23:59:59.999
+            start = new Date(now);
+            start.setHours(0, 0, 0, 0);
+            end = new Date(now);
+            end.setHours(23, 59, 59, 999);
+        } 
+        else if (preset === 'yesterday') { start.setDate(now.getDate() - 1); start.setHours(0,0,0,0); end.setDate(now.getDate() - 1); end.setHours(23,59,59,999); } 
+        else if (preset === 'thisMonth') { start = new Date(now.getFullYear(), now.getMonth(), 1); end = new Date(now.getFullYear(), now.getMonth() + 1, 0); } 
+        else if (preset === 'lastMonth') { start = new Date(now.getFullYear(), now.getMonth() - 1, 1); end = new Date(now.getFullYear(), now.getMonth(), 0); }
+        setStartDate(start); setEndDate(end);
+        setActivePreset(preset);
+        setShowManualDateRange(false);
+        fetchDataForPeriod(start, end);
+    };
 
   const fetchActiveShift = async () => {
     const q = query(collection(db, 'adminShifts'), where('status', '==', 'active'));

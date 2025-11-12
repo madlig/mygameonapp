@@ -290,7 +290,7 @@ const TaskPage = () => {
     // Responsive layout: column on small screens, row on md+
     <div className="flex flex-col md:flex-row min-h-screen bg-gray-100">
       {/* Left: Projects area (sidebar on md+, top bar on mobile) */}
-      <aside className="w-full md:w-1/4 bg-white md:h-auto border-r md:border-r-0 md:border-r md:border-gray-100">
+      <aside className="w-full md:w-1/4 bg-white md:h-auto border-r md:border-gray-100">
         <ProjectList
           projects={projects}
           selectedProjectId={selectedProjectId}

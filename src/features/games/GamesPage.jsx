@@ -1,4 +1,4 @@
-// src/pages/GamesPage/index.jsx (small update: implement onRemoveFilter + pass onResetAll)
+// src/pages/GamesPage/index.jsx (update: measure site header height and pass headerOffset to GameTable)
 import React, { useEffect, useState, useCallback } from "react";
 import { useGameManagement } from "./hooks/useGameManagement";
 import { db, collection, getDocs } from "../../config/firebaseConfig";
@@ -46,6 +46,10 @@ const GamesPage = () => {
   const [genres, setGenres] = useState([]);
   const [statuses, setStatuses] = useState([]);
 
+  // header offset (px) to ensure we can compute table available height;
+  // passed to GameTable so it can calculate maxHeight for its scroll container
+  const [headerOffset, setHeaderOffset] = useState(0);
+
   useEffect(() => {
     const fetchUiData = async () => {
       const genresSnapshot = await getDocs(collection(db, "genres"));
@@ -56,6 +60,43 @@ const GamesPage = () => {
       setStatuses([...statusSet]);
     };
     fetchUiData();
+  }, []);
+
+  useEffect(() => {
+    const updateOffset = () => {
+      // try common header selectors in order of likelihood
+      const headerEl =
+        document.querySelector(".site-header") ||
+        document.querySelector("header") ||
+        document.getElementById("header") ||
+        document.querySelector(".app-header") ||
+        null;
+
+      if (headerEl) {
+        const rect = headerEl.getBoundingClientRect();
+        const style = window.getComputedStyle(headerEl);
+        const position = style.position || "";
+        // only apply offset if header is fixed/sticky at top
+        if (position === "fixed" || position === "sticky") {
+          setHeaderOffset(Math.ceil(rect.height));
+          return;
+        }
+      }
+      setHeaderOffset(0);
+    };
+
+    // initial measurement + listeners
+    updateOffset();
+    window.addEventListener("resize", updateOffset);
+    window.addEventListener("orientationchange", updateOffset);
+    // in case header renders later (e.g. async), run again shortly
+    const t = setTimeout(updateOffset, 250);
+
+    return () => {
+      window.removeEventListener("resize", updateOffset);
+      window.removeEventListener("orientationchange", updateOffset);
+      clearTimeout(t);
+    };
   }, []);
 
   // Handler to remove filters (used by ActiveFilters)
@@ -130,6 +171,10 @@ const GamesPage = () => {
                 onSort={handleSort}
                 sortConfig={sortConfig}
                 onSelectAll={(e) => setSelectedRows(e.target.checked ? paginatedData.map((g) => g.id) : [])}
+                toggleRowSelection={(id) =>
+                  setSelectedRows((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))
+                }
+                headerOffset={headerOffset}
               />
 
               <Pagination

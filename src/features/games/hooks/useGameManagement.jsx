@@ -1,10 +1,13 @@
-// src/hooks/useGameManagement.jsx  (update: add date filtering and robust parsing)
-import { useState, useEffect, useCallback } from "react";
+// src/hooks/useGameManagement.jsx  (update: use SweetAlert2 + react-toastify for confirmation & toast/undo)
+import { useState, useEffect, useCallback, useRef } from "react";
 import { collection, query, where, getDocs, orderBy } from "firebase/firestore";
 import { db } from "../../../config/firebaseConfig";
 import { addGame, updateGame, deleteGame } from "../services/gamesService";
 import useFilters from "../../../hooks/useFilters";
 import Fuse from "fuse.js";
+import Swal from "sweetalert2";
+import { toast } from "react-toastify";
+import React from "react";
 
 export const useGameManagement = () => {
   const [gamesData, setGamesData] = useState([]);
@@ -19,6 +22,10 @@ export const useGameManagement = () => {
   const [sortConfig, setSortConfig] = useState({ key: "name", direction: "ascending" });
   const { filters, setFilters, handleFilterChange, handleResetFilters } = useFilters();
 
+  // ref to hold pending deletion (ids, backupData, timerId, toastId)
+  const pendingDeletionRef = useRef(null);
+  const UNDO_TIMEOUT = 5000; // ms
+
   // helper: parse size string to MB (e.g., "6.48 GB" or number)
   const parseSizeToMB = (sizeField, fallbackUnit = "gb") => {
     if (sizeField == null) return null;
@@ -28,10 +35,22 @@ export const useGameManagement = () => {
     const s = String(sizeField).trim();
     const numMatch = s.match(/[\d\.,]+/);
     if (!numMatch) return null;
-    const num = parseFloat(numMatch[0].replace(",", "."));
+    const raw = numMatch[0].replace(",", ".");
+    const num = parseFloat(raw);
     if (Number.isNaN(num)) return null;
     const unit = /mb/i.test(s) ? "mb" : /gb/i.test(s) ? "gb" : fallbackUnit;
     return unit === "gb" ? num * 1024 : num;
+  };
+
+  // helper: parse date-like field into JS Date (supports Firestore timestamp, string, Date)
+  const parseToDate = (v) => {
+    if (!v) return null;
+    if (v.seconds && typeof v.seconds === "number") return new Date(v.seconds * 1000);
+    if (v instanceof Date) return v;
+    // try string
+    const d = new Date(v);
+    if (!isNaN(d.getTime())) return d;
+    return null;
   };
 
   useEffect(() => {
@@ -87,16 +106,8 @@ export const useGameManagement = () => {
           if (endDate) { endDate.setHours(23, 59, 59, 999); }
 
           fetchedGames = fetchedGames.filter((g) => {
-            let d = null;
-            if (g.dateAdded?.seconds) { // Firestore timestamp
-              d = new Date(g.dateAdded.seconds * 1000);
-            } else if (typeof g.dateAdded === "string") {
-              d = new Date(g.dateAdded);
-            } else if (g.dateAdded instanceof Date) {
-              d = g.dateAdded;
-            } else {
-              return false;
-            }
+            const d = parseToDate(g.dateAdded);
+            if (!d) return false;
             if (startDate && d < startDate) return false;
             if (endDate && d > endDate) return false;
             return true;
@@ -139,9 +150,109 @@ export const useGameManagement = () => {
     }
   }, []);
 
+  // handleDelete: use Swal confirmation + optimistic remove + toast with Undo
   const handleDelete = useCallback(async () => {
-    // keep original behavior
-  }, [selectedRows]);
+    if (!selectedRows || selectedRows.length === 0) {
+      toast.info("Tidak ada item yang dipilih.");
+      return;
+    }
+
+    const result = await Swal.fire({
+      title: "Konfirmasi hapus",
+      text: `Anda akan menghapus ${selectedRows.length} game. Lanjutkan?`,
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "Hapus",
+      cancelButtonText: "Batal",
+    });
+
+    if (!result.isConfirmed) return;
+
+    // flush previous pending deletion (execute immediately)
+    if (pendingDeletionRef.current) {
+      clearTimeout(pendingDeletionRef.current.timerId);
+      try {
+        const prevIds = pendingDeletionRef.current.ids;
+        await Promise.all(prevIds.map((id) => deleteGame(id)));
+      } catch (err) {
+        console.error("Error executing pending deletion:", err);
+      }
+      if (pendingDeletionRef.current.toastId) toast.dismiss(pendingDeletionRef.current.toastId);
+      pendingDeletionRef.current = null;
+    }
+
+    const idsToDelete = [...selectedRows];
+    const backupData = gamesData.filter((g) => idsToDelete.includes(g.id));
+
+    // optimistic UI: remove from list immediately
+    setGamesData((prev) => prev.filter((g) => !idsToDelete.includes(g.id)));
+    setSelectedRows([]);
+
+    // undo action
+    const undoAction = () => {
+      if (pendingDeletionRef.current) {
+        clearTimeout(pendingDeletionRef.current.timerId);
+        if (pendingDeletionRef.current.toastId) toast.dismiss(pendingDeletionRef.current.toastId);
+        pendingDeletionRef.current = null;
+        setGamesData((prev) => {
+          // restore backup items at top and dedupe
+          const restored = [...backupData, ...prev];
+          const seen = new Set();
+          return restored.filter((item) => {
+            if (seen.has(item.id)) return false;
+            seen.add(item.id);
+            return true;
+          });
+        });
+        toast.success("Penghapusan dibatalkan.");
+      }
+    };
+
+    // render toast content with Undo button
+    let localToastId = null;
+    const toastContent = (
+      <div className="flex items-center gap-3">
+        <div>{idsToDelete.length} game dihapus.</div>
+        <button
+          onClick={() => {
+            try {
+              undoAction();
+            } catch (e) {
+              console.error("Undo action error:", e);
+            }
+          }}
+          className="ml-3 underline text-sm"
+        >
+          Undo
+        </button>
+      </div>
+    );
+
+    // show toast (auto close after UNDO_TIMEOUT)
+    localToastId = toast.info(toastContent, { autoClose: UNDO_TIMEOUT });
+
+    // schedule actual delete after timeout
+    const timerId = setTimeout(async () => {
+      pendingDeletionRef.current = null;
+      try {
+        await Promise.all(idsToDelete.map((id) => deleteGame(id)));
+        toast.dismiss(localToastId);
+        toast.success(`${idsToDelete.length} game berhasil dihapus.`);
+      } catch (error) {
+        console.error("Delete error:", error);
+        // if failure, try to restore backup to UI and inform user
+        setGamesData((prev) => {
+          const seen = new Set(prev.map((p) => p.id));
+          const toRestore = backupData.filter((b) => !seen.has(b.id));
+          return [...toRestore, ...prev];
+        });
+        toast.error("Terjadi kesalahan saat menghapus. Data dikembalikan.");
+      }
+    }, UNDO_TIMEOUT);
+
+    // store pending deletion info
+    pendingDeletionRef.current = { ids: idsToDelete, backup: backupData, timerId, toastId: localToastId };
+  }, [selectedRows, gamesData]);
 
   const handleSort = useCallback((key) => {
     setSortConfig((prev) => ({ key, direction: prev.key === key && prev.direction === "ascending" ? "descending" : "ascending" }));
@@ -156,17 +267,42 @@ export const useGameManagement = () => {
     setSelectedRows((prev) => prev.includes(gameId) ? prev.filter((id) => id !== gameId) : [...prev, gameId]);
   }, []);
 
-  const sortedData = [...gamesData].sort((a, b) => {
-    if (!sortConfig.key) return 0;
-    const aValue = a[sortConfig.key] || "";
-    const bValue = b[sortConfig.key] || "";
-    if (aValue < bValue) return sortConfig.direction === "ascending" ? -1 : 1;
-    if (aValue > bValue) return sortConfig.direction === "ascending" ? 1 : -1;
+  // comparator aware of data types (size, jumlahPart, dateAdded)
+  const comparator = (a, b) => {
+    const key = sortConfig.key;
+    const dir = sortConfig.direction === "ascending" ? 1 : -1;
+
+    const getVal = (item) => {
+      if (!key) return "";
+      if (key === "size") {
+        const fallbackUnit = (item.unit || "gb").toLowerCase();
+        const mb = parseSizeToMB(item.size ?? item.sizeInNumber ?? null, fallbackUnit);
+        return mb === null ? -Infinity : mb;
+      }
+      if (key === "jumlahPart" || key === "parts" || key === "partCount") {
+        return Number(item.jumlahPart ?? item.parts ?? item.partCount ?? 0) || 0;
+      }
+      if (key === "dateAdded") {
+        const d = parseToDate(item.dateAdded);
+        return d ? d.getTime() : -Infinity;
+      }
+      const v = item[key];
+      if (v == null) return "";
+      if (typeof v === "string") return v.toLowerCase();
+      try { return String(v).toLowerCase(); } catch { return String(v); }
+    };
+
+    const av = getVal(a);
+    const bv = getVal(b);
+    if (av < bv) return -1 * dir;
+    if (av > bv) return 1 * dir;
     return 0;
-  });
+  };
+
+  const sortedData = [...gamesData].sort(comparator);
 
   const paginatedData = sortedData.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
-  const totalPages = Math.ceil(sortedData.length / rowsPerPage);
+  const totalPages = Math.max(1, Math.ceil(sortedData.length / rowsPerPage));
 
   return {
     loading, notification, setNotification, isModalOpen, setModalOpen, editingGame, selectedRows, setSelectedRows,
@@ -175,6 +311,6 @@ export const useGameManagement = () => {
     handleFormSubmit, handleDelete, handleRowClick, paginatedData, totalPages, gamesData,
     handleSizeInputChange: (key, val) => setFilters(p => ({ ...p, size: { ...p.size, [key]: val } })),
     handleDateInputChange: (key, val) => setFilters(p => ({ ...p, dateAdded: { ...p.dateAdded, [key]: val } })),
-    toggleRowSelection,
+    toggleRowSelection, parseSizeToMB,
   };
 };

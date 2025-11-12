@@ -43,7 +43,6 @@ const MobileCard = ({ game, checked, onToggle, onRowClick }) => {
             aria-label={`Select ${game.name}`}
           />
           <div className="min-w-0">
-            {/* Title: truncate inside a flex container (min-w-0) so it won't push right-side badges */}
             <h3 className="text-md font-semibold text-gray-800 truncate" title={game.name}>
               {game.name}
             </h3>
@@ -53,9 +52,7 @@ const MobileCard = ({ game, checked, onToggle, onRowClick }) => {
           </div>
         </div>
 
-        {/* Right side: badges / status / info icon — whitespace-nowrap + flex-shrink-0 so they stay visible */}
         <div className="flex flex-col items-end space-y-2 flex-shrink-0 ml-3 whitespace-nowrap">
-          {/* Source badge (Shopee/Gdrive) */}
           {game.shopeeLink ? (
             <span className="px-2 py-1 text-xs bg-gray-100 text-gray-800 rounded whitespace-nowrap">
               Shopee
@@ -66,12 +63,10 @@ const MobileCard = ({ game, checked, onToggle, onRowClick }) => {
             </span>
           ) : null}
 
-          {/* Status badge */}
           <span className={`px-2 py-1 text-xs font-medium rounded ${getStatusClass(game.status)}`}>
             {game.status || "N/A"}
           </span>
 
-          {/* Info icon (tooltip) */}
           <span
             className="text-gray-400 cursor-pointer"
             data-tooltip-id={`tooltip-mobile-${game.id}`}
@@ -140,7 +135,6 @@ const GameTable = ({
                   aria-label="Select all"
                 />
               </th>
-              {/* Name column uses a flexible cell with truncate inside to avoid pushing other columns */}
               <th className="px-6 py-3 cursor-pointer text-left" onClick={() => onSort("name")}>
                 <div className="min-w-0">
                   <span className="truncate block">Name</span>
@@ -148,13 +142,12 @@ const GameTable = ({
                 {sortConfig.key === "name" &&
                   (sortConfig.direction === "ascending" ? " ↑" : " ↓")}
               </th>
-              <th className="px-6 py-3 text-left">Tipe</th>
-              <th className="px-6 py-3 text-left">Version</th>
+
+              {/* Removed redundant columns: Tipe, Version, Status (they are shown inside Name) */}
               <th className="px-6 py-3 text-left">Size</th>
               <th className="px-6 py-3 text-center">Jumlah Part</th>
               <th className="px-6 py-3 text-center">Genre</th>
               <th className="px-6 py-3 text-left">Location</th>
-              <th className="px-6 py-3 text-left">Status</th>
               <th className="px-6 py-3 truncate">Date Added</th>
               <th className="px-6 py-3 w-10"></th>
             </tr>
@@ -162,7 +155,7 @@ const GameTable = ({
           <tbody className="text-black-200 text-md">
             {data.length === 0 ? (
               <tr>
-                <td colSpan="11" className="px-6 py-4 text-center text-black-500">No Match Data Found</td>
+                <td colSpan="8" className="px-6 py-4 text-center text-black-500">No Match Data Found</td>
               </tr>
             ) : (
               data.map((game) => (
@@ -181,7 +174,7 @@ const GameTable = ({
                     />
                   </td>
 
-                  {/* Name cell: flex with min-w-0 so long names truncate instead of pushing badges */}
+                  {/* Name cell: includes small metadata (type/version/status) */}
                   <td className="px-6 py-4">
                     <div className="flex items-start justify-between min-w-0">
                       <div className="min-w-0 pr-3">
@@ -191,6 +184,7 @@ const GameTable = ({
                         <div className="text-xs text-gray-500 truncate">
                           {game.type || "—"} • {game.version || "—"}
                         </div>
+                        {/* show status inline if you want even more compact */}
                       </div>
 
                       <div className="flex-shrink-0 ml-3 flex items-center space-x-2 whitespace-nowrap">
@@ -203,8 +197,6 @@ const GameTable = ({
                     </div>
                   </td>
 
-                  <td className="px-6 py-4 truncate">{game.type}</td>
-                  <td className="px-6 py-4 truncate">{game.version}</td>
                   <td className="px-6 py-4 truncate">{game.size}</td>
                   <td className="px-6 py-4 text-center">{game.jumlahPart}</td>
                   <td className="px-6 py-4 text-center">
@@ -228,11 +220,6 @@ const GameTable = ({
                     ) : (
                       <span className="text-gray-500">No Location</span>
                     )}
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className={`px-2 py-1 rounded text-sm font-medium ${getStatusClass(game.status)}`}>
-                      {game.status}
-                    </span>
                   </td>
                   <td className="px-6 py-4 truncate">{formatDate(game.dateAdded)}</td>
                   <td className="px-6 py-4 text-center">

@@ -1,10 +1,21 @@
 // src/pages/GamesPage/filters/FilterSize.jsx
 import React from "react";
 
-const FilterSize = ({ sizeInput, onApply, onReset, onInputChange }) => {
-  const handleInputChange = (field, value) => {
-    // Langsung panggil fungsi dari parent dengan object size yang baru
-    onSizeChange({ ...sizeFilter, [field]: value });
+/**
+ * Controlled size filter UI.
+ * Props:
+ *  - sizeInput: { min, max, unit }
+ *  - onInputChange(field, value)
+ *  - onReset (optional) — clear size fields
+ *
+ * Realtime behavior: onInputChange updates filters immediately.
+ */
+const FilterSize = ({ sizeInput = { min: "", max: "", unit: "gb" }, onInputChange, onReset }) => {
+  const reset = () => {
+    if (onReset) return onReset();
+    onInputChange("min", "");
+    onInputChange("max", "");
+    onInputChange("unit", "gb");
   };
 
   return (
@@ -21,7 +32,7 @@ const FilterSize = ({ sizeInput, onApply, onReset, onInputChange }) => {
             />
             <select
               value={sizeInput.unit}
-              onChange={(e) => onInputChange("min", e.target.value)}
+              onChange={(e) => onInputChange("unit", e.target.value)}
               className="border border-gray-300 rounded-lg px-2 py-1 focus:ring-2 focus:ring-blue-500"
             >
               <option value="gb">GB</option>
@@ -39,16 +50,13 @@ const FilterSize = ({ sizeInput, onApply, onReset, onInputChange }) => {
           />
         </div>
       </div>
+
       <div className="flex space-x-4">
+        {/* Apply button removed for realtime filtering; keep Reset */}
         <button
-          onClick={onApply}
-          className="px-4 py-2 bg-blue-500 text-white rounded-lg shadow hover:bg-blue-600 transition"
-        >
-          Apply
-        </button>
-        <button
-          onClick={onReset}
+          onClick={reset}
           className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg shadow hover:bg-gray-400 transition"
+          type="button"
         >
           Reset
         </button>

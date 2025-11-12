@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import Modal from "../../../components/common/Modal";
 
 const EditRequestModal = ({ request, onClose, onSave }) => {
   const [formData, setFormData] = useState(request);
@@ -10,7 +11,7 @@ const EditRequestModal = ({ request, onClose, onSave }) => {
 
   const handlePlatformChange = (platform) => {
     setFormData((prev) => {
-      const platforms = [...(prev.platforms || [])]; // Pastikan platforms tidak undefined
+      const platforms = [...(prev.platforms || [])];
       if (platforms.includes(platform)) {
         return { ...prev, platforms: platforms.filter((p) => p !== platform) };
       } else {
@@ -25,19 +26,13 @@ const EditRequestModal = ({ request, onClose, onSave }) => {
   };
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center z-50">
-      <div
-        className="absolute inset-0 bg-black bg-opacity-30"
-        onClick={onClose}
-      ></div>
-      <div className="bg-white p-6 rounded-lg shadow-lg z-50 w-96">
+    <Modal onClose={onClose} ariaLabel="Edit Request">
+      <div className="p-6 w-full max-w-md">
         <h2 className="text-xl font-bold mb-4">Edit Request</h2>
         <form onSubmit={handleSubmit}>
           {/* Game Name */}
           <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700">
-              Game Name
-            </label>
+            <label className="block text-sm font-medium text-gray-700">Game Name</label>
             <input
               type="text"
               name="game"
@@ -49,9 +44,7 @@ const EditRequestModal = ({ request, onClose, onSave }) => {
 
           {/* Request Count */}
           <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700">
-              Request Count
-            </label>
+            <label className="block text-sm font-medium text-gray-700">Request Count</label>
             <input
               type="number"
               name="requestCount"
@@ -63,9 +56,7 @@ const EditRequestModal = ({ request, onClose, onSave }) => {
 
           {/* Platforms Selection */}
           <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700">
-              Platforms
-            </label>
+            <label className="block text-sm font-medium text-gray-700">Platforms</label>
             <div className="flex flex-wrap gap-2">
               {["OvaGames", "SteamRIP", "RepackGames"].map((platform) => (
                 <label
@@ -107,7 +98,7 @@ const EditRequestModal = ({ request, onClose, onSave }) => {
           </div>
         </form>
       </div>
-    </div>
+    </Modal>
   );
 };
 

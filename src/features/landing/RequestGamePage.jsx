@@ -83,6 +83,14 @@ const RequestGame = () => {
           <div className="text-center mb-8">
             <h1 className="text-3xl font-bold text-gray-800">Request Game</h1>
             <p className="text-gray-500 mt-2">Belum menemukan game yang Anda cari? Request di sini!</p>
+            <div className="mt-4 text-left text-sm bg-blue-50 text-blue-900 p-4 rounded-lg">
+              <p className="font-semibold mb-1">Cara request singkat:</p>
+              <ul className="list-disc ml-5 space-y-1">
+                <li>Tulis nama game selengkap mungkin.</li>
+                <li>Isi Username Shopee Anda agar kami mudah menghubungi.</li>
+                <li>Klik Submit dan tunggu konfirmasi dari kami.</li>
+              </ul>
+            </div>
           </div>
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
@@ -122,6 +130,9 @@ const RequestGame = () => {
             >
               {loading ? "Mengirim..." : "Submit Request"}
             </button>
+            <p className="text-xs text-gray-500 text-center">
+              Butuh bantuan cepat? <a className="text-green-600 hover:underline" href={`https://wa.me/${import.meta.env.VITE_WHATSAPP_NUMBER || '6285121309829'}`} target="_blank" rel="noopener noreferrer">Chat WhatsApp</a>
+            </p>
           </form>
         </div>
       </main>

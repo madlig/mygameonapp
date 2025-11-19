@@ -1,4 +1,3 @@
-// src/components/GameCard.jsx
 import React from 'react';
 import { LazyLoadImage } from 'react-lazy-load-image-component';
 import 'react-lazy-load-image-component/src/effects/blur.css';
@@ -28,29 +27,26 @@ function isUpdated(updatedAt) {
 }
 
 const canonicalMap = [
-  { test: (k) => k.includes('co-op') || k.includes('coop'), label: 'Co‑op' },
-  { test: (k) => k.includes('low') && k.includes('spec'), label: 'Low Spec' },
-  { test: (k) => k.includes('open') && k.includes('world'), label: 'Open World' },
-  { test: (k) => k.includes('story'), label: 'Story Rich' },
-  { test: (k) => k.includes('pixel'), label: 'Pixel Art' },
-  { test: (k) => k === 'aaa' || k.includes('aaa'), label: 'AAA' },
-  { test: (k) => k.includes('keyboard'), label: 'Keyboard Only' },
-  { test: (k) => k.includes('gamepad') || k.includes('controller'), label: 'Gamepad Support' },
+  { test: k => k.includes('co-op') || k.includes('coop'), label: 'Co‑op' },
+  { test: k => k.includes('low') && k.includes('spec'), label: 'Low Spec' },
+  { test: k => k.includes('open') && k.includes('world'), label: 'Open World' },
+  { test: k => k.includes('story'), label: 'Story Rich' },
+  { test: k => k.includes('pixel'), label: 'Pixel Art' },
+  { test: k => k === 'aaa' || k.includes('aaa'), label: 'AAA' },
+  { test: k => k.includes('keyboard'), label: 'Keyboard Only' },
+  { test: k => k.includes('gamepad') || k.includes('controller'), label: 'Gamepad Support' },
 ];
 function normalizeTags(tags) {
   if (!Array.isArray(tags)) return [];
-  return tags
-    .map((t) => String(t).trim())
-    .map((t) => {
-      const k = t.toLowerCase();
-      const hit = canonicalMap.find((c) => c.test(k));
-      return hit ? hit.label : t;
-    });
+  return tags.map(t => {
+    const k = String(t).trim().toLowerCase();
+    const hit = canonicalMap.find(c => c.test(k));
+    return hit ? hit.label : t;
+  });
 }
 
 const GameCard = ({ game }) => {
   const defaultCoverArtUrl = 'https://via.placeholder.com/600x450/CCCCCC/FFFFFF?text=No+Image';
-
   const storeUrl = import.meta.env.VITE_SHOPEE_STORE_URL || 'https://shopee.co.id/mygameon';
   const waNumber = import.meta.env.VITE_WHATSAPP_NUMBER || '6285121309829';
 
@@ -60,108 +56,106 @@ const GameCard = ({ game }) => {
   const whatsappLink = `https://wa.me/${waNumber}?text=${whatsappMessage}`;
   const shopeeLink = game?.shopeeLink || storeUrl;
 
-  const genreOne =
-    Array.isArray(game?.genre) && game.genre.length > 0 ? game.genre[0] : null;
-  const sizeWithUnit =
-    game?.size && game?.unit ? `${game.size} ${game.unit}` : game?.size || null;
+  const genreOne = Array.isArray(game?.genre) && game.genre.length ? game.genre[0] : null;
+  const sizeWithUnit = game?.size && game?.unit ? `${game.size} ${game.unit}` : game?.size || null;
 
   const version = typeof game?.version === 'string' && game.version.trim() ? game.version.trim() : null;
   const showUpdate = isUpdated(game?.updatedAt);
   const showPopular =
     !showUpdate &&
-    (Boolean(game?.isPopular) ||
-      (typeof game?.popularityScore === 'number' && game.popularityScore >= 20));
+    (Boolean(game?.isPopular) || (typeof game?.popularityScore === 'number' && game.popularityScore >= 20));
 
-  const allTags = normalizeTags(game?.tags);
-  const displayTags = allTags.slice(0, 2);
-  const extraTagCount = allTags.length > 2 ? allTags.length - 2 : 0;
+  const tagsNorm = normalizeTags(game?.tags);
+  const tagsToShow = tagsNorm.slice(0, 2);
+  const extraCount = tagsNorm.length > 2 ? tagsNorm.length - 2 : 0;
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow flex flex-col h-full overflow-hidden">
-      {/* Media */}
-      <div className="relative w-full aspect-[4/3] bg-gray-100 overflow-hidden">
+    <div
+      className="
+        flex flex-col h-full
+        border-0 shadow-none rounded-none
+        sm:border sm:border-gray-200 sm:shadow-sm sm:hover:shadow-md sm:rounded-xl sm:bg-white sm:overflow-hidden
+        bg-white
+      "
+    >
+      <div className="relative w-full aspect-[4/3] bg-gray-100 sm:rounded-t-xl overflow-hidden">
         <LazyLoadImage
           src={game?.coverArtUrl || defaultCoverArtUrl}
           alt={game?.name || 'Game'}
           effect="blur"
-          sizes="(max-width:640px) 50vw, (max-width:1024px) 33vw, 25vw"
+          sizes="(max-width:640px) 100vw, (max-width:1024px) 33vw, 25vw"
           className="w-full h-full object-cover"
         />
         {(showUpdate || showPopular) && (
           <span
-            className={`absolute left-2 top-2 px-2.5 py-1 rounded-md text-[10px] sm:text-xs font-semibold text-white shadow-sm ${
+            className={`absolute left-3 top-3 px-3 py-1 rounded-md text-[11px] font-semibold tracking-wide text-white shadow-sm ${
               showUpdate ? 'bg-rose-600' : 'bg-amber-500'
             }`}
-            title={showUpdate ? 'Konten diperbarui baru-baru ini' : 'Banyak diminati minggu ini'}
           >
             {showUpdate ? (version ? `Update ${version}` : 'Update') : 'Populer'}
           </span>
         )}
       </div>
 
-      {/* Body */}
-      <div className="p-4 flex flex-col flex-grow">
-        <div className="flex flex-col gap-2 flex-grow">
-          {/* Title 2 baris konsisten */}
-          <h4
-            className="text-sm sm:text-[15px] font-bold text-gray-800 leading-snug truncate"
-            style={{ minHeight: '2.5rem' }}
-            title={game?.name}
-          >
-            {game?.name || 'Untitled'}
-          </h4>
+      <div className="flex flex-col flex-grow px-4 py-4 sm:px-4 sm:py-4">
+        <h4
+          className="text-base font-bold text-gray-800 leading-snug truncate"
+          style={{ minHeight: '2.5rem' }}
+          title={game?.name}
+        >
+          {game?.name || 'Untitled'}
+        </h4>
 
-          {/* Tags: reservasi tinggi */}
-          {displayTags.length > 0 ? (
-            <div className="flex flex-wrap gap-1.5 h-5">
-              {displayTags.map((t) => (
-                <span key={t} className="px-2 py-0.5 bg-gray-100 text-gray-700 text-[10px] sm:text-[11px] rounded-md">
+        <div className="mt-2 min-h-[20px]">
+          {tagsToShow.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {tagsToShow.map(t => (
+                <span
+                  key={t}
+                  className="px-2 py-0.5 bg-gray-100 text-gray-700 text-[11px] rounded-md"
+                >
                   {t}
                 </span>
               ))}
-              {extraTagCount > 0 && (
-                <span className="px-2 py-0.5 bg-gray-100 text-gray-600 text-[10px] sm:text-[11px] rounded-md">
-                  +{extraTagCount}
+              {extraCount > 0 && (
+                <span className="px-2 py-0.5 bg-gray-100 text-gray-600 text-[11px] rounded-md">
+                  +{extraCount}
                 </span>
               )}
             </div>
-          ) : (
-            <div className="h-5" aria-hidden="true"></div>
           )}
+        </div>
 
-          {/* Metadata: selalu dua baris */}
-          <div className="flex flex-col">
-            <div className="h-5 flex items-center text-[11px] sm:text-xs text-gray-600">
-              {genreOne ? (
-                <span className="inline-flex items-center">
-                  <GenreIcon />
-                  {genreOne}
-                </span>
-              ) : (
-                <span className="opacity-0 select-none">-</span>
-              )}
-            </div>
-            <div className="h-5 flex items-center text-[11px] sm:text-xs text-gray-600">
-              {sizeWithUnit ? (
-                <span className="inline-flex items-center">
-                  <SizeIcon />
-                  {sizeWithUnit}
-                </span>
-              ) : (
-                <span className="opacity-0 select-none">-</span>
-              )}
-            </div>
+        <div className="mt-3 flex flex-col gap-1 text-[11px] text-gray-600">
+          <div className="h-5 flex items-center">
+            {genreOne ? (
+              <span className="inline-flex items-center">
+                <GenreIcon />
+                {genreOne}
+              </span>
+            ) : (
+              <span className="opacity-0 select-none">-</span>
+            )}
+          </div>
+          <div className="h-5 flex items-center">
+            {sizeWithUnit ? (
+              <span className="inline-flex items-center">
+                <SizeIcon />
+                {sizeWithUnit}
+              </span>
+            ) : (
+              <span className="opacity-0 select-none">-</span>
+            )}
           </div>
         </div>
 
-        {/* CTA */}
-        <div className="mt-auto pt-4 border-t border-gray-100">
-          <div className="flex w-full overflow-hidden rounded-md">
+        <div className="mt-auto pt-5">
+          <div className="flex w-full overflow-hidden rounded-md sm:rounded-lg">
             <a
               href={shopeeLink}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center justify-center flex-grow bg-orange-500 text-white text-sm sm:text-[15px] font-semibold hover:bg-orange-600 transition-colors min-h-[44px] py-2.5"
+              className="flex items-center justify-center flex-grow bg-orange-500 text-white text-sm font-semibold hover:bg-orange-600 transition-colors min-h-[46px]"
               aria-label={`Beli "${game?.name}" di Shopee`}
             >
               Shopee
@@ -170,7 +164,7 @@ const GameCard = ({ game }) => {
               href={whatsappLink}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center justify-center px-3 bg-green-500 text-white hover:bg-green-600 transition-colors min-h-[44px]"
+              className="flex items-center justify-center px-4 bg-green-500 text-white hover:bg-green-600 transition-colors min-h-[46px]"
               aria-label="Chat di WhatsApp"
               title="Chat di WhatsApp"
             >

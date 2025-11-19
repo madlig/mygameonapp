@@ -1,0 +1,56 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // --- FUNGSI VALIDASI ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // --- ATURAN UNTUK KOLEKSI 'games' (DIPERBAIKI) ---
+    match /games/{gameId} {
+      // Siapa pun boleh membaca data game (untuk landing page).
+      allow read: if true;
+
+      // Izin untuk MEMBUAT (create) dan MENGEDIT (update) dokumen.
+      // Di sini kita terapkan semua validasi data.
+      allow create, update: if isSignedIn() &&
+                              request.resource.data.name is string &&
+                              request.resource.data.size is string &&
+                              request.resource.data.status is string &&
+                              request.resource.data.genre is list &&
+                              request.resource.data.dateAdded is timestamp;
+
+      // Izin HANYA untuk MENGHAPUS (delete) dokumen.
+      // Aturannya sederhana: hanya perlu memastikan pengguna sudah login.
+      // Aturan ini tidak akan gagal karena tidak mengakses request.resource.data.
+      allow delete: if isSignedIn();
+    }
+
+    // --- ATURAN UNTUK KOLEKSI LAIN (TETAP SAMA) ---
+    match /genres/{genreId} {
+      allow read, write: if isSignedIn();
+    }
+    
+    match /emailLocations/{locId} {
+      allow read, write: if isSignedIn();
+    }
+
+    match /requests/{reqId} {
+      allow read, write: if isSignedIn();
+    }
+    
+    match /adminShifts/{shiftId} {
+        allow read, write: if isSignedIn();
+    }
+    
+    match /dailyRevenues/{revId} {
+        allow read, write: if isSignedIn();
+    }
+
+    match /users/{userId}/{document=**} {
+        allow read, write: if isSignedIn() && request.auth.uid == userId;
+    }
+  }
+}

@@ -17,6 +17,7 @@ src/syncData.js
 mygameonapp.zip
 .env
 .env.scripts
+.env.mygameonwebsite
 
 # Editor directories and files
 .vscode/*

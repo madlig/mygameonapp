@@ -5,6 +5,8 @@ import { collection, addDoc, getDocs, query, where, orderBy, serverTimestamp, do
 import Swal from 'sweetalert2';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
+import EndShiftModal from './components/EndShiftModal';
+
 
 import NetRevenueSection from './components/NetRevenueSection';
 import AdminShiftSection from './components/AdminShiftSection';
@@ -28,6 +30,9 @@ const OperationalPage = () => {
   const [grossIncomeInput, setGrossIncomeInput] = useState('');
   const [ordersCountInput, setOrdersCountInput] = useState('');
 
+  const [isEndShiftModalOpen, setIsEndShiftModalOpen] = useState(false);
+  const [endShiftLoading, setEndShiftLoading] = useState(false);
+
   const calculateShiftPay = useCallback((totalDurationHours, totalGrossIncome) => {
     let basePay = 0; const bonusPercentage = 0.05;
     if (totalDurationHours < 4) return Math.max(0, totalGrossIncome * 0.10);
@@ -46,8 +51,8 @@ const OperationalPage = () => {
   const fetchDataForPeriod = useCallback(async (start, end) => {
     setLoading(true);
     try {
-      const startOfDay = new Date(start); startOfDay.setHours(0, 0, 0, 0);
-      const endOfDay = new Date(end); endOfDay.setHours(23, 59, 59, 999);
+      const startOfDay = new Date(Date.UTC(start.getFullYear(), start.getMonth(), start.getDate()));
+      const endOfDay = new Date(Date.UTC(end.getFullYear(), end.getMonth(), end.getDate(), 23, 59, 59, 999));
 
       // Fetch admin shifts
       const shiftQuery = query(collection(db, 'adminShifts'), where('status', '==', 'completed'), where('startTime', '>=', startOfDay), where('startTime', '<=', endOfDay), orderBy('startTime', 'asc'));
@@ -70,7 +75,7 @@ const OperationalPage = () => {
       }).sort((a, b) => b.date - a.date);
       setShiftReport(calculatedShiftReport);
 
-      // Fetch revenues
+      /// Query revenues (sekarang menggunakan tanggal yang dinormalisasi)
       const revenueQuery = query(collection(db, 'dailyRevenues'), where('date', '>=', startOfDay), where('date', '<=', endOfDay), orderBy('date', 'desc'));
       const revenueSnapshot = await getDocs(revenueQuery);
       const calculatedRevenueReport = revenueSnapshot.docs.map(d => ({ id: d.id, ...d.data(), date: d.data().date.toDate() }));
@@ -144,7 +149,11 @@ const OperationalPage = () => {
   };
 
   const handleEndShift = async () => {
-    if (!grossIncomeInput || !ordersCountInput) { Swal.fire('Peringatan', 'Isi Gross Income dan Jumlah Pesanan.', 'warning'); return; }
+    if (!grossIncomeInput || !ordersCountInput) { 
+      Swal.fire('Peringatan', 'Isi Gross Income dan Jumlah Pesanan.', 'warning'); 
+      return; 
+    }
+    setEndShiftLoading(true); // Mulai loading
     try {
       const shiftDocRef = doc(db, 'adminShifts', activeShift.id);
       const endTime = new Date();
@@ -157,10 +166,16 @@ const OperationalPage = () => {
         status: 'completed'
       });
       Swal.fire('Berhasil!', `Shift untuk ${activeShift.adminName} selesai.`, 'success');
-      setGrossIncomeInput(''); setOrdersCountInput('');
+      setGrossIncomeInput(''); 
+      setOrdersCountInput('');
+      setIsEndShiftModalOpen(false); // Tutup modal
       fetchActiveShift();
       fetchDataForPeriod(startDate, endDate);
-    } catch (error) { Swal.fire('Error!', 'Gagal menyelesaikan shift.', 'error'); }
+    } catch (error) { 
+      Swal.fire('Error!', 'Gagal menyelesaikan shift.', 'error'); 
+    } finally {
+      setEndShiftLoading(false); // Selesai loading
+    }
   };
 
   const getActiveShiftDuration = () => {
@@ -229,10 +244,9 @@ const OperationalPage = () => {
                 shiftReport={shiftReport}
                 onRefreshRequest={() => fetchDataForPeriod(startDate, endDate)}
                 adminName={adminName} setAdminName={setAdminName} activeShift={activeShift}
-                handleStartShift={handleStartShift} handleEndShift={handleEndShift}
+                handleStartShift={handleStartShift} 
+                handleEndShift={() => setIsEndShiftModalOpen(true)} 
                 getActiveShiftDuration={getActiveShiftDuration}
-                grossIncomeInput={grossIncomeInput} setGrossIncomeInput={setGrossIncomeInput}
-                ordersCountInput={ordersCountInput} setOrdersCountInput={setOrdersCountInput}
               />
             )}
             {activeTab === 'netRevenue' && (
@@ -245,6 +259,16 @@ const OperationalPage = () => {
           </>
         )}
       </div>
+      <EndShiftModal
+        isOpen={isEndShiftModalOpen}
+        onClose={() => setIsEndShiftModalOpen(false)}
+        onConfirm={handleEndShift}
+        grossIncome={grossIncomeInput}
+        setGrossIncome={setGrossIncomeInput}
+        ordersCount={ordersCountInput}
+        setOrdersCount={setOrdersCountInput}
+        loading={endShiftLoading}
+      />
     </div>
   );
 };

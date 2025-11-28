@@ -6,7 +6,6 @@ const AdminShiftSection = ({
   shiftReport, onRefreshRequest,
   adminName, setAdminName, activeShift,
   handleStartShift, handleEndShift, getActiveShiftDuration,
-  grossIncomeInput, setGrossIncomeInput, ordersCountInput, setOrdersCountInput
 }) => {
   const [localAdmin, setLocalAdmin] = useState(adminName || "");
   const adminList = ["Fariz", "Adli"];

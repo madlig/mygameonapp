@@ -51,8 +51,8 @@ const OperationalPage = () => {
   const fetchDataForPeriod = useCallback(async (start, end) => {
     setLoading(true);
     try {
-      const startOfDay = new Date(start); startOfDay.setHours(0, 0, 0, 0);
-      const endOfDay = new Date(end); endOfDay.setHours(23, 59, 59, 999);
+      const startOfDay = new Date(Date.UTC(start.getFullYear(), start.getMonth(), start.getDate()));
+      const endOfDay = new Date(Date.UTC(end.getFullYear(), end.getMonth(), end.getDate(), 23, 59, 59, 999));
 
       // Fetch admin shifts
       const shiftQuery = query(collection(db, 'adminShifts'), where('status', '==', 'completed'), where('startTime', '>=', startOfDay), where('startTime', '<=', endOfDay), orderBy('startTime', 'asc'));
@@ -75,7 +75,7 @@ const OperationalPage = () => {
       }).sort((a, b) => b.date - a.date);
       setShiftReport(calculatedShiftReport);
 
-      // Fetch revenues
+      /// Query revenues (sekarang menggunakan tanggal yang dinormalisasi)
       const revenueQuery = query(collection(db, 'dailyRevenues'), where('date', '>=', startOfDay), where('date', '<=', endOfDay), orderBy('date', 'desc'));
       const revenueSnapshot = await getDocs(revenueQuery);
       const calculatedRevenueReport = revenueSnapshot.docs.map(d => ({ id: d.id, ...d.data(), date: d.data().date.toDate() }));

@@ -6,6 +6,7 @@ import { collection, addDoc, getDocs, query, where, doc, updateDoc, serverTimest
 import Swal from 'sweetalert2';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
+import { formatCurrency } from '../../../utils/numberUtils';
 
 const NetRevenueSection = ({ revenueReport, onRefreshRequest }) => {
   // --- STATE UNTUK FORM INPUT ---
@@ -387,11 +388,65 @@ const NetRevenueSection = ({ revenueReport, onRefreshRequest }) => {
             <p className="font-semibold text-blue-800">
               Total Pemasukan Bersih Periode Ini:{' '}
               <span className="block text-2xl font-bold">
-                Rp {totalRevenueDisplayed.toLocaleString('id-ID', {minimumFractionDigts:0, maximumFractionDigits:0})}
+                Rp {formatCurrency(totalRevenueDisplayed)}
               </span>
             </p>
           </div>
-          <div className="overflow-x-auto border rounded-md">
+
+          {/* Mobile Card View (visible only on small screens < lg) */}
+          <div className="lg:hidden space-y-3">
+            {revenueReport.length > 0 ? (
+              revenueReport.map((report) => (
+                <div key={report.id} className="border rounded-lg p-4 bg-white shadow-sm">
+                  <div className="flex justify-between items-start mb-2">
+                    <span className="text-sm font-semibold text-gray-800">
+                      {report.date.toLocaleDateString('id-ID', {
+                        day: '2-digit',
+                        month: 'long',
+                      })}
+                    </span>
+                    <div className="flex space-x-2">
+                      <button
+                        onClick={() => handleOpenEditModal(report)}
+                        className="text-blue-600 hover:text-blue-900 text-sm font-medium"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => handleDeleteReport(report.id, report.date)}
+                        className="text-red-600 hover:text-red-900 text-sm font-medium"
+                      >
+                        Hapus
+                      </button>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    <div>
+                      <p className="text-gray-500">Pendapatan Kotor</p>
+                      <p className="font-medium">Rp {formatCurrency(report.grossIncome)}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-500">Pesanan Sukses</p>
+                      <p className="font-medium">{report.successfulOrders}</p>
+                    </div>
+                  </div>
+                  <div className="mt-2 pt-2 border-t">
+                    <p className="text-gray-500 text-sm">Pemasukan Bersih</p>
+                    <p className="font-bold text-green-700 text-lg">
+                      Rp {formatCurrency(report.calculatedNetRevenue || 0)}
+                    </p>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="text-center py-4 text-gray-500">
+                Tidak ada laporan pada periode ini.
+              </div>
+            )}
+          </div>
+
+          {/* Desktop Table View (visible only on lg screens and up) */}
+          <div className="hidden lg:block overflow-x-auto border rounded-md">
             <table className="min-w-full divide-y">
               <thead className="bg-gray-50">
                 <tr>
@@ -435,25 +490,13 @@ const NetRevenueSection = ({ revenueReport, onRefreshRequest }) => {
                         {report.successfulOrders}
                       </td>
                       <td className="px-4 py-2 text-sm">
-                        Rp{' '}
-                        {(report.voucherCost || 0).toLocaleString(
-                          'id-ID',
-                          {minimumFractionDigts:0, maximumFractionDigits:0}
-                        )}
+                        Rp {formatCurrency(report.voucherCost || 0)}
                       </td>
                       <td className="px-4 py-2 text-sm">
-                        Rp{' '}
-                        {(report.adSpend || 0).toLocaleString(
-                          'id-ID',
-                          {minimumFractionDigts:0, maximumFractionDigits:0}
-                        )}
+                        Rp {formatCurrency(report.adSpend || 0)}
                       </td>
                       <td className="px-4 py-2 text-sm font-bold text-green-700">
-                        Rp{' '}
-                        {(report.calculatedNetRevenue || 0).toLocaleString(
-                          'id-ID',
-                          {minimumFractionDigts:0, maximumFractionDigits:0}
-                        )}
+                        Rp {formatCurrency(report.calculatedNetRevenue || 0)}
                       </td>
                       <td className="px-4 py-2 text-sm">
                         <button

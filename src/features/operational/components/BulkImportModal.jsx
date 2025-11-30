@@ -1,80 +1,194 @@
-import React, { useState } from 'react';
-import Modal from '../../../components/common/Modal'; // Asumsi Anda punya komponen Modal generik
+// src/features/operational/components/BulkImportModal.jsx
+import React, { useEffect, useMemo, useState } from 'react';
+import Modal from '../../../components/common/Modal';
+import { formatCurrency } from '../../../utils/numberUtils';
 
-const BulkImportModal = ({ isOpen, onClose, reports, onConfirmImport }) => {
-  const [loading, setLoading] = useState(false);
+/**
+ * BulkImportModal
+ * Props:
+ * - isOpen
+ * - onClose
+ * - reports: array of parsed rows (from parseShopeeReportForBulk)
+ * - onConfirmImport: function(reportsToImport)
+ *
+ * Behavior:
+ * - Validate each parsed row (required fields)
+ * - Show counts: valid / warnings / errors
+ * - Allow per-row Edit (open inline editor) and toggle exclude rows with errors
+ */
+const requiredFields = ['date', 'grossIncome', 'totalOrders'];
 
-  const handleConfirm = async () => {
-    setLoading(true);
-    await onConfirmImport(reports);
-    setLoading(false);
-    onClose();
+const validateRow = (row) => {
+  const errors = [];
+  const warnings = [];
+
+  // date
+  let dateObj = null;
+  if (row.date instanceof Date) dateObj = row.date;
+  else if (typeof row.date === 'string' || typeof row.date === 'number') {
+    const d = new Date(row.date);
+    if (!isNaN(d.getTime())) dateObj = d;
+  }
+  if (!dateObj) errors.push('Invalid or missing date');
+
+  // grossIncome numeric non-negative
+  const gross = Number(row.grossIncome);
+  if (!Number.isFinite(gross) || gross < 0) errors.push('Invalid Pendapatan Kotor');
+
+  // totalOrders integer
+  const orders = Number(row.totalOrders);
+  if (!Number.isFinite(orders) || !Number.isInteger(orders) || orders < 0) errors.push('Invalid Total Pesanan');
+
+  // optional fields check
+  if (row.canceledValue && isNaN(Number(row.canceledValue))) warnings.push('Nilai Batal tidak terparse');
+  if (row.returnedValue && isNaN(Number(row.returnedValue))) warnings.push('Nilai Kembali tidak terparse');
+
+  return { errors, warnings, normalized: { ...row, date: dateObj, grossIncome: gross || 0, totalOrders: Number.isFinite(orders) ? orders : 0 } };
+};
+
+const BulkImportModal = ({ isOpen, onClose, reports = [], onConfirmImport }) => {
+  const [rows, setRows] = useState([]);
+  const [excludedIds, setExcludedIds] = useState(new Set());
+  const [editingRow, setEditingRow] = useState(null);
+
+  useEffect(() => {
+    // when modal opens, validate incoming reports
+    const validated = (reports || []).map((r, idx) => {
+      const { errors, warnings, normalized } = validateRow(r);
+      return { id: idx, raw: r, errors, warnings, normalized };
+    });
+    setRows(validated);
+    setExcludedIds(new Set()); // reset
+    setEditingRow(null);
+  }, [reports, isOpen]);
+
+  const counts = useMemo(() => {
+    let valid = 0, warn = 0, err = 0;
+    for (const r of rows) {
+      if (r.errors && r.errors.length > 0) err++;
+      else if (r.warnings && r.warnings.length > 0) warn++;
+      else valid++;
+    }
+    return { valid, warn, err, total: rows.length };
+  }, [rows]);
+
+  const toggleExclude = (id) => {
+    const s = new Set(excludedIds);
+    if (s.has(id)) s.delete(id);
+    else s.add(id);
+    setExcludedIds(s);
   };
-  
+
+  const handleEdit = (row) => {
+    // open inline editor (simple)
+    setEditingRow({ ...row.normalized, id: row.id });
+  };
+
+  const applyEdit = (edited) => {
+    // re-validate edited row and replace in rows
+    const updated = rows.map(r => {
+      if (r.id !== edited.id) return r;
+      const { errors, warnings, normalized } = validateRow(edited);
+      return { id: r.id, raw: edited, errors, warnings, normalized };
+    });
+    setRows(updated);
+    setEditingRow(null);
+  };
+
+  const handleConfirm = () => {
+    // collect non-excluded and non-error rows
+    const toImport = rows
+      .filter(r => !excludedIds.has(r.id) && (!r.errors || r.errors.length === 0))
+      .map(r => r.normalized);
+    onConfirmImport && onConfirmImport(toImport);
+    onClose && onClose();
+  };
+
   if (!isOpen) return null;
 
-  return (
-    <Modal onClose={onClose} ariaLabel="Preview Bulk Import">
-      <div className="p-6 w-full max-w-6xl"> {/* Perlebar modal */}
-        <h2 className="text-xl font-bold mb-4 text-gray-800">Pratinjau Impor Laporan Harian</h2>
-        <p className="text-sm text-gray-600 mb-4">
-          Ditemukan <strong>{reports.length}</strong> laporan harian dari file yang Anda unggah. Data yang sudah ada di database akan ditimpa.
-        </p>
+  const fmt = (v) => formatCurrency(v);
 
-        <div className="max-h-[60vh] overflow-y-auto border rounded-lg">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50 sticky top-0">
+  return (
+    <Modal onClose={onClose} ariaLabel="Bulk Import Preview">
+      <div className="p-6 w-full max-w-4xl">
+        <h2 className="text-xl font-bold mb-2">Preview Hasil Upload</h2>
+        <p className="text-sm text-gray-600 mb-4">Periksa hasil parsing. Anda dapat mengedit baris yang bermasalah atau mengecualikannya sebelum menyimpan.</p>
+
+        <div className="mb-4 flex items-center justify-between">
+          <div className="text-sm">
+            <strong>{counts.total}</strong> rows — <span className="text-green-600">{counts.valid} valid</span>, <span className="text-yellow-600">{counts.warn} warning</span>, <span className="text-red-600">{counts.err} error</span>
+          </div>
+          <div className="text-sm">
+            <button onClick={() => { setExcludedIds(new Set()); setEditingRow(null); }} className="px-3 py-1 bg-gray-100 rounded">Reset</button>
+          </div>
+        </div>
+
+        <div className="max-h-[50vh] overflow-y-auto border rounded">
+          <table className="min-w-full">
+            <thead className="bg-gray-50">
               <tr>
-                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Tanggal</th>
-                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Pendapatan Kotor</th>
-                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Total Pesanan</th>
-                {/* Kolom Baru */}
-                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Pesanan Batal</th>
-                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Nilai Batal</th>
-                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Pesanan Kembali</th>
-                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Nilai Kembali</th>
+                <th className="px-3 py-2 text-left text-xs">#</th>
+                <th className="px-3 py-2 text-left text-xs">Tanggal</th>
+                <th className="px-3 py-2 text-left text-xs">Pendapatan Kotor</th>
+                <th className="px-3 py-2 text-left text-xs">Total Pesanan</th>
+                <th className="px-3 py-2 text-left text-xs">Status</th>
+                <th className="px-3 py-2 text-left text-xs">Aksi</th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {reports.map((report, index) => (
-                <tr key={index} className="hover:bg-gray-50">
-                  <td className="px-4 py-2 whitespace-nowrap text-sm font-medium text-gray-900">
-                    {report.date ? new Date(report.date).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric'}) : 'Invalid Date'}
-                  </td>
-                  <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-700">
-                    Rp {report.grossIncome.toLocaleString('id-ID')}
-                  </td>
-                  <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-700">
-                    {report.totalOrders}
-                  </td>
-                  {/* Data Baru */}
-                  <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-700">{report.canceledOrders || 0}</td>
-                  <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-700">Rp {(report.canceledValue || 0).toLocaleString('id-ID')}</td>
-                  <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-700">{report.returnedOrders || 0}</td>
-                  <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-700">Rp {(report.returnedValue || 0).toLocaleString('id-ID')}</td>
-                </tr>
-              ))}
+            <tbody>
+              {rows.map((r) => {
+                const status = (r.errors && r.errors.length > 0) ? 'Error' : (r.warnings && r.warnings.length > 0) ? 'Warning' : 'OK';
+                const isExcluded = excludedIds.has(r.id);
+                return (
+                  <tr key={r.id} className={`${isExcluded ? 'opacity-50' : ''} hover:bg-gray-50`}>
+                    <td className="px-3 py-2 text-sm">{r.id + 1}</td>
+                    <td className="px-3 py-2 text-sm">{r.normalized.date ? r.normalized.date.toLocaleDateString('id-ID') : '-'}</td>
+                    <td className="px-3 py-2 text-sm">Rp {fmt(r.normalized.grossIncome)}</td>
+                    <td className="px-3 py-2 text-sm">{r.normalized.totalOrders}</td>
+                    <td className="px-3 py-2 text-sm">
+                      {status}
+                      {r.warnings && r.warnings.length > 0 && <div className="text-xs text-yellow-700">{r.warnings.join('; ')}</div>}
+                      {r.errors && r.errors.length > 0 && <div className="text-xs text-red-700">{r.errors.join('; ')}</div>}
+                    </td>
+                    <td className="px-3 py-2 text-sm">
+                      <button onClick={() => handleEdit(r)} className="mr-2 text-blue-600">Edit</button>
+                      <button onClick={() => toggleExclude(r.id)} className={`mr-2 ${isExcluded ? 'text-green-600' : 'text-gray-600'}`}>{isExcluded ? 'Include' : 'Exclude'}</button>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
 
+        {/* Inline editor */}
+        {editingRow && (
+          <div className="mt-4 p-4 bg-white border rounded shadow">
+            <h3 className="font-semibold mb-2">Edit Baris #{editingRow.id + 1}</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div>
+                <label className="block text-sm">Tanggal</label>
+                <input type="date" value={editingRow.date ? (new Date(editingRow.date)).toISOString().split('T')[0] : ''} onChange={(e) => setEditingRow({...editingRow, date: e.target.value})} className="mt-1 p-2 border rounded w-full" />
+              </div>
+              <div>
+                <label className="block text-sm">Pendapatan Kotor (Rp)</label>
+                <input type="number" value={editingRow.grossIncome || ''} onChange={(e) => setEditingRow({...editingRow, grossIncome: e.target.value})} className="mt-1 p-2 border rounded w-full" />
+              </div>
+              <div>
+                <label className="block text-sm">Total Pesanan</label>
+                <input type="number" value={editingRow.totalOrders || ''} onChange={(e) => setEditingRow({...editingRow, totalOrders: e.target.value})} className="mt-1 p-2 border rounded w-full" />
+              </div>
+            </div>
+            <div className="mt-3 flex justify-end gap-3">
+              <button onClick={() => setEditingRow(null)} className="px-3 py-2 bg-gray-200 rounded">Cancel</button>
+              <button onClick={() => applyEdit(editingRow)} className="px-3 py-2 bg-blue-600 text-white rounded">Apply</button>
+            </div>
+          </div>
+        )}
+
         <div className="mt-6 flex justify-end gap-3">
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={loading}
-            className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 disabled:opacity-50"
-          >
-            Batal
-          </button>
-          <button
-            type="button"
-            onClick={handleConfirm}
-            disabled={loading || reports.length === 0}
-            className="px-4 py-2 bg-blue-600 text-white font-semibold rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {loading ? 'Mengimpor...' : `Impor ${reports.length} Laporan`}
-          </button>
+          <button onClick={onClose} className="px-4 py-2 bg-gray-200 rounded">Batal</button>
+          <button onClick={handleConfirm} className="px-4 py-2 bg-green-600 text-white rounded">Confirm Import ({rows.filter(r=>!excludedIds.has(r.id) && (!r.errors||r.errors.length===0)).length})</button>
         </div>
       </div>
     </Modal>

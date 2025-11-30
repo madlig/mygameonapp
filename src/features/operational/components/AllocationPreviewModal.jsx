@@ -1,29 +1,23 @@
 // src/features/operational/components/AllocationPreviewModal.jsx
 import React from 'react';
-import Modal from '../../../components/common/Modal'; // Pastikan path ini benar
+import Modal from '../../../components/common/Modal';
+import { formatCurrency } from '../../../utils/numberUtils';
 
 const AllocationPreviewModal = ({
   isOpen,
   onClose,
   allocationData = [],
   onConfirm,
-  title = 'Allocation Preview',
+  title = 'Pratinjau Alokasi',
   totalCost = 0
 }) => {
   if (!isOpen) return null;
 
-  // Pastikan allocationData adalah array
   const rows = Array.isArray(allocationData) ? allocationData : [];
+  const totalGross = rows.reduce((s, r) => s + (Number(r.grossIncome) || 0), 0);
+  const totalAllocatedFromRows = rows.reduce((s, r) => s + (Number(r.allocatedCost) || 0), 0);
 
-  // Total gross pendapatan untuk periode (digunakan untuk menghitung bobot jika weight tidak disediakan)
-  const totalGross = rows.reduce((sum, r) => sum + (Number(r.grossIncome) || 0), 0);
-
-  // Helper: aman format angka
-  const fmt = (v, opts = {}) => {
-    const { maximumFractionDigits = 0 } = opts;
-    const num = Number(v) || 0;
-    return num.toLocaleString('id-ID', { maximumFractionDigits });
-  };
+  const fmt = (v, opts) => formatCurrency(v, opts);
 
   return (
     <Modal onClose={onClose} ariaLabel={`${title} Allocation Preview`}>
@@ -45,27 +39,24 @@ const AllocationPreviewModal = ({
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {rows.map((item, index) => {
-                // Pastikan tanggal jadi Date (jika string, coba parse)
-                let dateObj = item.date instanceof Date ? item.date : (item.date ? new Date(item.date) : null);
-                if (dateObj && isNaN(dateObj.getTime())) dateObj = null;
-
-                // Jika parser/NetRevenueSection sudah menyertakan weight, gunakan itu.
-                // Kalau tidak, hitung dari grossIncome / totalGross sebagai fallback.
-                let weight = null;
-                if (typeof item.weight === 'number' && !Number.isNaN(item.weight)) {
-                  weight = item.weight;
-                } else if (totalGross > 0) {
-                  weight = ((Number(item.grossIncome) || 0) / totalGross) * 100;
-                } else if (totalCost > 0) {
-                  // fallback terakhir: gunakan allocatedCost / totalCost
-                  weight = ((Number(item.allocatedCost) || 0) / totalCost) * 100;
-                } else {
-                  weight = 0;
+                // safe date
+                let dateObj = null;
+                if (item.date instanceof Date) dateObj = item.date;
+                else if (typeof item.date === 'string' || typeof item.date === 'number') {
+                  const d = new Date(item.date);
+                  if (!isNaN(d.getTime())) dateObj = d;
                 }
 
-                const weightText = (typeof weight === 'number' && !Number.isNaN(weight)) ? weight.toFixed(2) : '0.00';
-                const allocated = Number(item.allocatedCost) || 0;
                 const gross = Number(item.grossIncome) || 0;
+                // prefer explicit weight if numeric
+                let weight = null;
+                if (typeof item.weight === 'number' && Number.isFinite(item.weight)) weight = item.weight;
+                else if (totalGross > 0) weight = (gross / totalGross) * 100;
+                else if (totalCost > 0) weight = ((Number(item.allocatedCost) || 0) / totalCost) * 100;
+                else weight = 0;
+
+                const weightText = Number.isFinite(weight) ? weight.toFixed(2) : '0.00';
+                const allocated = Number(item.allocatedCost) || 0;
 
                 return (
                   <tr key={index} className="hover:bg-gray-50">
@@ -79,11 +70,20 @@ const AllocationPreviewModal = ({
                       {weightText}%
                     </td>
                     <td className="px-4 py-2 whitespace-nowrap text-sm font-semibold text-green-700">
-                      Rp {fmt(Math.round(allocated), { maximumFractionDigits: 0 })}
+                      Rp {fmt(Math.round(allocated))}
                     </td>
                   </tr>
                 );
               })}
+              {Math.round(totalAllocatedFromRows) !== Math.round(totalCost) && (
+                <tr className="bg-yellow-50">
+                  <td colSpan="2" className="px-4 py-2 text-sm text-gray-700 font-medium">Note</td>
+                  <td className="px-4 py-2 text-sm text-gray-700">Total allocated</td>
+                  <td className="px-4 py-2 text-sm font-semibold text-yellow-800">
+                    Rp {fmt(totalAllocatedFromRows)} (expected Rp {fmt(totalCost)})
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
@@ -92,11 +92,7 @@ const AllocationPreviewModal = ({
           <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300">
             Batal
           </button>
-          <button
-            type="button"
-            onClick={() => onConfirm && onConfirm(rows)}
-            className="px-4 py-2 bg-blue-600 text-white font-semibold rounded-md hover:bg-blue-700"
-          >
+          <button type="button" onClick={() => onConfirm && onConfirm(rows)} className="px-4 py-2 bg-blue-600 text-white font-semibold rounded-md hover:bg-blue-700">
             Konfirmasi & Simpan Alokasi
           </button>
         </div>

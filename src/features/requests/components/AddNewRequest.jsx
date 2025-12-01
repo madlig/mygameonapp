@@ -2,94 +2,96 @@ import React, { useState } from "react";
 import { collection, addDoc, updateDoc, doc } from "firebase/firestore";
 import { db } from "../../../config/firebaseConfig";
 import Modal from "../../../components/common/Modal";
+import Swal from "sweetalert2";
 
-const AddNewRequest = ({ closeModal, requests, setRequests }) => {
+/**
+ * AddNewRequest
+ * - Adds a new request or increments requestCount if the same game already exists in "Requested List".
+ * - DOES NOT perform optimistic UI mutation to avoid duplicates with the onSnapshot listener in RequestsPage.
+ * - Includes Estimated Size (GB) input.
+ */
+const AddNewRequest = ({ closeModal, requests /* read-only lookup only */ }) => {
   const [formData, setFormData] = useState({
     game: "",
-    platforms: [], // Array untuk platform
+    platforms: [], // kept for backward compatibility / current UI
     earliestDate: "",
+    estimatedSize: "", // new optional field (GB)
   });
-
-  const handleAddRequest = async (e) => {
-    e.preventDefault();
-
-    try {
-      // Check if the game already exists
-      const existingRequest = requests["Requested List"].find(
-        (req) => req.game === formData.game
-      );
-
-      if (existingRequest) {
-        // If it exists, update requestCount and latestDate
-        const updatedRequestCount = existingRequest.requestCount + 1;
-
-        await updateDoc(doc(db, "requests", existingRequest.id), {
-          requestCount: updatedRequestCount,
-          latestDate: formData.earliestDate,
-        });
-
-        // Update state
-        setRequests((prev) => {
-          const updatedRequests = [...prev["Requested List"]];
-          const requestIndex = updatedRequests.findIndex(
-            (req) => req.id === existingRequest.id
-          );
-
-          updatedRequests[requestIndex] = {
-            ...existingRequest,
-            requestCount: updatedRequestCount,
-            latestDate: formData.earliestDate,
-          };
-
-          return {
-            ...prev,
-            "Requested List": updatedRequests,
-          };
-        });
-
-        alert("Request updated successfully!");
-      } else {
-        // If it doesn't exist, add a new request
-        const newRequest = {
-          ...formData,
-          requestCount: 1, // First request
-          latestDate: formData.earliestDate, // LatestDate is the same as earliestDate
-          statusColumn: "Requested List", // Default status
-        };
-
-        const docRef = await addDoc(collection(db, "requests"), newRequest);
-
-        // Update state
-        setRequests((prev) => ({
-          ...prev,
-          "Requested List": [
-            ...prev["Requested List"],
-            { id: docRef.id, ...newRequest },
-          ],
-        }));
-
-        alert("Request added successfully!");
-      }
-
-      closeModal(); // Close the modal
-      setFormData({ game: "", platforms: [], earliestDate: "" }); // Reset form
-    } catch (error) {
-      console.error("Error adding/updating request card: ", error);
-      alert("Failed to process request!");
-    }
-  };
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handlePlatformChange = (platform) => {
     setFormData((prev) => {
-      const platforms = [...prev.platforms];
+      const platforms = Array.isArray(prev.platforms) ? [...prev.platforms] : [];
       if (platforms.includes(platform)) {
-        // Remove platform if already selected
         return { ...prev, platforms: platforms.filter((p) => p !== platform) };
-      } else {
-        // Add platform if not selected
-        return { ...prev, platforms: [...prev, platform] };
       }
+      return { ...prev, platforms: [...platforms, platform] };
     });
+  };
+
+  const handleAddRequest = async (e) => {
+    e.preventDefault();
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+
+    try {
+      const gameName = String(formData.game || "").trim();
+      if (!gameName) {
+        Swal.fire("Peringatan", "Masukkan nama game.", "warning");
+        setIsSubmitting(false);
+        return;
+      }
+
+      // lookup existing in current "Requested List" snapshot (if provided)
+      const existingRequest = (requests && requests["Requested List"])
+        ? requests["Requested List"].find(
+            (r) => String(r.game || "").trim().toLowerCase() === gameName.toLowerCase()
+          )
+        : null;
+
+      if (existingRequest) {
+        // increment requestCount and optionally update latestDate and estimatedSize if provided
+        const updatedRequestCount = (existingRequest.requestCount || 0) + 1;
+        const updatePayload = {
+          requestCount: updatedRequestCount,
+          latestDate: formData.earliestDate || existingRequest.latestDate || new Date().toISOString().split("T")[0],
+        };
+        if (formData.estimatedSize !== "" && !Number.isNaN(Number(formData.estimatedSize))) {
+          updatePayload.estimatedSize = Number(formData.estimatedSize);
+        }
+        await updateDoc(doc(db, "requests", existingRequest.id), updatePayload);
+
+        // Do NOT mutate local state here; onSnapshot will update the UI.
+        Swal.fire("Berhasil", "Request digabungkan ke Requested List.", "success");
+      } else {
+        // create new request doc
+        const newRequest = {
+          game: gameName,
+          platforms: Array.isArray(formData.platforms) ? formData.platforms : [],
+          earliestDate: formData.earliestDate || new Date().toISOString().split("T")[0],
+          latestDate: formData.earliestDate || new Date().toISOString().split("T")[0],
+          statusColumn: "Requested List",
+          requestCount: 1,
+          estimatedSize: formData.estimatedSize !== "" && !Number.isNaN(Number(formData.estimatedSize))
+            ? Number(formData.estimatedSize)
+            : 0,
+          createdAt: new Date()
+        };
+
+        await addDoc(collection(db, "requests"), newRequest);
+        // Do NOT mutate local state; onSnapshot will pick up new doc and update UI.
+        Swal.fire("Berhasil", "Request baru berhasil ditambahkan.", "success");
+      }
+
+      // close modal & reset form
+      closeModal();
+      setFormData({ game: "", platforms: [], earliestDate: "", estimatedSize: "" });
+    } catch (error) {
+      console.error("Error adding/updating request card: ", error);
+      Swal.fire("Error", "Gagal memproses request. Cek console untuk detail.", "error");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -107,6 +109,22 @@ const AddNewRequest = ({ closeModal, requests, setRequests }) => {
               required
             />
           </div>
+
+          {/* Estimated Size */}
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700">Estimated Size (GB) - optional</label>
+            <input
+              type="number"
+              min="0"
+              step="0.1"
+              value={formData.estimatedSize}
+              onChange={(e) => setFormData({ ...formData, estimatedSize: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md"
+              placeholder="e.g. 12.5"
+            />
+            <p className="text-xs text-gray-400 mt-1">Isi jika Anda tahu perkiraan ukuran file (GB). Berguna untuk prioritas / batching.</p>
+          </div>
+
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700">Platforms</label>
             <div className="flex flex-wrap gap-2 mt-2">
@@ -114,7 +132,7 @@ const AddNewRequest = ({ closeModal, requests, setRequests }) => {
                 <label
                   key={platform}
                   className={`px-3 py-1 border rounded-md cursor-pointer ${
-                    formData.platforms.includes(platform)
+                    (formData.platforms || []).includes(platform)
                       ? "bg-blue-500 text-white"
                       : "bg-gray-200"
                   }`}
@@ -122,7 +140,7 @@ const AddNewRequest = ({ closeModal, requests, setRequests }) => {
                   <input
                     type="checkbox"
                     value={platform}
-                    checked={formData.platforms.includes(platform)}
+                    checked={(formData.platforms || []).includes(platform)}
                     onChange={() => handlePlatformChange(platform)}
                     className="hidden"
                   />
@@ -131,6 +149,7 @@ const AddNewRequest = ({ closeModal, requests, setRequests }) => {
               ))}
             </div>
           </div>
+
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700">Request Date</label>
             <input
@@ -141,6 +160,7 @@ const AddNewRequest = ({ closeModal, requests, setRequests }) => {
               required
             />
           </div>
+
           <div className="flex justify-end gap-2">
             <button
               type="button"
@@ -151,9 +171,10 @@ const AddNewRequest = ({ closeModal, requests, setRequests }) => {
             </button>
             <button
               type="submit"
+              disabled={isSubmitting}
               className="px-4 py-2 bg-green-500 text-white text-sm font-medium rounded hover:bg-green-600"
             >
-              Add
+              {isSubmitting ? "Processing..." : "Add"}
             </button>
           </div>
         </form>

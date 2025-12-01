@@ -1,3 +1,6 @@
+// src/features/requests/RequestsPage.jsx
+// Add "RDP Batch" column support and handler to move to RDP Batch
+
 import React, { useState, useEffect } from "react";
 import Swal from "sweetalert2";
 import {
@@ -22,6 +25,7 @@ const RequestsPage = () => {
     "Requested List": [],
     "On Process": [],
     Uploaded: [],
+    "RDP Batch": [], // new column
   });
   const [pendingRequests, setPendingRequests] = useState([]);
 
@@ -30,7 +34,7 @@ const RequestsPage = () => {
 
   useEffect(() => {
     const unsubscribe = onSnapshot(collection(db, "requests"), (snapshot) => {
-      const requestsData = { "Requested List": [], "On Process": [], Uploaded: [] };
+      const requestsData = { "Requested List": [], "On Process": [], Uploaded: [], "RDP Batch": [] };
       const pendingData = [];
 
       snapshot.forEach((d) => {
@@ -40,6 +44,9 @@ const RequestsPage = () => {
           pendingData.push(item);
         } else if (requestsData[data.statusColumn]) {
           requestsData[data.statusColumn].push(item);
+        } else {
+          // if statusColumn unknown, put into Requested List as fallback
+          requestsData["Requested List"].push(item);
         }
       });
 
@@ -59,38 +66,72 @@ const RequestsPage = () => {
   });
 
   const handleAcceptRequest = async (request) => {
-    const q = query(
-      collection(db, "requests"),
-      where("game", "==", request.game),
-      where("statusColumn", "==", "Requested List")
-    );
-    const existingGameSnapshot = await getDocs(q);
-
-    if (!existingGameSnapshot.empty) {
-      const existingDoc = existingGameSnapshot.docs[0];
-      const existingData = existingDoc.data();
-
-      const { isConfirmed } = await Swal.fire({
-        title: "Game sudah ada",
-        text: `${request.game} sudah ada di Requested List. Tambah request count?`,
-        icon: "question",
+    try {
+      // Show triage dialog first: allow admin to input Estimated Size (GB)
+      const prefillSize = request?.estimatedSize !== undefined ? String(request.estimatedSize) : '';
+      const { value: estimatedSizeValue, isConfirmed: triageConfirmed } = await Swal.fire({
+        title: 'Triage & Terima Request',
+        html:
+          `<p class="text-sm text-gray-600 mb-2">Anda menerima request: <strong>${request.game}</strong></p>` +
+          `<input id="swal-est-size" type="number" min="0" step="0.1" class="swal2-input" placeholder="Estimated Size (GB) - optional" value="${prefillSize}">` +
+          `<p class="text-xs text-gray-500 mt-1">Isi perkiraan ukuran file (GB) jika tersedia. Kosongkan untuk tidak mengubah.</p>`,
         showCancelButton: true,
-        confirmButtonText: "Ya, tambah",
-        cancelButtonText: "Batal",
+        confirmButtonText: 'Terima',
+        cancelButtonText: 'Batal',
+        focusConfirm: false,
+        preConfirm: () => {
+          const raw = document.getElementById('swal-est-size')?.value;
+          if (raw === null || raw === undefined || raw === '') return null;
+          const n = Number(raw);
+          if (Number.isNaN(n) || n < 0) {
+            Swal.showValidationMessage('Estimated Size harus berupa angka >= 0');
+            return false;
+          }
+          return n;
+        }
       });
 
-      if (isConfirmed) {
+      if (!triageConfirmed) return; // admin cancelled triage
+
+      // normalize triage input (null if empty)
+      const triageSize = (estimatedSizeValue === null || estimatedSizeValue === undefined) ? null : Number(estimatedSizeValue);
+
+      // Check whether the same game already exists in Requested List
+      const q = query(
+        collection(db, "requests"),
+        where("game", "==", request.game),
+        where("statusColumn", "==", "Requested List")
+      );
+      const existingGameSnapshot = await getDocs(q);
+
+      if (!existingGameSnapshot.empty) {
+        // If exists, merge: increment requestCount and optionally update estimatedSize
+        const existingDoc = existingGameSnapshot.docs[0];
+        const existingData = existingDoc.data();
         const updatedRequestCount = (existingData.requestCount || 1) + 1;
-        await updateDoc(doc(db, "requests", existingDoc.id), {
+
+        const updatePayload = {
           requestCount: updatedRequestCount,
           latestDate: new Date().toISOString().split("T")[0],
-        });
+        };
+        if (triageSize !== null) updatePayload.estimatedSize = triageSize;
+
+        await updateDoc(doc(db, "requests", existingDoc.id), updatePayload);
+        // remove the pending request doc that triggered triage
         await deleteDoc(doc(db, "requests", request.id));
-        Toast.fire({ icon: "success", title: "Request merged ke Requested List" });
+
+        Toast.fire({ icon: "success", title: "Request diterima dan digabung ke Requested List" });
+      } else {
+        // If not exists: mark this pending request as Requested List and set estimatedSize if provided
+        const updatePayload = { statusColumn: "Requested List", latestDate: new Date().toISOString().split("T")[0] };
+        if (triageSize !== null) updatePayload.estimatedSize = triageSize;
+        await updateDoc(doc(db, "requests", request.id), updatePayload);
+
+        Toast.fire({ icon: "success", title: "Request diterima dan dipindahkan ke Requested List" });
       }
-    } else {
-      await updateDoc(doc(db, "requests", request.id), { statusColumn: "Requested List" });
-      Toast.fire({ icon: "success", title: "Request dipindahkan ke Requested List" });
+    } catch (error) {
+      console.error("Gagal melakukan triage/accept request:", error);
+      Swal.fire("Error", "Gagal memproses triage. Cek console untuk detail.", "error");
     }
   };
 
@@ -140,6 +181,7 @@ const RequestsPage = () => {
       "On Process": "Start process",
       Uploaded: "Mark uploaded",
       "Requested List": "Return to requested",
+      "RDP Batch": "Add to RDP Batch",
     };
     const actionLabel = labelMap[targetStatus] || `Move to ${targetStatus}`;
 
@@ -170,6 +212,36 @@ const RequestsPage = () => {
     } catch (error) {
       console.error("Gagal memindahkan request:", error);
       Swal.fire("Error", "Gagal memindahkan request. Coba lagi.", "error");
+    }
+  };
+
+  // New: handler for Add to RDP Batch action
+  const handleAddToRdpBatch = async (request) => {
+    const { isConfirmed } = await Swal.fire({
+      title: "Tambah ke RDP Batch?",
+      html: `Pindahkan <strong>${request.game}</strong> ke kolom <em>RDP Batch</em>?`,
+      icon: "question",
+      showCancelButton: true,
+      confirmButtonText: "Tambah",
+      cancelButtonText: "Batal",
+    });
+    if (!isConfirmed) return;
+
+    try {
+      await updateDoc(doc(db, "requests", request.id), { statusColumn: "RDP Batch" });
+      // optimistic UI update
+      setRequests((prev) => {
+        const newRequests = { ...prev };
+        Object.keys(newRequests).forEach((status) => {
+          newRequests[status] = newRequests[status].filter((r) => r.id !== request.id);
+        });
+        newRequests["RDP Batch"] = [{ ...request, statusColumn: "RDP Batch" }, ...(newRequests["RDP Batch"] || [])];
+        return newRequests;
+      });
+      Toast.fire({ icon: "success", title: `${request.game} ditambahkan ke RDP Batch` });
+    } catch (err) {
+      console.error("Gagal menambah ke RDP Batch:", err);
+      Swal.fire("Error", "Gagal menambahkan ke RDP Batch.", "error");
     }
   };
 
@@ -264,6 +336,7 @@ const RequestsPage = () => {
                 onDelete={handleDeleteRequest}
                 onMove={handleMoveRequest}
                 onMoveToGames={handleMoveToGames}
+                onAddToRdp={handleAddToRdpBatch}
               />
             ))}
           </div>

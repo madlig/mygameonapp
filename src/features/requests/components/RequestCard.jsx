@@ -1,15 +1,20 @@
+// src/features/requests/components/RequestCard.jsx
+// show estimatedSize and priority; add "Add to RDP Batch" action for large items
+
 import React from "react";
 import { XMarkIcon } from "@heroicons/react/24/solid";
+import { computePriority } from "../utils/priorityEngine";
 
 const getPriorityStyle = (requestCount) => {
-  if (requestCount > 10) return { label: "Critical", bg: "bg-red-100", text: "text-red-800" };
-  if (requestCount > 5) return { label: "High", bg: "bg-orange-100", text: "text-orange-800" };
-  if (requestCount > 3) return { label: "Medium", bg: "bg-yellow-100", text: "text-yellow-800" };
+  if (requestCount > 5) return { label: "Critical", bg: "bg-red-100", text: "text-red-800" };
+  if (requestCount > 3) return { label: "High", bg: "bg-orange-100", text: "text-orange-800" };
+  if (requestCount > 1) return { label: "Medium", bg: "bg-yellow-100", text: "text-yellow-800" };
   return { label: "Low", bg: "bg-green-100", text: "text-green-800" };
 };
 
-const RequestCard = ({ request, status, onEdit, onDelete, onMove, onMoveToGames }) => {
-  const priority = getPriorityStyle(request.requestCount || 0);
+const RequestCard = ({ request, status, onEdit, onDelete, onMove, onMoveToGames, onAddToRdp }) => {
+  const priority = computePriority({ requestCount: request.requestCount || 0, estimatedSize: request.estimatedSize || 0 });
+  const isLarge = (Number(request.estimatedSize) || 0) >= 10; // threshold 10GB for RDP Batch
 
   const renderMoveButtons = () => {
     if (status === "Requested List") {
@@ -54,7 +59,7 @@ const RequestCard = ({ request, status, onEdit, onDelete, onMove, onMoveToGames 
   };
 
   return (
-    <div className={`relative border rounded-lg p-3 ${priority.bg} shadow-sm`}>
+    <div className={`relative border rounded-lg p-3 ${priority.label === 'Hot' ? 'bg-red-50' : ''} shadow-sm`}>
       <button
         onClick={() => onDelete(request.id)}
         className="absolute top-2 right-2 text-red-600 hover:text-red-800 p-1 rounded"
@@ -65,7 +70,7 @@ const RequestCard = ({ request, status, onEdit, onDelete, onMove, onMoveToGames 
 
       <div className="flex items-start gap-3">
         <div className="flex-shrink-0">
-          <div className={`px-2 py-0.5 text-xs font-bold uppercase rounded-full border ${priority.text}`}>
+          <div className={`px-2 py-0.5 text-xs font-bold uppercase rounded-full border ${priority.colorClass}`}>
             {priority.label}
           </div>
           <div className="mt-2 px-2 py-0.5 bg-blue-500 text-white text-xs font-bold rounded-full text-center">Req: {request.requestCount}</div>
@@ -93,6 +98,11 @@ const RequestCard = ({ request, status, onEdit, onDelete, onMove, onMoveToGames 
               ))}
             </div>
           )}
+
+          <div className="mt-2 text-sm text-gray-700 flex items-center gap-3">
+            <div>Estimated Size: <span className="font-medium">{(request.estimatedSize ?? 0) + " GB"}</span></div>
+            <div className="text-xs text-gray-500">Score: {priority.scoreRounded}</div>
+          </div>
         </div>
       </div>
 
@@ -105,6 +115,16 @@ const RequestCard = ({ request, status, onEdit, onDelete, onMove, onMoveToGames 
         </button>
 
         {renderMoveButtons()}
+
+        {/* Add to RDP Batch (visible when large and not already in RDP Batch) */}
+        {isLarge && status !== "RDP Batch" && (
+          <button
+            onClick={() => onAddToRdp && onAddToRdp(request)}
+            className="w-full sm:w-auto px-3 py-2 bg-purple-600 text-white text-sm rounded hover:bg-purple-700"
+          >
+            Add to RDP Batch
+          </button>
+        )}
 
         <button
           onClick={() => onDelete(request.id)}

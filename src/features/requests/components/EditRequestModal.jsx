@@ -1,8 +1,20 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Modal from "../../../components/common/Modal";
 
+/**
+ * EditRequestModal
+ * - Includes Estimated Size (GB) field.
+ * - Normalizes estimatedSize to Number before calling onSave.
+ */
 const EditRequestModal = ({ request, onClose, onSave }) => {
-  const [formData, setFormData] = useState(request);
+  const [formData, setFormData] = useState({
+    ...request,
+    estimatedSize: request?.estimatedSize ?? ""
+  });
+
+  useEffect(() => {
+    setFormData({ ...request, estimatedSize: request?.estimatedSize ?? "" });
+  }, [request]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -11,7 +23,7 @@ const EditRequestModal = ({ request, onClose, onSave }) => {
 
   const handlePlatformChange = (platform) => {
     setFormData((prev) => {
-      const platforms = [...(prev.platforms || [])];
+      const platforms = Array.isArray(prev.platforms) ? [...prev.platforms] : [];
       if (platforms.includes(platform)) {
         return { ...prev, platforms: platforms.filter((p) => p !== platform) };
       } else {
@@ -22,8 +34,23 @@ const EditRequestModal = ({ request, onClose, onSave }) => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    onSave(formData);
+    // normalize estimatedSize (if empty -> 0, otherwise number)
+    const normalized = { ...formData };
+    if (normalized.estimatedSize !== undefined && normalized.estimatedSize !== "") {
+      normalized.estimatedSize = Number(normalized.estimatedSize);
+      if (Number.isNaN(normalized.estimatedSize)) normalized.estimatedSize = 0;
+    } else {
+      normalized.estimatedSize = 0;
+    }
+    // normalize requestCount if present
+    if (normalized.requestCount !== undefined) {
+      const rc = Number(normalized.requestCount);
+      normalized.requestCount = Number.isFinite(rc) ? rc : (request.requestCount || 0);
+    }
+    onSave(normalized);
   };
+
+  if (!request) return null;
 
   return (
     <Modal onClose={onClose} ariaLabel="Edit Request">
@@ -36,9 +63,24 @@ const EditRequestModal = ({ request, onClose, onSave }) => {
             <input
               type="text"
               name="game"
-              value={formData.game}
+              value={formData.game || ""}
               onChange={handleChange}
               className="w-full border rounded px-3 py-2"
+            />
+          </div>
+
+          {/* Estimated Size */}
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700">Estimated Size (GB)</label>
+            <input
+              type="number"
+              step="0.1"
+              min="0"
+              name="estimatedSize"
+              value={formData.estimatedSize ?? ""}
+              onChange={handleChange}
+              className="w-full border rounded px-3 py-2"
+              placeholder="e.g. 12.5"
             />
           </div>
 
@@ -48,7 +90,7 @@ const EditRequestModal = ({ request, onClose, onSave }) => {
             <input
               type="number"
               name="requestCount"
-              value={formData.requestCount}
+              value={formData.requestCount ?? 0}
               onChange={handleChange}
               className="w-full border rounded px-3 py-2"
             />
@@ -62,7 +104,7 @@ const EditRequestModal = ({ request, onClose, onSave }) => {
                 <label
                   key={platform}
                   className={`px-3 py-1 border rounded-md cursor-pointer ${
-                    formData.platforms?.includes(platform)
+                    (formData.platforms || []).includes(platform)
                       ? "bg-blue-500 text-white"
                       : "bg-gray-200"
                   }`}
@@ -70,7 +112,7 @@ const EditRequestModal = ({ request, onClose, onSave }) => {
                   <input
                     type="checkbox"
                     value={platform}
-                    checked={formData.platforms?.includes(platform)}
+                    checked={(formData.platforms || []).includes(platform)}
                     onChange={() => handlePlatformChange(platform)}
                     className="hidden"
                   />

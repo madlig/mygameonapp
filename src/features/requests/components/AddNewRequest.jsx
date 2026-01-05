@@ -1,185 +1,82 @@
-import React, { useState } from "react";
-import { collection, addDoc, updateDoc, doc } from "firebase/firestore";
-import { db } from "../../../config/firebaseConfig";
-import Modal from "../../../components/common/Modal";
-import Swal from "sweetalert2";
+import React from 'react';
+import { useForm } from 'react-hook-form';
+import { X, Loader2, StickyNote, Gamepad2 } from 'lucide-react';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { db } from '../../../config/firebaseConfig';
 
-/**
- * AddNewRequest
- * - Adds a new request or increments requestCount if the same game already exists in "Requested List".
- * - DOES NOT perform optimistic UI mutation to avoid duplicates with the onSnapshot listener in RequestsPage.
- * - Includes Estimated Size (GB) input.
- */
-const AddNewRequest = ({ closeModal, requests /* read-only lookup only */ }) => {
-  const [formData, setFormData] = useState({
-    game: "",
-    platforms: [], // kept for backward compatibility / current UI
-    earliestDate: "",
-    estimatedSize: "", // new optional field (GB)
-  });
-  const [isSubmitting, setIsSubmitting] = useState(false);
+const AddNewRequest = ({ onClose, onSuccess }) => {
+  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm();
 
-  const handlePlatformChange = (platform) => {
-    setFormData((prev) => {
-      const platforms = Array.isArray(prev.platforms) ? [...prev.platforms] : [];
-      if (platforms.includes(platform)) {
-        return { ...prev, platforms: platforms.filter((p) => p !== platform) };
-      }
-      return { ...prev, platforms: [...platforms, platform] };
-    });
-  };
-
-  const handleAddRequest = async (e) => {
-    e.preventDefault();
-    if (isSubmitting) return;
-    setIsSubmitting(true);
-
+  const onSubmit = async (data) => {
     try {
-      const gameName = String(formData.game || "").trim();
-      if (!gameName) {
-        Swal.fire("Peringatan", "Masukkan nama game.", "warning");
-        setIsSubmitting(false);
-        return;
-      }
+      const cleanTitle = data.title.trim();
+      
+      const requestData = {
+        title: cleanTitle,
+        title_lower: cleanTitle.toLowerCase(), // TAMBAHAN PENTING
+        
+        platform: 'PC',
+        notes: data.notes || '',
+        
+        requesterName: 'Admin', 
+        source: 'admin', 
+        
+        status: 'queued', 
+        isUrgent: data.isUrgent || false,
+        isRdpBatch: false,
+        
+        votes: 1,
+        
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      };
 
-      // lookup existing in current "Requested List" snapshot (if provided)
-      const existingRequest = (requests && requests["Requested List"])
-        ? requests["Requested List"].find(
-            (r) => String(r.game || "").trim().toLowerCase() === gameName.toLowerCase()
-          )
-        : null;
-
-      if (existingRequest) {
-        // increment requestCount and optionally update latestDate and estimatedSize if provided
-        const updatedRequestCount = (existingRequest.requestCount || 0) + 1;
-        const updatePayload = {
-          requestCount: updatedRequestCount,
-          latestDate: formData.earliestDate || existingRequest.latestDate || new Date().toISOString().split("T")[0],
-        };
-        if (formData.estimatedSize !== "" && !Number.isNaN(Number(formData.estimatedSize))) {
-          updatePayload.estimatedSize = Number(formData.estimatedSize);
-        }
-        await updateDoc(doc(db, "requests", existingRequest.id), updatePayload);
-
-        // Do NOT mutate local state here; onSnapshot will update the UI.
-        Swal.fire("Berhasil", "Request digabungkan ke Requested List.", "success");
-      } else {
-        // create new request doc
-        const newRequest = {
-          game: gameName,
-          platforms: Array.isArray(formData.platforms) ? formData.platforms : [],
-          earliestDate: formData.earliestDate || new Date().toISOString().split("T")[0],
-          latestDate: formData.earliestDate || new Date().toISOString().split("T")[0],
-          statusColumn: "Requested List",
-          requestCount: 1,
-          estimatedSize: formData.estimatedSize !== "" && !Number.isNaN(Number(formData.estimatedSize))
-            ? Number(formData.estimatedSize)
-            : 0,
-          createdAt: new Date()
-        };
-
-        await addDoc(collection(db, "requests"), newRequest);
-        // Do NOT mutate local state; onSnapshot will pick up new doc and update UI.
-        Swal.fire("Berhasil", "Request baru berhasil ditambahkan.", "success");
-      }
-
-      // close modal & reset form
-      closeModal();
-      setFormData({ game: "", platforms: [], earliestDate: "", estimatedSize: "" });
+      await addDoc(collection(db, 'requests'), requestData);
+      
+      onSuccess();
+      onClose();
     } catch (error) {
-      console.error("Error adding/updating request card: ", error);
-      Swal.fire("Error", "Gagal memproses request. Cek console untuk detail.", "error");
-    } finally {
-      setIsSubmitting(false);
+      console.error("Error adding manual request:", error);
+      alert("Gagal menambahkan request.");
     }
   };
 
+  // ... (Sisa kode return render sama persis seperti sebelumnya)
   return (
-    <Modal onClose={closeModal} ariaLabel="Add Request">
-      <div className="p-6 w-full max-w-md">
-        <h2 className="text-xl font-bold mb-4">Add New Request</h2>
-        <form onSubmit={handleAddRequest}>
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700">Game Name</label>
-            <input
-              type="text"
-              value={formData.game}
-              onChange={(e) => setFormData({ ...formData, game: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md"
-              required
-            />
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden">
+        <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+          <h3 className="font-bold text-slate-800">Tambah Antrian Manual</h3>
+          <button onClick={onClose} className="p-2 hover:bg-slate-200 rounded-full transition-colors">
+            <X size={20} className="text-slate-500" />
+          </button>
+        </div>
+        <form onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Judul Game</label>
+            <div className="relative">
+                <Gamepad2 className="absolute top-2.5 left-3 text-slate-400" size={18} />
+                <input {...register("title", { required: "Judul wajib diisi" })} placeholder="Contoh: GTA V" className="w-full pl-10 pr-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" />
+            </div>
+            {errors.title && <span className="text-xs text-red-500">{errors.title.message}</span>}
           </div>
-
-          {/* Estimated Size */}
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700">Estimated Size (GB) - optional</label>
-            <input
-              type="number"
-              min="0"
-              step="0.1"
-              value={formData.estimatedSize}
-              onChange={(e) => setFormData({ ...formData, estimatedSize: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md"
-              placeholder="e.g. 12.5"
-            />
-            <p className="text-xs text-gray-400 mt-1">Isi jika Anda tahu perkiraan ukuran file (GB). Berguna untuk prioritas / batching.</p>
-          </div>
-
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700">Platforms</label>
-            <div className="flex flex-wrap gap-2 mt-2">
-              {["OvaGames", "SteamRIP", "RepackGames"].map((platform) => (
-                <label
-                  key={platform}
-                  className={`px-3 py-1 border rounded-md cursor-pointer ${
-                    (formData.platforms || []).includes(platform)
-                      ? "bg-blue-500 text-white"
-                      : "bg-gray-200"
-                  }`}
-                >
-                  <input
-                    type="checkbox"
-                    value={platform}
-                    checked={(formData.platforms || []).includes(platform)}
-                    onChange={() => handlePlatformChange(platform)}
-                    className="hidden"
-                  />
-                  {platform}
-                </label>
-              ))}
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Catatan (Opsional)</label>
+            <div className="relative">
+                <StickyNote className="absolute top-3 left-3 text-slate-400" size={16} />
+                <textarea {...register("notes")} placeholder="Catatan untuk diri sendiri..." rows="3" className="w-full pl-10 pr-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none resize-none"></textarea>
             </div>
           </div>
-
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700">Request Date</label>
-            <input
-              type="date"
-              value={formData.earliestDate}
-              onChange={(e) => setFormData({ ...formData, earliestDate: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md"
-              required
-            />
+          <div className="flex items-center gap-2 bg-slate-50 p-3 rounded-lg border border-slate-100">
+            <input type="checkbox" id="isUrgent" {...register("isUrgent")} className="w-4 h-4 text-blue-600 rounded cursor-pointer" />
+            <label htmlFor="isUrgent" className="text-sm text-slate-700 font-medium cursor-pointer">Tandai Urgent (Prioritas Tinggi)</label>
           </div>
-
-          <div className="flex justify-end gap-2">
-            <button
-              type="button"
-              className="px-4 py-2 bg-gray-400 text-white text-sm font-medium rounded hover:bg-gray-500"
-              onClick={closeModal}
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="px-4 py-2 bg-green-500 text-white text-sm font-medium rounded hover:bg-green-600"
-            >
-              {isSubmitting ? "Processing..." : "Add"}
-            </button>
-          </div>
+          <button type="submit" disabled={isSubmitting} className="w-full py-2.5 bg-slate-900 text-white rounded-lg hover:bg-slate-800 font-bold flex items-center justify-center transition-all active:scale-[0.98]">
+            {isSubmitting ? <Loader2 className="animate-spin" /> : 'Tambahkan ke Antrian'}
+          </button>
         </form>
       </div>
-    </Modal>
+    </div>
   );
 };
 

@@ -4,7 +4,7 @@ import DatePicker from 'react-datepicker';
 import "react-datepicker/dist/react-datepicker.css";
 import Modal from '../../../components/common/Modal';
 
-const AddEditTaskModal = ({ isOpen, onClose, onSave, initialData, currentProjectId, currentProjectName }) => {
+const AddEditTaskModal = ({ isOpen, onClose, onSave, initialData, currentProjectId, currentProjectName, contextData }) => {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [deadline, setDeadline] = useState(null);
@@ -15,7 +15,7 @@ const AddEditTaskModal = ({ isOpen, onClose, onSave, initialData, currentProject
   const [taskType, setTaskType] = useState('');
 
   const locationOptions = ["", "Dashboard Page", "Games Page", "Tasks Page", "Requests Page", "Operational Page", "Feedback Page", "About Page","Landing Page", "Others"];
-  const taskTypeOptions = ["", "Bug", "Feature", "Maintenance", "Research", "Testing", "Documentation", "Others"];
+  const taskTypeOptions = ["", "Game Update", "Bug", "Feature", "Maintenance", "Research", "Testing", "Documentation", "Others"];
 
   useEffect(() => {
     if (initialData) {
@@ -27,6 +27,17 @@ const AddEditTaskModal = ({ isOpen, onClose, onSave, initialData, currentProject
       setIsDailyTask(initialData.isDailyTask || false);
       setLocation(initialData.location || '');
       setTaskType(initialData.taskType || '');
+    } else if (contextData) {
+      setTitle (`[${contextData.type} Update] ${contextData.title}`);
+      setDescription(`Update task for ${contextData.type}: ${contextData.title}`);
+
+      setTaskType('Game Update');
+      setLocation(`${contextData.type} Page`);
+
+      setDeadline(null);
+      setPriority('Medium');
+      setStatus('Not Started');
+      setIsDailyTask(false);
     } else {
       let defaultTitle = '';
       if (currentProjectId && currentProjectName) {
@@ -42,7 +53,7 @@ const AddEditTaskModal = ({ isOpen, onClose, onSave, initialData, currentProject
       setLocation('');
       setTaskType('');
     }
-  }, [initialData, currentProjectId, currentProjectName]);
+  }, [initialData, currentProjectId, currentProjectName, contextData]);
 
   if (!isOpen) return null;
 
@@ -70,6 +81,11 @@ const AddEditTaskModal = ({ isOpen, onClose, onSave, initialData, currentProject
       isDailyTask: currentProjectId ? false : isDailyTask,
       location,
       taskType,
+      reference: contextData ? {
+        id: contextData.id,
+        type: contextData.type,
+        title: contextData.title
+      } : null
     };
 
     onSave(taskData);

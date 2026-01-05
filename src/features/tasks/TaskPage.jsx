@@ -310,7 +310,10 @@ const TaskPage = () => {
           {/* Add New Task: full width on mobile, auto on md+ */}
           <div className="w-full sm:w-auto">
             <button
-              onClick={() => handleOpenAddTaskModal(selectedProjectId)}
+              onClick={() => {
+                setEditingTask(null);
+                setIsTaskModalOpen(true);
+              }}
               className="w-full sm:w-auto bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600 transition"
             >
               + Add New Task
@@ -387,8 +390,7 @@ const TaskPage = () => {
           onClose={handleCloseTaskModal}
           onSave={handleSaveTask}
           initialData={editingTask}
-          currentProjectId={currentProjectForTask}
-          currentProjectName={currentProjectForTask ? projects.find(p => p.id === currentProjectForTask)?.name : null}
+          contextData={{ type: 'Game', id: 'test-game-id-999', title: 'Elden Ring' }} 
         />
       )}
     </div>

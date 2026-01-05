@@ -32,11 +32,8 @@
     "instantsearch.css": "^8.5.1",
     "instantsearch.js": "^4.75.7",
     "lru-cache": "^11.0.2",
-<<<<<<< HEAD
     "papaparse": "^5.5.3",
-=======
     "lucide-react": "^0.562.0",
->>>>>>> development
     "react": "^18.3.1",
     "react-datepicker": "^8.4.0",
     "react-dom": "^18.3.1",

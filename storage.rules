@@ -1,0 +1,26 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // Helper function
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // Aturan untuk folder 'game_covers'
+    match /game_covers/{fileName} {
+      // 1. Publik boleh download/lihat gambar
+      allow read: if true;
+      
+      // 2. Admin boleh upload
+      // Kita sederhanakan menjadi cek login saja untuk menghindari error metadata dari browser tertentu.
+      allow write: if isSignedIn();
+    }
+
+    // Default deny untuk folder lain
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

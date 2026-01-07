@@ -3,8 +3,9 @@ import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '../../config/firebaseConfig';
 import { Search, Loader2, Inbox, ListTodo, Plus, Server, Zap, FileCheck } from 'lucide-react';
 import RequestCard from './components/RequestCard';
-import ApproveGameModal from './components/ApproveGameModal';
-import AddNewRequest from './components/AddNewRequest'; 
+import AddNewRequest from './components/AddNewRequest';
+// PERUBAHAN: Import GameFormModal dari features/games
+import GameFormModal from '../../features/games/components/GameFormModal';
 
 const RequestsPage = () => {
   const [requests, setRequests] = useState([]);
@@ -15,7 +16,9 @@ const RequestsPage = () => {
   const [viewFilter, setViewFilter] = useState('all'); 
   
   const [selectedRequest, setSelectedRequest] = useState(null);
-  const [isApproveModalOpen, setIsApproveModalOpen] = useState(false);
+  
+  // Ganti nama state agar jelas (dulu isApproveModalOpen)
+  const [isFinalizeModalOpen, setIsFinalizeModalOpen] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
   useEffect(() => {
@@ -30,21 +33,14 @@ const RequestsPage = () => {
         ...doc.data()
       }));
 
-      // --- LOGIKA SORTING BARU (Tanpa priority_score) ---
+      // Sorting Logic
       const sortedRequests = requestsData.sort((a, b) => {
-        // 1. Status Priority: Uploaded & Processing selalu di atas di tab antrian
         if (a.status === 'uploaded' && b.status !== 'uploaded') return -1;
         if (a.status !== 'uploaded' && b.status === 'uploaded') return 1;
-
         if (a.status === 'processing' && b.status !== 'processing') return -1;
         if (a.status !== 'processing' && b.status === 'processing') return 1;
-
-        // 2. Urgent Priority (Boolean Check)
-        // Jika A urgent dan B tidak -> A di atas (-1)
         if (a.isUrgent && !b.isUrgent) return -1;
         if (!a.isUrgent && b.isUrgent) return 1;
-
-        // 3. Time Priority (Terbaru di atas)
         const aTime = a.createdAt?.seconds || 0;
         const bTime = b.createdAt?.seconds || 0;
         return bTime - aTime;
@@ -62,17 +58,13 @@ const RequestsPage = () => {
 
   const filteredRequests = requests.filter(req => {
     const status = req.status || 'pending';
-
     const isInbox = mainTab === 'inbox' && status === 'pending';
     const isQueue = mainTab === 'queue' && ['queued', 'processing', 'uploaded'].includes(status);
-
     if (!isInbox && !isQueue) return false;
 
-    // Search Logic
     const searchLower = searchTerm.toLowerCase();
     const title = (req.title || '').toLowerCase();
     const requester = (req.requesterName || '').toLowerCase();
-    
     const matchSearch = title.includes(searchLower) || requester.includes(searchLower);
 
     if (mainTab === 'queue') {
@@ -144,13 +136,39 @@ const RequestsPage = () => {
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {filteredRequests.map(req => (
-              <RequestCard key={req.id} request={req} onApproveClick={(r) => { setSelectedRequest(r); setIsApproveModalOpen(true); }} />
+              <RequestCard 
+                key={req.id} 
+                request={req} 
+                // TRIGGER: Buka Modal GameForm (Create Mode)
+                onApproveClick={(r) => { 
+                    setSelectedRequest(r); 
+                    setIsFinalizeModalOpen(true); 
+                }} 
+              />
             ))}
           </div>
         )}
       </div>
 
-      {isApproveModalOpen && selectedRequest && <ApproveGameModal request={selectedRequest} onClose={() => setIsApproveModalOpen(false)} onSuccess={() => {}} />}
+      {/* MODAL 1: Finalisasi Request (Pakai GameFormModal) */}
+      {isFinalizeModalOpen && selectedRequest && (
+        <GameFormModal 
+            isOpen={isFinalizeModalOpen} 
+            onClose={() => setIsFinalizeModalOpen(false)} 
+            // Create baru (bukan edit)
+            initialData={null} 
+            // Isi form otomatis dengan data request
+            prefillData={{
+                title: selectedRequest.title,
+                platform: selectedRequest.platform || 'PC'
+            }}
+            // Kirim ID request agar statusnya diupdate jadi completed
+            originRequestId={selectedRequest.id}
+            onSuccess={() => {}} 
+        />
+      )}
+      
+      {/* MODAL 2: Tambah Request Manual */}
       {isAddModalOpen && <AddNewRequest onClose={() => setIsAddModalOpen(false)} onSuccess={() => {}} />}
 
     </div>

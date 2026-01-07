@@ -3,43 +3,32 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // --- FUNGSI VALIDASI ---
+    // --- FUNGSI HELPER ---
     function isSignedIn() {
       return request.auth != null;
     }
 
-    // --- ATURAN UNTUK KOLEKSI 'games' ---
+    // --- ATURAN GAMES (DILONGGARKAN) ---
     match /games/{gameId} {
-      // Siapa pun boleh membaca data game (untuk landing page).
+      // 1. Publik boleh membaca (untuk Landing Page & Tabel)
       allow read: if true;
 
-      // Izin untuk MEMBUAT (create) dan MENGEDIT (update) dokumen.
-      // Kita PERTAHANKAN validasi data ketat Anda di sini.
-      allow create, update: if isSignedIn() &&
-                              request.resource.data.name is string &&
-                              request.resource.data.size is string &&
-                              request.resource.data.status is string &&
-                              request.resource.data.genre is list &&
-                              request.resource.data.dateAdded is timestamp;
-
-      // Izin HANYA untuk MENGHAPUS (delete) dokumen.
-      allow delete: if isSignedIn();
+      // 2. Admin boleh Tulis/Edit/Hapus
+      // PERUBAHAN: Kita ganti validasi ketat (field-by-field) menjadi cek login saja.
+      // Ini mengizinkan field baru (location, email, image) dan tipe data baru (size number) masuk tanpa error permission.
+      allow write: if isSignedIn();
     }
 
-    // --- ATURAN UNTUK REQUEST GAME (FIX UTAMA) ---
+    // --- ATURAN REQUEST (PUBLIK) ---
     match /requests/{reqId} {
-      // MODIFIKASI: Izinkan publik (termasuk anonymous) membuat request
-      // Kita bisa tambahkan validasi basic agar data tidak sampah
-      allow create: if true && 
-                      request.resource.data.title is string &&
-                      request.resource.data.platform is string;
+      // Izinkan publik membuat request (Anonymous write)
+      allow create: if true;
       
-      // Admin tetap memegang kendali penuh untuk baca, edit, hapus
+      // Admin boleh baca/edit/hapus
       allow read, update, delete: if isSignedIn();
     }
 
-    // --- ATURAN UNTUK FITUR TASKS & PROJECTS (DITAMBAHKAN) ---
-    // Diperlukan karena Anda memiliki fitur 'src/features/tasks'
+    // --- ATURAN FITUR LAIN (TETAP SAMA) ---
     match /projects/{projectId} {
       allow read, write: if isSignedIn();
     }
@@ -48,7 +37,6 @@ service cloud.firestore {
       allow read, write: if isSignedIn();
     }
 
-    // --- ATURAN UNTUK KOLEKSI LAIN (DIPERTAHANKAN) ---
     match /genres/{genreId} {
       allow read, write: if isSignedIn();
     }
@@ -66,10 +54,10 @@ service cloud.firestore {
     }
 
     match /users/{userId}/{document=**} {
-        allow read, write: if isSignedIn() && request.auth.uid == userId;
+      allow read, write: if isSignedIn() && request.auth.uid == userId;
     }
 
-    // Default: tolak akses ke dokumen yang tidak didefinisikan
+    // Default deny untuk koleksi tidak dikenal
     match /{document=**} {
       allow read, write: if false;
     }

@@ -1,407 +1,334 @@
-import React, { useState, useEffect } from "react";
-import { useForm } from "react-hook-form";
-import * as yup from "yup";
-import { yupResolver } from "@hookform/resolvers/yup";
-import { collection, getDocs, query, where, deleteDoc, doc } from "../../../config/firebaseConfig";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { storage, db } from "../../../config/firebaseConfig"; // pastikan path benar
+import React, { useEffect, useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { X, Save, Loader2, HardDrive, MapPin, Gamepad2, Tag, Calendar, Trash2, Plus, Disc, Info, Layers } from 'lucide-react';
+import { collection, addDoc, updateDoc, doc, serverTimestamp, Timestamp, deleteDoc, getDocs, query, orderBy } from 'firebase/firestore';
+import { db } from '../../../config/firebaseConfig';
+import Swal from 'sweetalert2';
 
-import MultiSelectDropdown from "../../../components/forms/MultiSelectDropDown";
-import UnitSelector from "../../../components/forms/UnitSelector";
-import StatusSelector from "../../../components/forms/StatusSelector.jsx";
-import AddLocationModal from "../../../modals/AddLocationModal";
-import AddGenreModal from "../../../modals/AddGenreModal";
-import CloseButton from "../../../components/common/CloseButton";
-
-// Skema validasi
-const schema = yup.object().shape({
-  name: yup.string().required("Name is required"),
-  version: yup.string().nullable(),
-  size: yup
-    .number()
-    .typeError("Size must be a number")
-    .required("Size is required")
-    .positive("Size must be positive"),
-  unit: yup.string().required("Unit is required"),
-  jumlahPart: yup
-    .number()
-    .typeError("Jumlah Part must be a number")
-    .required("Jumlah Part is required")
-    .integer("Jumlah Part must be an integer")
-    .min(1, "Jumlah Part must be at least 1"),
-  platform: yup.string().required("Platform is required"),
-  locations: yup.array().min(1, "At least one location is required"),
-  genre: yup.array().min(1, "At least one genre is required"),
-  shopeeLink: yup.string().nullable(),
-  status: yup.string().required("Status is required"),
-  dateAdded: yup
-    .date()
-    .required("Date Added is required")
-    .max(new Date(), "Tanggal tidak boleh melebihi hari ini"),
-  description: yup.string().nullable(),
-});
-
-const GameFormModal = ({ isOpen, onClose, onSubmit, initialData = null }) => {
-  const {
-    register,
-    handleSubmit,
-    setValue,
-    watch,
-    formState: { errors },
-    reset,
-  } = useForm({
-    resolver: yupResolver(schema),
-    defaultValues: initialData || {
-      name: "",
-      version: "",
-      size: "",
-      unit: "MB",
-      jumlahPart: "",
-      platform: "",
-      locations: [],
-      genre: [],
-      shopeeLink: "",
-      status: "",
-      dateAdded: new Date().toISOString().split("T")[0],
-      description: "",
-    },
+const GameFormModal = ({ isOpen, onClose, initialData, prefillData, originRequestId, onSuccess }) => {
+  const { register, handleSubmit, reset, setValue, watch, formState: { errors, isSubmitting } } = useForm({
+    defaultValues: {
+      title: '',
+      platform: 'PC',
+      version: 'v1.0', 
+      installerType: 'PRE INSTALLED',
+      numberOfParts: 1, // FIELD BARU
+      size: '',
+      sizeUnit: 'GB',
+      genre: '',
+      tags: '',
+      location: '',
+      status: 'Available',
+      lastVersionDate: new Date().toISOString().split('T')[0]
+    }
   });
 
-  const isEditMode = Boolean(initialData);
-  const watchedGenres = watch("genre") || [];
-  const watchedLocations = watch("locations") || [];
-  const watchedUnit = watch("unit");
-  const watchedStatus = watch("status");
-
-  const [coverImage, setCoverImage] = useState(null);
-  const [uploading, setUploading] = useState(false);
-  const [imagePreview, setImagePreview] = useState("");
-  const [isImageRemoved, setIsImageRemoved] = useState(false);
-  const [selectedUnit, setSelectedUnit] = useState("MB");
-  const [selectedStatus, setSelectedStatus] = useState("");
-
-  const [allGenres, setAllGenres] = useState([]);
-  const [allLocations, setAllLocations] = useState([]);
-
-  const [isAddGenreModalOpen, setIsAddGenreModalOpen] = useState(false);
-  const [isAddLocationModalOpen, setIsAddLocationModalOpen] = useState(false);
+  const [locationsList, setLocationsList] = useState([]);
+  const [genresList, setGenresList] = useState([]);
+  const [tagsList, setTagsList] = useState([]);
 
   useEffect(() => {
-    const fetchDropdownData = async () => {
-      try {
-        const genresSnapshot = await getDocs(collection(db, "genres"));
-        setAllGenres(genresSnapshot.docs.map((d) => d.data().name));
-      } catch (err) {
-        console.warn("Failed to load genres:", err);
-      }
-      try {
-        const locationsSnapshot = await getDocs(collection(db, "emailLocations"));
-        setAllLocations(locationsSnapshot.docs.map((d) => d.data().email));
-      } catch (err) {
-        console.warn("Failed to load locations:", err);
-      }
-    };
-    fetchDropdownData();
-  }, []);
+    if (isOpen) {
+      const fetchDropdowns = async () => {
+        try {
+          const locSnap = await getDocs(query(collection(db, 'emailLocations'), orderBy('name')));
+          setLocationsList(locSnap.docs.map(d => ({ id: d.id, name: d.data().name })));
 
-  useEffect(() => {
-    if (isEditMode && initialData) {
-      const dateFromFirestore = initialData.dateAdded?.toDate ? initialData.dateAdded.toDate() : null;
-      let formattedDate = "";
-      if (dateFromFirestore) {
-        const year = dateFromFirestore.getFullYear();
-        const month = String(dateFromFirestore.getMonth() + 1).padStart(2, "0");
-        const day = String(dateFromFirestore.getDate()).padStart(2, "0");
-        formattedDate = `${year}-${month}-${day}`;
-      }
+          const genreSnap = await getDocs(query(collection(db, 'genres'), orderBy('name')));
+          setGenresList(genreSnap.docs.map(d => ({ id: d.id, name: d.data().name })));
 
-      const formValues = {
-        ...initialData,
-        dateAdded: formattedDate,
-        size: parseFloat(initialData.size) || "",
-        unit: (initialData.size || " MB").split(" ")[1] || "MB",
+          const tagSnap = await getDocs(query(collection(db, 'tags'), orderBy('name')));
+          setTagsList(tagSnap.docs.map(d => ({ id: d.id, name: d.data().name })));
+        } catch (error) {
+          console.error("Error fetching dropdowns:", error);
+        }
       };
-      reset(formValues);
-      setValue("dateAdded", formattedDate);
+      fetchDropdowns();
 
-      const unit = (initialData.size || " MB").split(" ")[1] || "MB";
-      setSelectedUnit(unit);
-      setSelectedStatus(initialData.status || "");
-      if (initialData.coverArtUrl) setImagePreview(initialData.coverArtUrl);
-    } else {
-      reset({
-        name: "",
-        version: "",
-        size: "",
-        unit: "MB",
-        jumlahPart: "",
-        platform: "",
-        locations: [],
-        genre: [],
-        shopeeLink: "",
-        status: "",
-        dateAdded: new Date().toISOString().split("T")[0],
-        description: "",
-      });
-      setImagePreview("");
-      setCoverImage(null);
-      setSelectedStatus("");
-      setSelectedUnit("MB");
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialData, isEditMode, reset]);
-
-  const handleImageChange = (e) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setCoverImage(file);
-      setImagePreview(URL.createObjectURL(file));
-      setIsImageRemoved(false);
-    }
-  };
-
-  const handleRemoveImage = () => {
-    setCoverImage(null);
-    setImagePreview("");
-    setIsImageRemoved(true);
-  };
-
-  const handleDeleteOption = async (optionValue, collectionName, fieldName) => {
-    const confirmDelete = window.confirm(`Apakah Anda yakin ingin menghapus "${optionValue}" secara permanen?`);
-    if (!confirmDelete) return;
-
-    try {
-      const q = query(collection(db, collectionName), where(fieldName, "==", optionValue));
-      const snapshot = await getDocs(q);
-      if (snapshot.empty) {
-        alert("Opsi tidak ditemukan untuk dihapus.");
-        return;
+      if (initialData) {
+        setValue('title', initialData.title);
+        setValue('platform', initialData.platform || 'PC');
+        setValue('version', initialData.version || '');
+        setValue('installerType', initialData.installerType || 'PRE INSTALLED');
+        setValue('numberOfParts', initialData.numberOfParts || 1); // Load Data
+        setValue('size', initialData.size || '');
+        setValue('sizeUnit', initialData.sizeUnit || 'GB');
+        setValue('location', initialData.location || '');
+        setValue('status', initialData.status || 'Available');
+        setValue('genre', Array.isArray(initialData.genre) ? initialData.genre.join(', ') : (initialData.genre || ''));
+        setValue('tags', Array.isArray(initialData.tags) ? initialData.tags.join(', ') : (initialData.tags || ''));
+        if (initialData.lastVersionDate?.seconds) {
+            const date = new Date(initialData.lastVersionDate.seconds * 1000);
+            setValue('lastVersionDate', date.toISOString().split('T')[0]);
+        }
+      } else if (prefillData) {
+        reset({
+          title: prefillData.title || '',
+          platform: prefillData.platform || 'PC',
+          version: '',
+          installerType: 'PRE INSTALLED',
+          numberOfParts: 1,
+          size: '', sizeUnit: 'GB',
+          genre: '', tags: '', location: '', status: 'Available',
+          lastVersionDate: new Date().toISOString().split('T')[0]
+        });
+      } else {
+        reset({
+          title: '', platform: 'PC', version: '', installerType: 'PRE INSTALLED', numberOfParts: 1,
+          size: '', sizeUnit: 'GB',
+          genre: '', tags: '', location: '', status: 'Available',
+          lastVersionDate: new Date().toISOString().split('T')[0]
+        });
       }
-      const docToDelete = snapshot.docs[0];
-      await deleteDoc(doc(db, collectionName, docToDelete.id));
-
-      if (collectionName === "genres") {
-        setAllGenres((prev) => prev.filter((g) => g !== optionValue));
-        setValue("genre", (watch("genre") || []).filter((g) => g !== optionValue));
-      } else if (collectionName === "emailLocations") {
-        setAllLocations((prev) => prev.filter((l) => l !== optionValue));
-        setValue("locations", (watch("locations") || []).filter((l) => l !== optionValue));
-      }
-      alert(`"${optionValue}" berhasil dihapus.`);
-    } catch (error) {
-      console.error("Error deleting option:", error);
-      alert("Gagal menghapus opsi.");
     }
-  };
+  }, [isOpen, initialData, prefillData, reset, setValue]);
 
-  const onSubmitHandler = async (data) => {
-    setUploading(true);
-    let finalCoverArtUrl = initialData?.coverArtUrl || "";
+  const handleAddNew = async (collectionName, label) => {
+    const { value: text } = await Swal.fire({
+      title: `Tambah ${label} Baru`,
+      input: 'text',
+      inputLabel: `Masukkan nama ${label}`,
+      showCancelButton: true,
+      inputValidator: (value) => { if (!value) return 'Tidak boleh kosong!'; }
+    });
 
-    if (isImageRemoved) {
-      finalCoverArtUrl = "";
-    } else if (coverImage) {
-      const fileName = `covers/${data.name.replace(/\s+/g, "-").toLowerCase()}-${Date.now()}`;
-      const storageRef = ref(storage, fileName);
+    if (text) {
       try {
-        const snapshot = await uploadBytes(storageRef, coverImage);
-        finalCoverArtUrl = await getDownloadURL(snapshot.ref);
-      } catch (error) {
-        console.error("Error uploading image:", error);
-        alert("Gagal mengunggah gambar.");
-        setUploading(false);
-        return;
+        const docRef = await addDoc(collection(db, collectionName), { name: text, createdAt: serverTimestamp() });
+        const newItem = { id: docRef.id, name: text };
+        
+        const sortFunc = (a, b) => a.name.localeCompare(b.name);
+        if (collectionName === 'emailLocations') setLocationsList(prev => [...prev, newItem].sort(sortFunc));
+        if (collectionName === 'genres') setGenresList(prev => [...prev, newItem].sort(sortFunc));
+        if (collectionName === 'tags') setTagsList(prev => [...prev, newItem].sort(sortFunc));
+
+        if (collectionName === 'emailLocations') appendToInput('location', text);
+        if (collectionName === 'genres') appendToInput('genre', text);
+        if (collectionName === 'tags') appendToInput('tags', text);
+        
+        Swal.fire({ icon: 'success', title: 'Ditambahkan!', timer: 1000, showConfirmButton: false });
+      } catch (e) {
+        Swal.fire('Error', 'Gagal menyimpan data baru', 'error');
       }
     }
+  };
 
+  const appendToInput = (fieldName, value) => {
+    const currentVal = watch(fieldName) || '';
+    if (!currentVal.includes(value)) {
+        const newVal = currentVal ? `${currentVal}, ${value}` : value;
+        setValue(fieldName, newVal);
+    }
+  };
+
+  const onSubmit = async (data) => {
     try {
-      const localDate = new Date(data.dateAdded);
-      const dateInUTC = new Date(Date.UTC(localDate.getFullYear(), localDate.getMonth(), localDate.getDate()));
+      const genreArray = data.genre ? data.genre.split(',').map(g => g.trim()).filter(g => g !== '') : [];
+      const tagsArray = data.tags ? data.tags.split(',').map(t => t.trim()).filter(t => t !== '') : [];
+      const sizeValue = parseFloat(data.size);
+      let sizeInMB = data.sizeUnit === 'GB' ? sizeValue * 1024 : sizeValue;
 
-      const finalData = {
-        name: data.name,
-        version: data.version || "",
-        size: `${data.size} ${data.unit}`,
-        jumlahPart: data.jumlahPart,
+      const gameData = {
+        title: data.title,
+        title_lower: data.title.toLowerCase(),
         platform: data.platform,
-        coverArtUrl: finalCoverArtUrl,
-        genre: data.genre,
-        shopeeLink: data.shopeeLink || "",
+        version: data.version,
+        installerType: data.installerType,
+        numberOfParts: parseInt(data.numberOfParts) || 1, // SAVE FIELD BARU
+        size: sizeValue,
+        sizeUnit: data.sizeUnit,
+        sortableSize: sizeInMB,
+        genre: genreArray,
+        tags: tagsArray,
         status: data.status,
-        dateAdded: dateInUTC,
-        description: data.description || "",
-        locations: data.locations,
+        location: data.location, 
+        lastVersionDate: Timestamp.fromDate(new Date(data.lastVersionDate)),
+        updatedAt: serverTimestamp()
       };
 
-      await onSubmit(finalData, initialData?.id);
+      if (initialData) {
+        await updateDoc(doc(db, 'games', initialData.id), gameData);
+        Swal.fire({ title: 'Diupdate!', text: 'Data game diperbarui', icon: 'success', timer: 1500, showConfirmButton: false });
+      } else {
+        gameData.createdAt = serverTimestamp();
+        gameData.addedBy = originRequestId ? 'Request Approval' : 'Manual Admin';
+        if (originRequestId) gameData.originRequestId = originRequestId;
+
+        await addDoc(collection(db, 'games'), gameData);
+
+        if (originRequestId) {
+             await updateDoc(doc(db, 'requests', originRequestId), {
+                status: 'completed',
+                approvedAt: serverTimestamp(),
+                finalGameTitle: data.title
+             });
+        }
+        Swal.fire({ title: 'Tersimpan!', icon: 'success', timer: 1500, showConfirmButton: false });
+      }
+      onSuccess();
       onClose();
     } catch (error) {
-      console.error("Gagal menyimpan game:", error);
-      alert("Terjadi kesalahan saat menyimpan data.");
-    } finally {
-      setUploading(false);
+      console.error("Error saving:", error);
+      Swal.fire({ title: 'Error', text: 'Gagal menyimpan data.', icon: 'error' });
+    }
+  };
+
+  const handleDelete = async () => {
+    const result = await Swal.fire({ title: 'Hapus Game?', text: "Data hilang permanen!", icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33', confirmButtonText: 'Ya, Hapus' });
+    if (result.isConfirmed) {
+      await deleteDoc(doc(db, 'games', initialData.id));
+      onSuccess(); onClose();
+      Swal.fire('Terhapus!', '', 'success');
     }
   };
 
   if (!isOpen) return null;
 
   return (
-    // overlay with padding so modal doesn't touch viewport edges on small screens
-    <div
-      className="fixed inset-0 z-50 flex items-start justify-center bg-black bg-opacity-50 p-4"
-      role="dialog"
-      aria-modal="true"
-    >
-      {/* Container: not full-height on mobile (my-6) and limited max-height */}
-      <div
-        className="bg-white rounded-lg shadow-lg w-full max-w-3xl mx-auto my-6 flex flex-col
-                   sm:my-8 md:my-10
-                   max-h-[80vh] overflow-hidden"
-        aria-labelledby="game-modal-title"
-      >
-        {/* Header sticky so Close is always visible */}
-        <div className="flex items-center justify-between px-5 py-4 border-b sticky top-0 bg-white z-10">
-          <h2 id="game-modal-title" className="text-lg font-semibold">
-            {isEditMode ? "Edit Game" : "Add New Game"}
-          </h2>
-          <CloseButton onClose={onClose} />
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[95vh]">
+        
+        <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0">
+          <h3 className="font-bold text-slate-800 text-lg">
+            {initialData ? 'Edit Data Game' : 'Tambah Game Baru'}
+          </h3>
+          <button onClick={onClose} className="p-2 hover:bg-slate-200 rounded-full"><X size={20} className="text-slate-500" /></button>
         </div>
 
-        {/* Form area: scrollable with a sane max-height */}
-        <form
-          onSubmit={handleSubmit(onSubmitHandler)}
-          className="p-5 overflow-y-auto"
-          style={{ maxHeight: "calc(80vh - 64px)" }} // header height ~64px, keep inside viewport
-        >
+        <form onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-5 overflow-y-auto custom-scrollbar">
+          
+          {/* 1. INFORMASI UTAMA */}
           <div className="space-y-4">
-            <div>
-              <label htmlFor="name" className="block text-sm font-medium mb-1">Name</label>
-              <input id="name" {...register("name")} className="w-full border border-gray-300 rounded px-3 py-2" />
-              {errors.name && <p className="text-red-500 text-sm">{errors.name.message}</p>}
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label htmlFor="version" className="block text-sm font-medium mb-1">Version</label>
-                <input id="version" {...register("version")} className="w-full border border-gray-300 rounded px-3 py-2" />
-                {errors.version && <p className="text-red-500 text-sm">{errors.version.message}</p>}
+              <div className="grid grid-cols-3 gap-3">
+                 <div className="col-span-2">
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Judul Game</label>
+                    <input {...register("title", { required: "Wajib" })} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Nama Game..." />
+                 </div>
+                 <div>
+                    <label className="block text-xs font-medium text-slate-700 mb-1">Versi</label>
+                    <input {...register("version")} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="v1.0" />
+                 </div>
               </div>
 
-              <div>
-                <label htmlFor="platform" className="block text-sm font-medium mb-1">Platform</label>
-                <input id="platform" {...register("platform")} className="w-full border border-gray-300 rounded px-3 py-2" />
-                {errors.platform && <p className="text-red-500 text-sm">{errors.platform.message}</p>}
+              {/* TIPE & PART (Grid Baru) */}
+              <div className="grid grid-cols-3 gap-3">
+                 <div className="col-span-2">
+                    <label className="block text-xs font-medium text-slate-700 mb-1 flex items-center"><Disc size={12} className="mr-1 text-slate-400"/> Tipe Installer</label>
+                    <select {...register("installerType")} className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white">
+                        <option value="PRE INSTALLED">PRE INSTALLED (Langsung Main)</option>
+                        <option value="INSTALLER GOG">INSTALLER GOG (Setup.exe)</option>
+                        <option value="INSTALLER ElAmigos">INSTALLER ElAmigos</option>
+                        <option value="INSTALLER RUNE">INSTALLER RUNE</option>
+                        <option value="INSTALLER FITGIRL">INSTALLER FITGIRL</option>
+                        <option value="INSTALLER DODI">INSTALLER DODI</option>
+                    </select>
+                 </div>
+                 <div>
+                    <label className="block text-xs font-medium text-slate-700 mb-1 flex items-center"><Layers size={12} className="mr-1 text-slate-400"/> Jml Part</label>
+                    <input type="number" min="1" {...register("numberOfParts")} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-center" />
+                 </div>
               </div>
-            </div>
+          </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label htmlFor="size" className="block text-sm font-medium mb-1">Size</label>
-                <input id="size" type="number" {...register("size")} className="w-full border border-gray-300 rounded px-3 py-2" />
-                {errors.size && <p className="text-red-500 text-sm">{errors.size.message}</p>}
-              </div>
+          <div className="border-t border-slate-100"></div>
 
-              <div>
-                <label className="block text-sm font-medium mb-1">Unit</label>
-                <UnitSelector selectedUnit={watchedUnit} onSelect={(unit) => setValue("unit", unit)} />
-                {errors.unit && <p className="text-red-500 text-sm">{errors.unit.message}</p>}
-              </div>
-            </div>
-
+          {/* 2. TEKNIS & STATUS */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label htmlFor="jumlahPart" className="block text-sm font-medium mb-1">Jumlah Part</label>
-              <input id="jumlahPart" type="number" {...register("jumlahPart")} className="w-full border border-gray-300 rounded px-3 py-2" />
-              {errors.jumlahPart && <p className="text-red-500 text-sm">{errors.jumlahPart.message}</p>}
-            </div>
-
-            <div>
-              <label htmlFor="shopeeLink" className="block text-sm font-medium mb-1">Shopee Link (Optional)</label>
-              <input id="shopeeLink" type="url" {...register("shopeeLink")} placeholder="https://shopee.co.id/..." className="w-full border border-gray-300 rounded px-3 py-2" />
-              {errors.shopeeLink && <p className="text-red-500 text-sm">{errors.shopeeLink.message}</p>}
-            </div>
-
-            <div>
-              <label htmlFor="coverArt" className="block text-sm font-medium mb-1">Cover Art (optional)</label>
-              <input type="file" id="coverArt" accept="image/*" onChange={handleImageChange} className="w-full text-sm text-gray-500" />
-              {imagePreview && (
-                <div className="mt-3 relative w-32 h-32">
-                  <img src={imagePreview} alt="Preview" className="w-full h-full object-cover rounded-md" />
-                  {isEditMode && (
-                    <button type="button" onClick={handleRemoveImage} className="absolute top-1 right-1 bg-red-600 text-white rounded-full p-1">
-                      ×
-                    </button>
-                  )}
+                <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center"><HardDrive size={12} className="mr-1 text-slate-400" /> Size</label>
+                <div className="flex gap-2">
+                    <input type="number" step="0.1" {...register("size", { required: "Wajib" })} className="w-full min-w-0 px-3 py-2 border border-slate-300 rounded-lg outline-none" placeholder="0" />
+                    <select {...register("sizeUnit")} className="w-20 shrink-0 px-2 py-2 border border-slate-300 rounded-lg bg-slate-50 text-sm font-medium">
+                        <option value="GB">GB</option>
+                        <option value="MB">MB</option>
+                    </select>
                 </div>
-              )}
             </div>
-
             <div>
-              <label className="block text-sm font-medium mb-2">Locations</label>
-              <MultiSelectDropdown
-                options={allLocations}
-                selectedOptions={watchedLocations}
-                onChange={(newLocations) => setValue("locations", newLocations)}
-                onAddNew={() => setIsAddLocationModalOpen(true)}
-                onDelete={(location) => handleDeleteOption(location, "emailLocations", "email")}
-                placeholderText="Select Locations"
-              />
-              {errors.locations && <p className="text-red-500 text-sm">{errors.locations.message}</p>}
+                <label className="block text-xs font-medium text-slate-700 mb-1">Status Game</label>
+                <select {...register("status")} className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white">
+                    <option value="Available">Available</option>
+                    <option value="Maintenance">Maintenance</option>
+                    <option value="Broken">Broken</option>
+                    <option value="Testing">Testing</option>
+                </select>
             </div>
+          </div>
 
-            <div>
-              <label className="block text-sm font-medium mb-2">Genre</label>
-              <MultiSelectDropdown
-                options={allGenres}
-                selectedOptions={watchedGenres}
-                onChange={(newGenres) => setValue("genre", newGenres)}
-                onAddNew={() => setIsAddGenreModalOpen(true)}
-                onDelete={(genre) => handleDeleteOption(genre, "genres", "name")}
-                placeholderText="Select Genres"
-              />
-              {errors.genre && <p className="text-red-500 text-sm">{errors.genre.message}</p>}
+          {/* 3. LOKASI AKUN */}
+          <div>
+            <div className="flex justify-between items-center mb-1">
+                <label className="text-xs font-bold text-slate-700 flex items-center"><MapPin size={12} className="mr-1 text-blue-600" /> Lokasi Akun (Backup Supported)</label>
+                <div className="flex gap-2">
+                    <select 
+                        onChange={(e) => appendToInput('location', e.target.value)} 
+                        className="text-[10px] border border-slate-200 rounded bg-slate-50 max-w-[150px]"
+                        value=""
+                    >
+                        <option value="">+ Tambah Akun...</option>
+                        {locationsList.map(loc => <option key={loc.id} value={loc.name}>{loc.name}</option>)}
+                    </select>
+                    <button type="button" onClick={() => handleAddNew('emailLocations', 'Lokasi Akun')} className="text-[10px] text-blue-600 hover:underline flex items-center"><Plus size={10} className="mr-1"/> Baru</button>
+                </div>
             </div>
+            <input 
+                {...register("location", { required: "Wajib diisi" })} 
+                placeholder="mygameon1@gmail.com, mygameonbackup@gmail.com" 
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white outline-none text-sm font-medium text-slate-700"
+            />
+          </div>
 
-            <div>
-              <label className="block text-sm font-medium mb-1">Status</label>
-              <StatusSelector selectedStatus={watchedStatus} onSelect={(status) => setValue("status", status)} />
-              {errors.status && <p className="text-red-500 text-sm">{errors.status.message}</p>}
-            </div>
+          <div className="border-t border-slate-100"></div>
 
-            <div>
-              <label htmlFor="dateAdded" className="block text-sm font-medium mb-1">Date Added</label>
-              <input id="dateAdded" type="date" {...register("dateAdded")} className="w-full border border-gray-300 rounded px-3 py-2" />
-              {errors.dateAdded && <p className="text-red-500 text-sm">{errors.dateAdded.message}</p>}
-            </div>
+          {/* 4. GENRE & TAGS */}
+          <div className="space-y-3">
+              <div>
+                <div className="flex justify-between items-center mb-1">
+                    <label className="text-xs font-medium text-slate-700 flex items-center"><Gamepad2 size={12} className="mr-1 text-slate-400" /> Genre</label>
+                    <div className="flex gap-2">
+                        <select onChange={(e) => appendToInput('genre', e.target.value)} className="text-[10px] border border-slate-200 rounded bg-slate-50 max-w-[100px]" value="">
+                            <option value="">+ Pilih...</option>
+                            {genresList.map(g => <option key={g.id} value={g.name}>{g.name}</option>)}
+                        </select>
+                        <button type="button" onClick={() => handleAddNew('genres', 'Genre')} className="text-[10px] text-blue-600 hover:underline"><Plus size={10}/></button>
+                    </div>
+                </div>
+                <input {...register("genre")} placeholder="Action, RPG..." className="w-full px-3 py-2 border border-slate-300 rounded-lg outline-none text-sm" />
+              </div>
 
-            <div>
-              <label htmlFor="description" className="block text-sm font-medium mb-1">Description</label>
-              <textarea id="description" {...register("description")} className="w-full border border-gray-300 rounded px-3 py-2" rows={4} />
-              {errors.description && <p className="text-red-500 text-sm">{errors.description.message}</p>}
+              <div>
+                <div className="flex justify-between items-center mb-1">
+                    <label className="text-xs font-medium text-slate-700 flex items-center"><Tag size={12} className="mr-1 text-slate-400" /> Tags</label>
+                    <div className="flex gap-2">
+                        <select onChange={(e) => appendToInput('tags', e.target.value)} className="text-[10px] border border-slate-200 rounded bg-slate-50 max-w-[100px]" value="">
+                            <option value="">+ Pilih...</option>
+                            {tagsList.map(t => <option key={t.id} value={t.name}>{t.name}</option>)}
+                        </select>
+                        <button type="button" onClick={() => handleAddNew('tags', 'Tag')} className="text-[10px] text-blue-600 hover:underline"><Plus size={10}/></button>
+                    </div>
+                </div>
+                <input {...register("tags")} placeholder="Low Spec, AAA..." className="w-full px-3 py-2 border border-slate-300 rounded-lg outline-none text-sm bg-slate-50" />
+              </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-slate-700 mb-1"><Calendar size={12} className="inline mr-1" /> Versi Terupdate Per Tanggal</label>
+            <input type="date" {...register("lastVersionDate")} className="w-full px-3 py-2 border border-slate-300 rounded-lg outline-none text-sm" />
+          </div>
+
+          {/* Actions */}
+          <div className="pt-4 flex gap-3 border-t border-slate-100 mt-4">
+            {initialData && (
+                <button type="button" onClick={handleDelete} className="px-4 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100"><Trash2 size={18} /></button>
+            )}
+            <div className="flex-1 flex gap-3">
+                <button type="button" onClick={onClose} className="flex-1 px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 font-medium">Batal</button>
+                <button type="submit" disabled={isSubmitting} className="flex-1 px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800 font-bold flex items-center justify-center">
+                    {isSubmitting ? <Loader2 className="animate-spin" /> : <><Save className="w-4 h-4 mr-2" /> Simpan</>}
+                </button>
             </div>
           </div>
         </form>
-
-        {/* Footer: actions */}
-        <div className="px-5 py-4 border-t bg-white flex justify-end gap-3">
-          <button type="button" onClick={onClose} disabled={uploading} className="px-4 py-2 bg-gray-300 rounded">
-            Cancel
-          </button>
-          <button type="button" onClick={handleSubmit(onSubmitHandler)} disabled={uploading} className="px-4 py-2 bg-blue-500 text-white rounded">
-            {uploading ? "Saving..." : (isEditMode ? "Save Changes" : "Add New Game")}
-          </button>
-        </div>
-
-        {/* Modals for add location/genre */}
-        <AddLocationModal
-          showModal={isAddLocationModalOpen}
-          onClose={() => setIsAddLocationModalOpen(false)}
-          onAddLocation={(newLocation) => setAllLocations((prev) => [...prev, newLocation])}
-        />
-        <AddGenreModal
-          isOpen={isAddGenreModalOpen}
-          onClose={() => setIsAddGenreModalOpen(false)}
-          onAddGenre={(newGenre) => setAllGenres((prev) => [...prev, newGenre])}
-        />
       </div>
     </div>
   );

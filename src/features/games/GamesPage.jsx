@@ -4,13 +4,15 @@ import { db } from '../../config/firebaseConfig';
 import { 
   Search, Plus, Filter, Trash2, Loader2, MapPin, Calendar, 
   Disc, Tag, ChevronLeft, ChevronRight, Upload, Layers, 
-  ArrowUpDown, ArrowUp, ArrowDown, HardDrive 
+  ArrowUpDown, ArrowUp, ArrowDown, HardDrive, RefreshCw 
 } from 'lucide-react';
 import Swal from 'sweetalert2';
 import { format } from 'date-fns';
 import { id as localeId } from 'date-fns/locale';
 import GameFormModal from './components/GameFormModal';
 import BulkGameImportModal from './components/BulkGameImportModal';
+// IMPORT MODAL TASK
+import TaskFormModal from '../tasks/components/TaskFormModal';
 
 const GamesPage = () => {
   const [games, setGames] = useState([]);
@@ -27,11 +29,15 @@ const GamesPage = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10; 
 
-  // State Selection & Modal
+  // State Modal Games
   const [selectedIds, setSelectedIds] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingGame, setEditingGame] = useState(null);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+
+  // STATE MODAL TASK (BARU)
+  const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
+  const [taskPrefill, setTaskPrefill] = useState(null);
 
   // FETCH REALTIME
   useEffect(() => {
@@ -48,7 +54,6 @@ const GamesPage = () => {
 
   // --- LOGIKA FILTERING & SORTING ---
   const processedGames = useMemo(() => {
-    // 1. Filtering
     let data = games.filter(game => {
       const searchLower = searchTerm.toLowerCase();
       const matchesSearch = (game.title || '').toLowerCase().includes(searchLower) || 
@@ -63,7 +68,6 @@ const GamesPage = () => {
       return matchesSearch && matchesGenre;
     });
 
-    // 2. Sorting
     if (sortConfig.key) {
       data.sort((a, b) => {
         let aValue = a[sortConfig.key];
@@ -85,13 +89,11 @@ const GamesPage = () => {
         return 0;
       });
     }
-
     return data;
   }, [games, searchTerm, filterGenre, sortConfig]);
 
   useEffect(() => { setCurrentPage(1); }, [searchTerm, filterGenre]);
 
-  // --- LOGIKA PAGINATION ---
   const totalPages = Math.ceil(processedGames.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const displayedGames = processedGames.slice(startIndex, startIndex + itemsPerPage);
@@ -108,6 +110,17 @@ const GamesPage = () => {
   const handleOpenAdd = () => { setEditingGame(null); setIsModalOpen(true); };
   const handleOpenEdit = (game) => { setEditingGame(game); setIsModalOpen(true); };
   
+  // HANDLER BARU: UPDATE VERSI VIA TASK
+  const handleUpdateVersion = (game, e) => {
+    e.stopPropagation(); // Agar tidak membuka modal edit game
+    setTaskPrefill({
+        gameId: game.id,
+        gameTitle: game.title,
+        currentVersion: game.version
+    });
+    setIsTaskModalOpen(true);
+  };
+
   const toggleSelection = (id) => {
     setSelectedIds(prev => prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]);
   };
@@ -168,13 +181,11 @@ const GamesPage = () => {
     );
   };
 
-  // --- KOMPONEN KARTU MOBILE (RESPONSIVE VIEW) ---
   const MobileGameCard = ({ game }) => (
     <div 
       onClick={() => handleOpenEdit(game)}
       className={`bg-white p-4 rounded-xl border ${selectedIds.includes(game.id) ? 'border-blue-500 bg-blue-50/20' : 'border-slate-200'} shadow-sm relative active:scale-[0.98] transition-all`}
     >
-      {/* Checkbox Overlay Top Right */}
       <div className="absolute top-3 right-3 z-10 p-2 -m-2" onClick={(e) => { e.stopPropagation(); toggleSelection(game.id); }}>
          <input 
             type="checkbox" 
@@ -184,7 +195,6 @@ const GamesPage = () => {
          />
       </div>
 
-      {/* Main Info */}
       <div className="pr-8 mb-2">
          <h3 className="font-bold text-slate-800 text-lg leading-snug mb-1">{game.title}</h3>
          <div className="flex flex-wrap gap-2 items-center">
@@ -201,10 +211,16 @@ const GamesPage = () => {
                     <Tag size={10} className="mr-1 opacity-50" /> {game.version}
                 </span>
             )}
+            {/* TOMBOL UPDATE MOBILE */}
+            <button 
+                onClick={(e) => handleUpdateVersion(game, e)}
+                className="text-[10px] px-2 py-0.5 bg-purple-50 text-purple-600 rounded border border-purple-200 font-bold flex items-center active:bg-purple-100"
+            >
+                <RefreshCw size={10} className="mr-1"/> Update
+            </button>
          </div>
       </div>
 
-      {/* Details Grid */}
       <div className="grid grid-cols-2 gap-y-2 gap-x-4 text-xs sm:text-sm text-slate-600 border-t border-slate-100 pt-3 mt-2">
          <div className="flex items-center">
             <HardDrive size={12} className="mr-2 text-slate-400" />
@@ -245,7 +261,6 @@ const GamesPage = () => {
     <div className="min-h-screen bg-slate-50 pb-20">
       <div className="max-w-7xl mx-auto px-4 py-8">
         
-        {/* HEADER RESPONSIVE */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
           <div>
             <h1 className="text-2xl font-bold text-slate-800">Katalog Game PC</h1>
@@ -261,7 +276,6 @@ const GamesPage = () => {
           </div>
         </div>
 
-        {/* TOOLBAR RESPONSIVE */}
         <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm mb-4 flex flex-col lg:flex-row gap-4 items-center justify-between">
           <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto">
              <div className="relative flex-1 sm:w-72">
@@ -297,10 +311,8 @@ const GamesPage = () => {
           )}
         </div>
 
-        {/* DATA CONTAINER (RESPONSIVE TABLE/CARDS) */}
         <div className="flex flex-col min-h-[400px]">
-          
-          {/* MOBILE VIEW (< md) */}
+          {/* MOBILE VIEW */}
           <div className="md:hidden space-y-3">
              {loading ? (
                 <div className="flex justify-center py-10"><Loader2 className="animate-spin text-blue-500" /></div>
@@ -311,7 +323,7 @@ const GamesPage = () => {
              )}
           </div>
 
-          {/* DESKTOP VIEW (>= md) */}
+          {/* DESKTOP VIEW */}
           <div className="hidden md:flex bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex-col flex-grow group/table">
             <div className="overflow-x-auto">
                 <table className="w-full text-left">
@@ -362,11 +374,25 @@ const GamesPage = () => {
                             <td className="p-4">
                                 <div className="flex items-center text-sm text-slate-600 font-medium"><MapPin size={14} className="mr-1.5 text-blue-500 shrink-0" /><span className="truncate max-w-[180px]" title={game.location}>{game.location || '-'}</span></div>
                             </td>
-                            <td className="p-4 text-xs text-slate-500">
-                                {game.installerType && (
-                                    <div className="flex items-center mb-1 text-slate-700 font-medium"><Disc size={12} className="mr-1 text-purple-500" />{game.installerType.replace('INSTALLER ', '')}</div>
-                                )}
-                                <div className="flex items-center opacity-70"><Calendar size={12} className="mr-1" />{formatVersionDate(game.lastVersionDate)}</div>
+                            <td className="p-4 text-xs text-slate-500 relative">
+                                {/* INFO BIASA */}
+                                <div>
+                                    {game.installerType && (
+                                        <div className="flex items-center mb-1 text-slate-700 font-medium"><Disc size={12} className="mr-1 text-purple-500" />{game.installerType.replace('INSTALLER ', '')}</div>
+                                    )}
+                                    <div className="flex items-center opacity-70"><Calendar size={12} className="mr-1" />{formatVersionDate(game.lastVersionDate)}</div>
+                                </div>
+                                
+                                {/* BUTTON UPDATE (Tampil saat hover) */}
+                                <div className="absolute top-1/2 right-4 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <button 
+                                        onClick={(e) => handleUpdateVersion(game, e)}
+                                        className="p-1.5 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 font-bold text-xs flex items-center shadow-sm"
+                                        title="Buat Task Update Versi"
+                                    >
+                                        <RefreshCw size={14} className="mr-1"/> Update
+                                    </button>
+                                </div>
                             </td>
                         </tr>
                         ))
@@ -376,12 +402,10 @@ const GamesPage = () => {
             </div>
           </div>
           
-          {/* FOOTER PAGINATION (SHARED) */}
           <div className="mt-4 md:mt-0 border-t border-slate-200 p-4 bg-white md:bg-slate-50 rounded-xl md:rounded-t-none md:rounded-b-xl shadow-sm md:shadow-none border md:border-t-0 border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4">
              <div className="text-xs text-slate-500 text-center sm:text-left">
                 Menampilkan {startIndex + 1}-{Math.min(startIndex + itemsPerPage, processedGames.length)} dari {processedGames.length} game
              </div>
-             
              {totalPages > 1 && (
                  <div className="flex items-center gap-2">
                     <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="p-2 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed text-slate-600"><ChevronLeft size={16} /></button>
@@ -390,12 +414,22 @@ const GamesPage = () => {
                  </div>
              )}
           </div>
-
         </div>
-
       </div>
+      
+      {/* MODAL EDIT GAME */}
       <GameFormModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} initialData={editingGame} onSuccess={() => {}} />
+      
+      {/* MODAL IMPORT */}
       <BulkGameImportModal isOpen={isImportModalOpen} onClose={() => setIsImportModalOpen(false)} onSuccess={() => {}} />
+
+      {/* MODAL TASK (UPDATE VERSI) */}
+      <TaskFormModal 
+        isOpen={isTaskModalOpen}
+        onClose={() => setIsTaskModalOpen(false)}
+        prefillData={taskPrefill} // Data dari tombol update
+        onSuccess={() => {}}
+      />
     </div>
   );
 };

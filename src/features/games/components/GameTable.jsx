@@ -1,25 +1,31 @@
-import React, { useRef, useEffect, useState } from "react";
-import { InformationCircleIcon } from "@heroicons/react/24/solid";
-import { Tooltip } from "react-tooltip";
+import React, { useRef, useEffect, useState } from 'react';
+import { InformationCircleIcon } from '@heroicons/react/24/solid';
+import { Tooltip } from 'react-tooltip';
 
 const getStatusClass = (status) => {
   switch (status) {
-    case "Upload Shopee":
-      return "bg-orange-500 text-white";
-    case "Upload Gdrive":
-      return "bg-green-500 text-white";
+    case 'Upload Shopee':
+      return 'bg-orange-500 text-white';
+    case 'Upload Gdrive':
+      return 'bg-green-500 text-white';
     default:
-      return "bg-gray-100 text-gray-800";
+      return 'bg-gray-100 text-gray-800';
   }
 };
 
 const formatDate = (dateObj) => {
-  if (!dateObj) return "N/A";
+  if (!dateObj) return 'N/A';
   try {
-    const d = dateObj.seconds ? new Date(dateObj.seconds * 1000) : new Date(dateObj);
-    return d.toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" });
+    const d = dateObj.seconds
+      ? new Date(dateObj.seconds * 1000)
+      : new Date(dateObj);
+    return d.toLocaleDateString('id-ID', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    });
   } catch {
-    return "N/A";
+    return 'N/A';
   }
 };
 
@@ -28,7 +34,7 @@ const MobileCard = ({ game, checked, onToggle, onRowClick }) => {
     <div
       className="bg-white rounded-lg shadow p-4 flex flex-col space-y-3"
       onClick={(e) => {
-        if (e.target.type === "checkbox") return;
+        if (e.target.type === 'checkbox') return;
         onRowClick(game.id, e);
       }}
     >
@@ -37,17 +43,20 @@ const MobileCard = ({ game, checked, onToggle, onRowClick }) => {
           <input
             type="checkbox"
             checked={checked}
-            onChange={(e) => onToggle(game.id)}
+            onChange={() => onToggle(game.id)}
             onClick={(e) => e.stopPropagation()}
             className="mt-1 h-4 w-4 flex-shrink-0"
             aria-label={`Select ${game.name}`}
           />
           <div className="min-w-0">
-            <h3 className="text-md font-semibold text-gray-800 truncate" title={game.name}>
+            <h3
+              className="text-md font-semibold text-gray-800 truncate"
+              title={game.name}
+            >
               {game.name}
             </h3>
             <div className="mt-1 text-sm text-gray-500 truncate">
-              {game.type || "—"} • {game.version || "—"}
+              {game.type || '—'} • {game.version || '—'}
             </div>
           </div>
         </div>
@@ -63,8 +72,10 @@ const MobileCard = ({ game, checked, onToggle, onRowClick }) => {
             </span>
           ) : null}
 
-          <span className={`px-2 py-1 text-xs font-medium rounded ${getStatusClass(game.status)}`}>
-            {game.status || "N/A"}
+          <span
+            className={`px-2 py-1 text-xs font-medium rounded ${getStatusClass(game.status)}`}
+          >
+            {game.status || 'N/A'}
           </span>
 
           <span
@@ -76,21 +87,39 @@ const MobileCard = ({ game, checked, onToggle, onRowClick }) => {
             <InformationCircleIcon className="w-5 h-5" />
           </span>
           <Tooltip id={`tooltip-mobile-${game.id}`} place="top" effect="solid">
-            {game.description || "No description available"}
+            {game.description || 'No description available'}
           </Tooltip>
         </div>
       </div>
 
       <div className="flex flex-wrap items-center gap-2 text-sm">
-        <div className="text-gray-600">Size: <span className="font-medium text-gray-800">{game.size || "N/A"}</span></div>
-        <div className="text-gray-600">Parts: <span className="font-medium text-gray-800">{game.jumlahPart ?? "-"}</span></div>
-        <div className="text-gray-600">Date: <span className="font-medium text-gray-800">{formatDate(game.dateAdded)}</span></div>
+        <div className="text-gray-600">
+          Size:{' '}
+          <span className="font-medium text-gray-800">
+            {game.size || 'N/A'}
+          </span>
+        </div>
+        <div className="text-gray-600">
+          Parts:{' '}
+          <span className="font-medium text-gray-800">
+            {game.jumlahPart ?? '-'}
+          </span>
+        </div>
+        <div className="text-gray-600">
+          Date:{' '}
+          <span className="font-medium text-gray-800">
+            {formatDate(game.dateAdded)}
+          </span>
+        </div>
       </div>
 
       <div className="flex flex-wrap gap-2">
         {Array.isArray(game.genre) && game.genre.length > 0 ? (
           game.genre.slice(0, 4).map((g, i) => (
-            <span key={i} className="inline-block px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full">
+            <span
+              key={i}
+              className="inline-block px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full"
+            >
               {g}
             </span>
           ))
@@ -100,7 +129,8 @@ const MobileCard = ({ game, checked, onToggle, onRowClick }) => {
 
         {Array.isArray(game.locations) && game.locations.length > 0 && (
           <span className="ml-auto text-xs text-gray-500 whitespace-nowrap">
-            {game.locations.length} location{game.locations.length > 1 ? "s" : ""}
+            {game.locations.length} location
+            {game.locations.length > 1 ? 's' : ''}
           </span>
         )}
       </div>
@@ -110,7 +140,11 @@ const MobileCard = ({ game, checked, onToggle, onRowClick }) => {
 
 const SortIndicator = ({ active, direction }) => {
   if (!active) return null;
-  return <span className="ml-2 text-xs" aria-hidden>{direction === "ascending" ? "↑" : "↓"}</span>;
+  return (
+    <span className="ml-2 text-xs" aria-hidden>
+      {direction === 'ascending' ? '↑' : '↓'}
+    </span>
+  );
 };
 
 const GameTable = ({
@@ -126,7 +160,8 @@ const GameTable = ({
   const headerCheckboxRef = useRef(null);
   const [maxHeight, setMaxHeight] = useState(null);
   const allSelected = data.length > 0 && selectedRows.length === data.length;
-  const someSelected = selectedRows.length > 0 && selectedRows.length < data.length;
+  const someSelected =
+    selectedRows.length > 0 && selectedRows.length < data.length;
 
   useEffect(() => {
     if (headerCheckboxRef.current) {
@@ -138,12 +173,14 @@ const GameTable = ({
     const updateMaxHeight = () => {
       if (!wrapperRef.current) return;
       const headerEl =
-        document.querySelector(".site-header") ||
-        document.querySelector("header") ||
-        document.getElementById("header") ||
-        document.querySelector(".app-header") ||
+        document.querySelector('.site-header') ||
+        document.querySelector('header') ||
+        document.getElementById('header') ||
+        document.querySelector('.app-header') ||
         null;
-      const headerH = headerEl ? Math.ceil(headerEl.getBoundingClientRect().height) : 0;
+      const headerH = headerEl
+        ? Math.ceil(headerEl.getBoundingClientRect().height)
+        : 0;
       const wrapperTop = wrapperRef.current.getBoundingClientRect().top;
       const viewportH = window.innerHeight;
       const avail = viewportH - headerH - wrapperTop - 20;
@@ -151,12 +188,12 @@ const GameTable = ({
     };
 
     updateMaxHeight();
-    window.addEventListener("resize", updateMaxHeight);
-    window.addEventListener("orientationchange", updateMaxHeight);
+    window.addEventListener('resize', updateMaxHeight);
+    window.addEventListener('orientationchange', updateMaxHeight);
     const t = setTimeout(updateMaxHeight, 200);
     return () => {
-      window.removeEventListener("resize", updateMaxHeight);
-      window.removeEventListener("orientationchange", updateMaxHeight);
+      window.removeEventListener('resize', updateMaxHeight);
+      window.removeEventListener('orientationchange', updateMaxHeight);
       clearTimeout(t);
     };
   }, [data.length]);
@@ -167,7 +204,11 @@ const GameTable = ({
       <div
         ref={wrapperRef}
         className="hidden lg:block bg-white rounded-lg shadow mt-6"
-        style={{ maxHeight: maxHeight ? `${maxHeight}px` : undefined, overflow: "auto", position: "relative" }}
+        style={{
+          maxHeight: maxHeight ? `${maxHeight}px` : undefined,
+          overflow: 'auto',
+          position: 'relative',
+        }}
       >
         <div style={{ minWidth: 1000 }}>
           <table className="w-full text-left border-collapse table-fixed">
@@ -194,76 +235,138 @@ const GameTable = ({
                 <th
                   className="px-6 py-3 cursor-pointer text-left sticky left-14 top-0 bg-gray-300 min-w-[260px]"
                   style={{ zIndex: 50 }}
-                  onClick={() => onSort("name")}
+                  onClick={() => onSort('name')}
                   scope="col"
-                  aria-sort={sortConfig.key === "name" ? (sortConfig.direction === "ascending" ? "ascending" : "descending") : "none"}
+                  aria-sort={
+                    sortConfig.key === 'name'
+                      ? sortConfig.direction === 'ascending'
+                        ? 'ascending'
+                        : 'descending'
+                      : 'none'
+                  }
                 >
                   <div className="flex items-center justify-between min-w-0">
-                    <span className="truncate block" title="Name">Name</span>
-                    <SortIndicator active={sortConfig.key === "name"} direction={sortConfig.direction} />
+                    <span className="truncate block" title="Name">
+                      Name
+                    </span>
+                    <SortIndicator
+                      active={sortConfig.key === 'name'}
+                      direction={sortConfig.direction}
+                    />
                   </div>
                 </th>
 
                 <th
                   className="px-6 py-3 text-left cursor-pointer w-32 sticky top-0 bg-gray-300"
                   style={{ zIndex: 40 }}
-                  onClick={() => onSort("size")}
+                  onClick={() => onSort('size')}
                   scope="col"
-                  aria-sort={sortConfig.key === "size" ? (sortConfig.direction === "ascending" ? "ascending" : "descending") : "none"}
+                  aria-sort={
+                    sortConfig.key === 'size'
+                      ? sortConfig.direction === 'ascending'
+                        ? 'ascending'
+                        : 'descending'
+                      : 'none'
+                  }
                 >
                   <div className="flex items-center justify-between">
                     <span className="truncate">Size</span>
-                    <SortIndicator active={sortConfig.key === "size"} direction={sortConfig.direction} />
+                    <SortIndicator
+                      active={sortConfig.key === 'size'}
+                      direction={sortConfig.direction}
+                    />
                   </div>
                 </th>
 
                 <th
                   className="px-6 py-3 text-center cursor-pointer w-28 sticky top-0 bg-gray-300"
                   style={{ zIndex: 40 }}
-                  onClick={() => onSort("jumlahPart")}
+                  onClick={() => onSort('jumlahPart')}
                   scope="col"
-                  aria-sort={sortConfig.key === "jumlahPart" ? (sortConfig.direction === "ascending" ? "ascending" : "descending") : "none"}
+                  aria-sort={
+                    sortConfig.key === 'jumlahPart'
+                      ? sortConfig.direction === 'ascending'
+                        ? 'ascending'
+                        : 'descending'
+                      : 'none'
+                  }
                 >
                   <div className="flex items-center justify-between">
                     <span className="truncate">Jumlah Part</span>
-                    <SortIndicator active={sortConfig.key === "jumlahPart"} direction={sortConfig.direction} />
+                    <SortIndicator
+                      active={sortConfig.key === 'jumlahPart'}
+                      direction={sortConfig.direction}
+                    />
                   </div>
                 </th>
 
-                <th className="px-6 py-3 text-center min-w-[180px] sticky top-0 bg-gray-300" style={{ zIndex: 40 }} scope="col">Genre</th>
-                <th className="px-6 py-3 text-left min-w-[160px] sticky top-0 bg-gray-300" style={{ zIndex: 40 }} scope="col">Location</th>
+                <th
+                  className="px-6 py-3 text-center min-w-[180px] sticky top-0 bg-gray-300"
+                  style={{ zIndex: 40 }}
+                  scope="col"
+                >
+                  Genre
+                </th>
+                <th
+                  className="px-6 py-3 text-left min-w-[160px] sticky top-0 bg-gray-300"
+                  style={{ zIndex: 40 }}
+                  scope="col"
+                >
+                  Location
+                </th>
 
                 <th
                   className="px-6 py-3 truncate w-40 cursor-pointer sticky top-0 bg-gray-300"
                   style={{ zIndex: 40 }}
-                  onClick={() => onSort("dateAdded")}
+                  onClick={() => onSort('dateAdded')}
                   scope="col"
-                  aria-sort={sortConfig.key === "dateAdded" ? (sortConfig.direction === "ascending" ? "ascending" : "descending") : "none"}
+                  aria-sort={
+                    sortConfig.key === 'dateAdded'
+                      ? sortConfig.direction === 'ascending'
+                        ? 'ascending'
+                        : 'descending'
+                      : 'none'
+                  }
                 >
                   <div className="flex items-center justify-between">
                     <span className="truncate">Date Added</span>
-                    <SortIndicator active={sortConfig.key === "dateAdded"} direction={sortConfig.direction} />
+                    <SortIndicator
+                      active={sortConfig.key === 'dateAdded'}
+                      direction={sortConfig.direction}
+                    />
                   </div>
                 </th>
 
-                <th className="px-6 py-3 w-10 sticky top-0 bg-gray-300" style={{ zIndex: 40 }} scope="col" />
+                <th
+                  className="px-6 py-3 w-10 sticky top-0 bg-gray-300"
+                  style={{ zIndex: 40 }}
+                  scope="col"
+                />
               </tr>
             </thead>
 
             <tbody className="text-black-200 text-md">
               {data.length === 0 ? (
                 <tr>
-                  <td colSpan="8" className="px-6 py-4 text-center text-black-500">No Match Data Found</td>
+                  <td
+                    colSpan="8"
+                    className="px-6 py-4 text-center text-black-500"
+                  >
+                    No Match Data Found
+                  </td>
                 </tr>
               ) : (
                 data.map((game) => (
                   <tr
                     key={game.id}
-                    className={`border-b hover:bg-gray-50 transition ${selectedRows.includes(game.id) ? "bg-gray-100" : ""}`}
+                    className={`border-b hover:bg-gray-50 transition ${selectedRows.includes(game.id) ? 'bg-gray-100' : ''}`}
                     onClick={(e) => onRowClick(game.id, e)}
                   >
                     {/* frozen checkbox cell: sticky left */}
-                    <td className="px-6 py-4 w-14 text-center sticky left-0 bg-white" style={{ zIndex: 30 }}>
+                    <td
+                      className="px-6 py-4 w-14 text-center sticky left-0 bg-white"
+                      style={{ zIndex: 30 }}
+                    >
                       <input
                         type="checkbox"
                         checked={selectedRows.includes(game.id)}
@@ -275,14 +378,20 @@ const GameTable = ({
                     </td>
 
                     {/* frozen name cell: sticky left (offset by checkbox width) */}
-                    <td className="px-6 py-4 sticky left-14 bg-white" style={{ zIndex: 20 }}>
+                    <td
+                      className="px-6 py-4 sticky left-14 bg-white"
+                      style={{ zIndex: 20 }}
+                    >
                       <div className="flex items-start justify-between min-w-0">
                         <div className="min-w-0 pr-3">
-                          <span className="font-medium text-gray-800 block truncate max-w-[320px]" title={game.name}>
+                          <span
+                            className="font-medium text-gray-800 block truncate max-w-[320px]"
+                            title={game.name}
+                          >
                             {game.name}
                           </span>
                           <div className="text-xs text-gray-500 truncate">
-                            {game.type || "—"} • {game.version || "—"}
+                            {game.type || '—'} • {game.version || '—'}
                           </div>
                         </div>
 
@@ -297,12 +406,17 @@ const GameTable = ({
                     </td>
 
                     <td className="px-6 py-4 truncate w-32">{game.size}</td>
-                    <td className="px-6 py-4 text-center w-28">{game.jumlahPart}</td>
+                    <td className="px-6 py-4 text-center w-28">
+                      {game.jumlahPart}
+                    </td>
 
                     <td className="px-6 py-4 text-center">
                       {game.genre && game.genre.length > 0 ? (
                         game.genre.map((cat, index) => (
-                          <span key={index} className="inline-block px-3 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-full mr-2 mb-2">
+                          <span
+                            key={index}
+                            className="inline-block px-3 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-full mr-2 mb-2"
+                          >
                             {cat}
                           </span>
                         ))
@@ -314,7 +428,10 @@ const GameTable = ({
                     <td className="px-6 py-4 text-center">
                       {game.locations && game.locations.length > 0 ? (
                         game.locations.map((location, index) => (
-                          <span key={index} className="inline-block px-3 py-1 text-xs font-medium bg-purple-100 text-purple-800 rounded-full mr-2 mb-2">
+                          <span
+                            key={index}
+                            className="inline-block px-3 py-1 text-xs font-medium bg-purple-100 text-purple-800 rounded-full mr-2 mb-2"
+                          >
                             {location}
                           </span>
                         ))
@@ -323,14 +440,24 @@ const GameTable = ({
                       )}
                     </td>
 
-                    <td className="px-6 py-4 truncate w-40">{formatDate(game.dateAdded)}</td>
+                    <td className="px-6 py-4 truncate w-40">
+                      {formatDate(game.dateAdded)}
+                    </td>
 
                     <td className="px-6 py-4 text-center">
-                      <span className="text-gray-500 cursor-pointer hover:text-gray-700" data-tooltip-id={`tooltip-${game.id}`} onClick={(e) => e.stopPropagation()}>
+                      <span
+                        className="text-gray-500 cursor-pointer hover:text-gray-700"
+                        data-tooltip-id={`tooltip-${game.id}`}
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         <InformationCircleIcon className="w-5 h-5 inline-block" />
                       </span>
-                      <Tooltip id={`tooltip-${game.id}`} place="top" effect="solid">
-                        {game.description || "No description available"}
+                      <Tooltip
+                        id={`tooltip-${game.id}`}
+                        place="top"
+                        effect="solid"
+                      >
+                        {game.description || 'No description available'}
                       </Tooltip>
                     </td>
                   </tr>
@@ -344,7 +471,9 @@ const GameTable = ({
       {/* MOBILE: card/list */}
       <div className="lg:hidden mt-4 space-y-3">
         {data.length === 0 ? (
-          <div className="text-center text-gray-500 bg-white p-4 rounded-lg shadow">No Match Data Found</div>
+          <div className="text-center text-gray-500 bg-white p-4 rounded-lg shadow">
+            No Match Data Found
+          </div>
         ) : (
           data.map((game) => (
             <MobileCard

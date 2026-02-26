@@ -1,51 +1,63 @@
 // src/routes/AppRouter.jsx
 
-import React from "react";
-import { Routes, Route } from "react-router-dom";
+import React, { Suspense, lazy } from 'react';
+import { Routes, Route } from 'react-router-dom';
 import 'react-datepicker/dist/react-datepicker.css';
 
 // Import Layout dan Halaman
-import Layout from "../components/layout/Layout";
-import PrivateRoute from "./PrivateRoute";
+const Layout = lazy(() => import('../components/layout/Layout'));
+const PrivateRoute = lazy(() => import('./PrivateRoute'));
 
 // Import Halaman Spesifik Fitur
-import DashboardPage from "../features/dashboard/DashboardPage";
-import GamesPage from "../features/games/GamesPage";
-import TaskPage from "../features/tasks/TaskPage";
-import RequestsPage from "../features/requests/RequestsPage";
-import OperationalPage from "../features/operational/OperationalPage";
-import LandingPage from "../features/landing/LandingPage";
-import RequestGamePage from "../features/landing/RequestGamePage";
+const DashboardPage = lazy(() => import('../features/dashboard/DashboardPage'));
+const GamesPage = lazy(() => import('../features/games/GamesPage'));
+const TaskPage = lazy(() => import('../features/tasks/TaskPage'));
+const RequestsPage = lazy(() => import('../features/requests/RequestsPage'));
+const OperationalPage = lazy(
+  () => import('../features/operational/OperationalPage')
+);
+const LandingPage = lazy(() => import('../features/landing/LandingPage'));
+const RequestGamePage = lazy(
+  () => import('../features/landing/RequestGamePage')
+);
 // Import Halaman Umum
-import LoginPage from "../pages/LoginPage";
-import FeedbackPage from "../pages/FeedbackPage";
-import AboutPage from "../pages/AboutPage";
-import NotFoundPage from "../pages/NotFoundPage"
+const LoginPage = lazy(() => import('../pages/LoginPage'));
+const FeedbackPage = lazy(() => import('../pages/FeedbackPage'));
+const AboutPage = lazy(() => import('../pages/AboutPage'));
+const NotFoundPage = lazy(() => import('../pages/NotFoundPage'));
 
 const AppRouter = () => {
+  const fallback = (
+    <div className="min-h-screen grid place-items-center text-slate-500">
+      Memuat halaman...
+    </div>
+  );
+
   return (
-    <Routes>
-      {/* Rute Publik tanpa Layout */}
-      <Route path="/" element={<LandingPage />} />
-      <Route path="/request-game" element={<RequestGamePage />} />
-      <Route path="/login" element={<LoginPage />} />
+    <Suspense fallback={fallback}>
+      <Routes>
+        {/* Rute Publik tanpa Layout */}
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/request-game" element={<RequestGamePage />} />
+        <Route path="/login" element={<LoginPage />} />
 
-      {/* Rute Privat yang dilindungi dan menggunakan Layout */}
-      <Route element={<PrivateRoute />}>
-        <Route element={<Layout />}>
-          <Route path="/dashboard" element={<DashboardPage />} />
-          <Route path="/games" element={<GamesPage />} />
-          <Route path="/task" element={<TaskPage />} />
-          <Route path="/requests" element={<RequestsPage />} />
-          <Route path="/operational" element={<OperationalPage />} />
-          <Route path="/feedback" element={<FeedbackPage />} />
-          <Route path="/about" element={<AboutPage />} />
+        {/* Rute Privat yang dilindungi dan menggunakan Layout */}
+        <Route element={<PrivateRoute />}>
+          <Route element={<Layout />}>
+            <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/games" element={<GamesPage />} />
+            <Route path="/task" element={<TaskPage />} />
+            <Route path="/requests" element={<RequestsPage />} />
+            <Route path="/operational" element={<OperationalPage />} />
+            <Route path="/feedback" element={<FeedbackPage />} />
+            <Route path="/about" element={<AboutPage />} />
+          </Route>
         </Route>
-      </Route>
 
-      {/* Halaman Not Found */}
-      <Route path="*" element={<NotFoundPage />} />
-    </Routes>
+        {/* Halaman Not Found */}
+        <Route path="*" element={<NotFoundPage />} />
+      </Routes>
+    </Suspense>
   );
 };
 

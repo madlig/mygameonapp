@@ -1,11 +1,23 @@
 // src/services/taskProjectService.js
-import { db, collection, addDoc, getDocs, onSnapshot, deleteDoc, doc, getDoc, setDoc  } from "../../../config/firebaseConfig";
-import { query, where, orderBy, serverTimestamp } from "firebase/firestore";
+import {
+  db,
+  collection,
+  addDoc,
+  onSnapshot,
+  deleteDoc,
+  doc,
+  setDoc,
+} from '../../../config/firebaseConfig';
+import { query, where, orderBy, serverTimestamp } from 'firebase/firestore';
 
 // --- PROJECT FUNCTIONS ---
 
 // Fungsi untuk menambahkan proyek baru
-export const addProject = async (userId, projectName, projectDescription = '') => {
+export const addProject = async (
+  userId,
+  projectName,
+  projectDescription = ''
+) => {
   try {
     const projectsCollectionRef = collection(db, `users/${userId}/projects`);
     const docRef = await addDoc(projectsCollectionRef, {
@@ -13,10 +25,15 @@ export const addProject = async (userId, projectName, projectDescription = '') =
       description: projectDescription,
       createdAt: serverTimestamp(), // Menggunakan timestamp dari server Firestore
     });
-    console.log("Project written with ID: ", docRef.id);
-    return { id: docRef.id, name: projectName, description: projectDescription, createdAt: new Date() };
+    console.log('Project written with ID: ', docRef.id);
+    return {
+      id: docRef.id,
+      name: projectName,
+      description: projectDescription,
+      createdAt: new Date(),
+    };
   } catch (e) {
-    console.error("Error adding project: ", e);
+    console.error('Error adding project: ', e);
     throw e;
   }
 };
@@ -26,15 +43,19 @@ export const getProjects = (userId, callback) => {
   const projectsCollectionRef = collection(db, `users/${userId}/projects`);
   const q = query(projectsCollectionRef, orderBy('createdAt', 'desc'));
 
-  const unsubscribe = onSnapshot(q, (snapshot) => {
-    const projects = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    }));
-    callback(projects);
-  }, (error) => {
-    console.error("Error fetching projects: ", error);
-  });
+  const unsubscribe = onSnapshot(
+    q,
+    (snapshot) => {
+      const projects = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+      callback(projects);
+    },
+    (error) => {
+      console.error('Error fetching projects: ', error);
+    }
+  );
 
   return unsubscribe;
 };
@@ -44,9 +65,9 @@ export const updateProject = async (userId, projectId, updatedData) => {
   try {
     const projectDocRef = doc(db, `users/${userId}/projects`, projectId);
     await setDoc(projectDocRef, updatedData, { merge: true });
-    console.log("Project successfully updated!");
+    console.log('Project successfully updated!');
   } catch (e) {
-    console.error("Error updating project: ", e);
+    console.error('Error updating project: ', e);
     throw e;
   }
 };
@@ -65,13 +86,12 @@ export const deleteProject = async (userId, projectId) => {
     // await batch.commit();
 
     await deleteDoc(doc(db, `users/${userId}/projects`, projectId));
-    console.log("Project successfully deleted!");
+    console.log('Project successfully deleted!');
   } catch (e) {
-    console.error("Error deleting project: ", e);
+    console.error('Error deleting project: ', e);
     throw e;
   }
 };
-
 
 // --- TASK FUNCTIONS ---
 
@@ -85,43 +105,56 @@ export const addTask = async (userId, taskData) => {
     });
     return { id: docRef.id, ...taskData, createdAt: new Date() };
   } catch (e) {
-    console.error("Error adding task: ", e);
+    console.error('Error adding task: ', e);
     throw e;
   }
 };
 
 // CATATAN: Fungsi getTasks ini tidak akan lagi dipanggil langsung dari TaskPage.jsx
 // Namun, tetap penting untuk memiliki definisi yang benar jika Anda ingin menggunakannya di tempat lain.
-export const getTasks = (userId, callback, projectId = null, isDaily = false) => {
+export const getTasks = (
+  userId,
+  callback,
+  projectId = null,
+  isDaily = false
+) => {
   const tasksCollectionRef = collection(db, `users/${userId}/tasks`);
   let q;
 
   if (projectId) {
-    q = query(tasksCollectionRef,
-              where("projectId", "==", projectId),
-              where("isDailyTask", "==", false),
-              orderBy('createdAt', 'desc'));
+    q = query(
+      tasksCollectionRef,
+      where('projectId', '==', projectId),
+      where('isDailyTask', '==', false),
+      orderBy('createdAt', 'desc')
+    );
   } else if (isDaily) {
-    q = query(tasksCollectionRef,
-              where("isDailyTask", "==", true),
-              where("projectId", "==", null),
-              orderBy('createdAt', 'desc'));
+    q = query(
+      tasksCollectionRef,
+      where('isDailyTask', '==', true),
+      where('projectId', '==', null),
+      orderBy('createdAt', 'desc')
+    );
   } else {
     // Untuk "All Tasks"
     q = query(tasksCollectionRef, orderBy('createdAt', 'desc'));
   }
 
-  const unsubscribe = onSnapshot(q, (snapshot) => {
-    const tasks = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-      createdAt: doc.data().createdAt?.toDate(),
-      deadline: doc.data().deadline?.toDate(),
-    }));
-    callback(tasks);
-  }, (error) => {
-    console.error("Error fetching tasks: ", error);
-  });
+  const unsubscribe = onSnapshot(
+    q,
+    (snapshot) => {
+      const tasks = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+        createdAt: doc.data().createdAt?.toDate(),
+        deadline: doc.data().deadline?.toDate(),
+      }));
+      callback(tasks);
+    },
+    (error) => {
+      console.error('Error fetching tasks: ', error);
+    }
+  );
 
   return unsubscribe;
 };
@@ -131,9 +164,9 @@ export const updateTask = async (userId, taskId, updatedData) => {
   try {
     const taskDocRef = doc(db, `users/${userId}/tasks`, taskId);
     await setDoc(taskDocRef, updatedData, { merge: true });
-    console.log("Task successfully updated!");
+    console.log('Task successfully updated!');
   } catch (e) {
-    console.error("Error updating task: ", e);
+    console.error('Error updating task: ', e);
     throw e;
   }
 };
@@ -142,9 +175,9 @@ export const updateTask = async (userId, taskId, updatedData) => {
 export const deleteTask = async (userId, taskId) => {
   try {
     await deleteDoc(doc(db, `users/${userId}/tasks`, taskId));
-    console.log("Task successfully deleted!");
+    console.log('Task successfully deleted!');
   } catch (e) {
-    console.error("Error deleting task: ", e);
+    console.error('Error deleting task: ', e);
     throw e;
   }
 };

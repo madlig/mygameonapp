@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo } from 'react';
 
 /**
  * Custom hook for pagination.
@@ -8,9 +8,7 @@ import { useState, useMemo } from "react";
 const usePagination = (data = [], itemsPerPage = 10) => {
   const [currentPage, setCurrentPage] = useState(1);
 
-  // Ensure data is an array to avoid runtime errors
-  const validData = Array.isArray(data) ? data : [];
-
+  const validData = useMemo(() => (Array.isArray(data) ? data : []), [data]);
   const totalPages = Math.ceil(validData.length / itemsPerPage);
 
   const paginatedData = useMemo(() => {

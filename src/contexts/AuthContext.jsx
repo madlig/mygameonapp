@@ -1,10 +1,11 @@
+/* eslint-disable react-refresh/only-export-components */
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { auth } from '../config/firebaseConfig'; // Impor 'auth' dari konfigurasi Firebase Anda
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   signOut,
-  onAuthStateChanged
+  onAuthStateChanged,
 } from 'firebase/auth';
 
 // Buat Context
@@ -37,7 +38,7 @@ export function AuthProvider({ children }) {
 
   // Efek samping untuk memantau perubahan status autentikasi
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, user => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
       setCurrentUser(user);
       setLoading(false); // Setelah status diketahui, set loading menjadi false
     });
@@ -48,14 +49,16 @@ export function AuthProvider({ children }) {
   // Nilai yang akan disediakan oleh AuthContext
   const value = {
     currentUser,
+    loading,
     signup,
     login,
-    logout
+    logout,
   };
 
   return (
     <AuthContext.Provider value={value}>
-      {!loading && children} {/* Hanya render children jika status loading sudah selesai */}
+      {!loading && children}{' '}
+      {/* Hanya render children jika status loading sudah selesai */}
     </AuthContext.Provider>
   );
 }

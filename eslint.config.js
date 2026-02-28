@@ -1,13 +1,25 @@
-import js from '@eslint/js'
-import globals from 'globals'
-import react from 'eslint-plugin-react'
-import reactHooks from 'eslint-plugin-react-hooks'
-import reactRefresh from 'eslint-plugin-react-refresh'
+import js from '@eslint/js';
+import globals from 'globals';
+import react from 'eslint-plugin-react';
+import reactHooks from 'eslint-plugin-react-hooks';
+import reactRefresh from 'eslint-plugin-react-refresh';
 
 export default [
   { ignores: ['dist'] },
   {
+    files: ['functions/**/*.js', '**/*.cjs'],
+    languageOptions: {
+      ecmaVersion: 2020,
+      sourceType: 'commonjs',
+      globals: globals.node,
+    },
+    rules: {
+      ...js.configs.recommended.rules,
+    },
+  },
+  {
     files: ['**/*.{js,jsx}'],
+    ignores: ['functions/**/*.js', '**/*.cjs'],
     languageOptions: {
       ecmaVersion: 2020,
       globals: globals.browser,
@@ -35,12 +47,15 @@ export default [
       ],
 
       // TEMPORARY relaxations to make lint manageable while we finish cleanup
-      'react/prop-types': 'off',                  // disable prop-types check for now
-      'react/react-in-jsx-scope': 'off',          // React import not required with new JSX runtime
+      'react/prop-types': 'off', // disable prop-types check for now
+      'react/react-in-jsx-scope': 'off', // React import not required with new JSX runtime
       'react/jsx-uses-react': 'off',
       // make unused vars a warning and ignore the React identifier (so unused import React won't error)
-      'no-unused-vars': ['warn', { 'argsIgnorePattern': '^_', 'varsIgnorePattern': '^React$' }],
-      'no-empty': ['error', { 'allowEmptyCatch': true }],
+      'no-unused-vars': [
+        'warn',
+        { argsIgnorePattern: '^_', varsIgnorePattern: '^React$' },
+      ],
+      'no-empty': ['error', { allowEmptyCatch: true }],
     },
   },
-]
+];

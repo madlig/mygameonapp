@@ -1,139 +1,125 @@
-import { useState, useEffect } from "react";
-import { collection, getDocs, query, where, orderBy, limit } from "firebase/firestore";
-import { db } from "../../../config/firebaseConfig";
-import { useAuth } from "../../../contexts/AuthContext";
-
-// Fungsi pembantu untuk konversi tanggal yang aman
-const safeToDate = (firestoreDate) => {
-  if (!firestoreDate) return null;
-  if (typeof firestoreDate.toDate === 'function') {
-    return firestoreDate.toDate();
-  }
-  const d = new Date(firestoreDate);
-  if (!isNaN(d.getTime())) {
-    return d;
-  }
-  return null;
-};
+import { useState, useEffect } from 'react';
+import {
+  collection,
+  getDocs,
+  query,
+  where,
+  orderBy,
+  limit,
+} from 'firebase/firestore';
+import { db } from '../../../config/firebaseConfig';
+import { useAuth } from '../../../contexts/AuthContext';
 
 export const useDashboardData = () => {
   const { currentUser } = useAuth();
+
   const [summaryStats, setSummaryStats] = useState({
     totalGames: 0,
     totalTasks: 0,
     totalRequests: 0,
     totalFeedback: 0,
+    // Field Baru untuk Operational
+    monthlyRevenue: 0,
+    monthlyNetRevenue: 0,
+    monthlyAdSpend: 0,
+    monthlyShifts: 0,
   });
-  
-  const [priorityTasks, setPriorityTasks] = useState([]);
-  
-  // 1. State baru untuk menampung important requests
-  const [importantRequests, setImportantRequests] = useState([]);
-  const [recentActivities, setRecentActivities] = useState([]);
 
+  const [recentActivities, setRecentActivities] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
     if (!currentUser) return;
 
-    const fetchAllDashboardData = async () => {
+    const fetchDashboardData = async () => {
       setLoading(true);
       try {
-        // --- Promise yang sudah ada ---
-        const gamesPromise = getDocs(collection(db, "games"));
-        const requestsPromise = getDocs(collection(db, "requests"));
-        const totalTasksPromise = getDocs(
-          query(collection(db, `users/${currentUser.uid}/tasks`))
+        // 1. Basic Stats (Games, Tasks, Requests)
+        // Optimasi: Gunakan count() dari firestore di masa depan untuk hemat read
+        // Saat ini kita pakai cara manual dulu sesuai kode lama
+        const gamesSnapshot = await getDocs(collection(db, 'games'));
+        const requestsSnapshot = await getDocs(collection(db, 'requests'));
+
+        // Task user saat ini
+        const tasksQuery = query(
+          collection(db, 'users', currentUser.uid, 'tasks')
+        );
+        const tasksSnapshot = await getDocs(tasksQuery);
+
+        // 2. Operational Stats (Bulan Ini)
+        // Kita ambil data dari 'operational_daily_recap' untuk bulan berjalan
+        const now = new Date();
+        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+          .toISOString()
+          .split('T')[0];
+        const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0)
+          .toISOString()
+          .split('T')[0];
+
+        // Query ke koleksi agregasi
+        const opsQuery = query(
+          collection(db, 'operational_daily_recap'), // Pastikan nama koleksi sesuai
+          where('date', '>=', startOfMonth),
+          where('date', '<=', endOfMonth)
         );
 
-        const latestGamesPromise = getDocs(query(collection(db, "games"), orderBy("dateAdded", "desc"), limit(5)));
-        const latestTasksPromise = getDocs(query(collection(db, `users/${currentUser.uid}/tasks`), orderBy("createdAt", "desc"), limit(5)));
-        const latestRequestsPromise = getDocs(query(collection(db, "requests"), orderBy("earliestDate", "desc"), limit(5)));
+        const opsSnapshot = await getDocs(opsQuery);
 
-        const priorityTasksQuery = query(
-          collection(db, `users/${currentUser.uid}/tasks`),
-          where("status", "!=", "Done"),
-          orderBy("priority"),
-          limit(5)
-        );
-        const priorityTasksPromise = getDocs(priorityTasksQuery);
-        
-        // 2. Promise baru untuk mengambil important requests
-        const importantRequestsQuery = query(
-            collection(db, "requests"),
-            orderBy("requestCount", "desc"), // Urutkan berdasarkan jumlah request (terbanyak)
-            limit(5)                         // Ambil 5 teratas
-        );
-        const importantRequestsPromise = getDocs(importantRequestsQuery);
+        let revenue = 0;
+        let netRevenue = 0;
+        let adSpend = 0;
+        let shifts = 0;
 
-        // 3. Menunggu semua data selesai diambil
-        const [
-            gamesSnapshot,
-            requestsSnapshot,
-            totalTasksSnapshot,
-            priorityTasksSnapshot,
-            importantRequestsSnapshot, // <-- Hasil dari promise baru
-            latestGamesSnapshot, 
-            latestTasksSnapshot, 
-            latestRequestsSnapshot
-          ] = await Promise.all([
-            gamesPromise,
-            requestsPromise,
-            totalTasksPromise,
-            priorityTasksPromise,
-            importantRequestsPromise,
-            latestGamesPromise, 
-            latestTasksPromise, 
-            latestRequestsPromise // <-- Tambahkan promise baru di sini
-        ]);
-
-        // --- Set state untuk summary stats (tidak berubah) ---
-        setSummaryStats({
-          totalGames: gamesSnapshot.size,
-          totalTasks: totalTasksSnapshot.size,
-          totalRequests: requestsSnapshot.size,
-          totalFeedback: 15,
+        opsSnapshot.docs.forEach((doc) => {
+          const data = doc.data();
+          revenue += data.totalRevenue || 0;
+          netRevenue += data.totalNetRevenue || 0;
+          adSpend += data.adSpend || 0;
+          shifts += data.totalShifts || 0;
         });
 
-        // --- Set state untuk priority tasks (tidak berubah) ---
-        const fetchedTasks = priorityTasksSnapshot.docs.map(doc => ({
+        // 3. Recent Activities (Gabungan)
+        // Simulasi penggabungan data terbaru
+        const latestGames = await getDocs(
+          query(collection(db, 'games'), orderBy('dateAdded', 'desc'), limit(3))
+        );
+
+        const activities = [];
+        latestGames.forEach((doc) => {
+          activities.push({
             id: doc.id,
-            ...doc.data(),
-            deadline: doc.data().deadline?.toDate(),
-        }));
-        setPriorityTasks(fetchedTasks);
+            type: 'GAME_ADDED',
+            date: doc.data().dateAdded?.toDate() || new Date(),
+            data: { name: doc.data().title },
+          });
+        });
 
-        // 4. Set state baru untuk important requests
-        const fetchedRequests = importantRequestsSnapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data()
-        }));
-        setImportantRequests(fetchedRequests);
+        // Sort activities by date
+        activities.sort((a, b) => b.date - a.date);
 
-        // Gunakan safeToDate untuk semua konversi tanggal
-        const gamesActivities = latestGamesSnapshot.docs.map(d => ({ type: 'GAME_ADDED', data: d.data(), date: safeToDate(d.data().dateAdded) }));
-        const tasksActivities = latestTasksSnapshot.docs.map(d => ({ type: 'TASK_CREATED', data: d.data(), date: safeToDate(d.data().createdAt) }));
-        const requestsActivities = latestRequestsSnapshot.docs.map(d => ({ type: 'REQUEST_RECEIVED', data: d.data(), date: safeToDate(d.data().earliestDate) }));
+        setSummaryStats({
+          totalGames: gamesSnapshot.size,
+          totalRequests: requestsSnapshot.size,
+          totalTasks: tasksSnapshot.size,
+          totalFeedback: 0, // Placeholder
+          monthlyRevenue: revenue,
+          monthlyNetRevenue: netRevenue,
+          monthlyAdSpend: adSpend,
+          monthlyShifts: shifts,
+        });
 
-        const allActivities = [...gamesActivities, ...tasksActivities, ...requestsActivities]
-            .filter(activity => activity.date !== null) // Hanya proses aktivitas yang tanggalnya valid
-            .sort((a, b) => b.date - a.date)
-            .slice(0, 5);
-
-        setRecentActivities(allActivities);
-        
+        setRecentActivities(activities);
       } catch (err) {
-        console.error("Error fetching dashboard data:", err);
-        setError("Gagal memuat data dashboard.");
+        console.error('Error fetching dashboard data:', err);
+        setError('Gagal memuat data dashboard.');
       } finally {
         setLoading(false);
       }
     };
 
-    fetchAllDashboardData();
+    fetchDashboardData();
   }, [currentUser]);
 
-  // 5. Kembalikan data requests dari hook
-  return { summaryStats, priorityTasks, importantRequests, recentActivities, loading, error };
+  return { summaryStats, recentActivities, loading, error };
 };

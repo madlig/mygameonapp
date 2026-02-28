@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from 'react';
 
 /**
  * Reusable Modal with:
@@ -17,10 +17,15 @@ const FOCUSABLE_SELECTORS = [
   'textarea:not([disabled])',
   'input:not([disabled])',
   'select:not([disabled])',
-  '[tabindex]:not([tabindex="-1"])'
+  '[tabindex]:not([tabindex="-1"])',
 ].join(',');
 
-const Modal = ({ onClose, children, ariaLabel = "Dialog", initialFocusSelector = null }) => {
+const Modal = ({
+  onClose,
+  children,
+  ariaLabel = 'Dialog',
+  initialFocusSelector = null,
+}) => {
   const overlayRef = useRef(null);
   const panelRef = useRef(null);
   const previouslyFocused = useRef(null);
@@ -35,15 +40,18 @@ const Modal = ({ onClose, children, ariaLabel = "Dialog", initialFocusSelector =
     requestAnimationFrame(() => setIsVisible(true));
 
     const onKeyDown = (e) => {
-      if (e.key === "Escape") {
+      if (e.key === 'Escape') {
         e.preventDefault();
         triggerClose();
-      } else if (e.key === "Tab") {
+      } else if (e.key === 'Tab') {
         // Focus trap
         const container = panelRef.current;
         if (!container) return;
-        const focusable = Array.from(container.querySelectorAll(FOCUSABLE_SELECTORS))
-          .filter((el) => !el.hasAttribute("disabled") && el.offsetParent !== null);
+        const focusable = Array.from(
+          container.querySelectorAll(FOCUSABLE_SELECTORS)
+        ).filter(
+          (el) => !el.hasAttribute('disabled') && el.offsetParent !== null
+        );
         if (focusable.length === 0) {
           e.preventDefault();
           return;
@@ -64,7 +72,7 @@ const Modal = ({ onClose, children, ariaLabel = "Dialog", initialFocusSelector =
       }
     };
 
-    document.addEventListener("keydown", onKeyDown);
+    document.addEventListener('keydown', onKeyDown);
 
     // initial focus
     requestAnimationFrame(() => {
@@ -76,28 +84,29 @@ const Modal = ({ onClose, children, ariaLabel = "Dialog", initialFocusSelector =
             return;
           }
         }
-        const focusable = panelRef.current?.querySelectorAll(FOCUSABLE_SELECTORS);
+        const focusable =
+          panelRef.current?.querySelectorAll(FOCUSABLE_SELECTORS);
         if (focusable && focusable.length) {
           focusable[0].focus();
         } else if (panelRef.current) {
           panelRef.current.focus();
         }
-      } catch (err) {
+      } catch {
         // ignore
       }
     });
 
     // prevent background scroll
     const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
+    document.body.style.overflow = 'hidden';
 
     return () => {
-      document.removeEventListener("keydown", onKeyDown);
+      document.removeEventListener('keydown', onKeyDown);
       document.body.style.overflow = prevOverflow;
       // restore previous focus
       try {
         previouslyFocused.current?.focus?.();
-      } catch (err) {}
+      } catch {}
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -135,7 +144,7 @@ const Modal = ({ onClose, children, ariaLabel = "Dialog", initialFocusSelector =
           ${isVisible ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-2 scale-95'}
           ${isClosing ? 'pointer-events-none' : ''}
         `}
-        style={{ outline: "none" }}
+        style={{ outline: 'none' }}
       >
         {children}
       </div>

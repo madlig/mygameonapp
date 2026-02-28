@@ -10,6 +10,7 @@ import {
   ThumbsUp,
   Info,
   Clock,
+  Copy,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import {
@@ -25,6 +26,10 @@ import {
 } from 'firebase/firestore';
 import { db } from '../../config/firebaseConfig';
 import { useAuth } from '../../contexts/AuthContext';
+import {
+  REQUEST_ACTIVE_STATUSES,
+  REQUEST_STATUS,
+} from '../../shared/requestStatus';
 
 const RequestGamePage = () => {
   const {
@@ -35,6 +40,17 @@ const RequestGamePage = () => {
   } = useForm();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState(null); // 'success' | 'voted' | 'error' | 'rate_limit'
+  const [trackingCode, setTrackingCode] = useState('');
+
+  const createTrackingCode = () => {
+    const seed = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+    return `RQ-${seed.slice(-6).toUpperCase()}`;
+  };
+
+  const copyTrackingCode = async () => {
+    if (!trackingCode) return;
+    await navigator.clipboard.writeText(trackingCode);
+  };
 
   const { currentUser } = useAuth() || { currentUser: null };
 
@@ -67,6 +83,7 @@ const RequestGamePage = () => {
 
     setIsSubmitting(true);
     setSubmitStatus(null);
+    setTrackingCode('');
 
     try {
       const cleanTitle = data.gameTitle.trim();
@@ -79,7 +96,7 @@ const RequestGamePage = () => {
       const q = query(
         collection(db, 'requests'),
         where('title_lower', '==', titleLower),
-        where('status', 'in', ['pending', 'queued', 'processing', 'uploaded'])
+        where('status', 'in', REQUEST_ACTIVE_STATUSES)
       );
 
       const querySnapshot = await getDocs(q);
@@ -91,6 +108,11 @@ const RequestGamePage = () => {
           votes: increment(1),
           updatedAt: serverTimestamp(),
         });
+        const existingCode = existingDoc.data().trackingCode || '';
+        setTrackingCode(existingCode);
+        if (existingCode) {
+          localStorage.setItem('mygameon_last_tracking_code', existingCode);
+        }
         setSubmitStatus('voted');
       } else {
         // SKENARIO B: BELUM ADA (BUAT BARU)
@@ -110,6 +132,7 @@ const RequestGamePage = () => {
           source = 'shopee';
         }
 
+        const code = createTrackingCode();
         const requestData = {
           title: cleanTitle,
           title_lower: titleLower,
@@ -121,9 +144,10 @@ const RequestGamePage = () => {
           source: source,
           userId: currentUser ? currentUser.uid : 'anonymous',
 
-          status: 'pending',
+          status: REQUEST_STATUS.PENDING,
           isUrgent: false,
           isRdpBatch: false,
+          trackingCode: code,
 
           votes: 1,
 
@@ -132,6 +156,8 @@ const RequestGamePage = () => {
         };
 
         await addDoc(collection(db, 'requests'), requestData);
+        setTrackingCode(code);
+        localStorage.setItem('mygameon_last_tracking_code', code);
         setSubmitStatus('success');
       }
 
@@ -149,36 +175,42 @@ const RequestGamePage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <nav className="bg-white border-b border-slate-200 px-4 py-3 sticky top-0 z-10">
+    <div className="min-h-screen bg-[#111317]">
+      <nav className="bg-[#111317] border-b border-[#2A2F39] px-4 py-3 sticky top-0 z-10">
         <div className="max-w-3xl mx-auto flex items-center justify-between">
           <Link
             to="/"
-            className="flex items-center text-slate-500 hover:text-slate-800 transition-colors font-medium"
+            className="flex items-center text-[#9CA3AF] hover:text-[#F3F4F6] transition-colors font-medium"
           >
             <ArrowLeft size={20} className="mr-2" />
             Kembali ke Beranda
           </Link>
-          <span className="text-slate-400 text-sm font-medium">
+          <span className="text-[#9CA3AF] text-sm font-medium">
             MyGameOn Request
           </span>
         </div>
       </nav>
 
       <main className="max-w-xl mx-auto px-4 py-12">
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-          <div className="p-8 border-b border-slate-100 bg-gradient-to-r from-blue-600 to-indigo-700 text-white">
-            <h1 className="text-3xl font-bold mb-2">Request Game PC</h1>
-            <p className="text-blue-100">
-              Isi form di bawah untuk request game PC via Shopee.
+        <div className="bg-[#1A1F27] rounded-2xl shadow-sm border border-[#2A2F39] overflow-hidden">
+          <div className="p-8 border-b border-[#2A2F39] bg-[linear-gradient(135deg,#1A1F27_0%,#151920_100%)] text-[#F3F4F6]">
+            <h1 className="text-3xl font-bold mb-2">
+              Game yang Kamu Cari Belum Ada?
+            </h1>
+            <p className="text-[#C8CFDA]">
+              Isi form singkat, request kamu akan kami review dan diproses jika
+              file tersedia.
+            </p>
+            <p className="mt-2 text-xs text-[#9CA3AF]">
+              Tidak perlu login. Proses cepat. Status request jelas.
             </p>
           </div>
 
           <div className="p-8">
             {/* --- DISCLAIMER BOX --- */}
-            <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-8 flex items-start gap-3">
-              <Info className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-              <div className="text-sm text-blue-800">
+            <div className="bg-[#111317] border border-[#2A2F39] rounded-xl p-4 mb-8 flex items-start gap-3">
+              <Info className="w-5 h-5 text-[#FFD100] flex-shrink-0 mt-0.5" />
+              <div className="text-sm text-[#C8CFDA]">
                 <p className="font-bold mb-1">Mohon Perhatian:</p>
                 <ul className="list-disc list-inside space-y-1 opacity-90 text-xs sm:text-sm">
                   <li>
@@ -191,7 +223,7 @@ const RequestGamePage = () => {
                   </li>
                   <li>
                     Request dengan nama yang salah/typo berpotensi{' '}
-                    <b>ditolak</b> oleh Admin.
+                    <b>tidak tersedia</b> saat direview.
                   </li>
                 </ul>
               </div>
@@ -202,10 +234,31 @@ const RequestGamePage = () => {
               <div className="mb-6 p-4 bg-green-50 text-green-700 rounded-xl flex items-center animate-in fade-in slide-in-from-top-4">
                 <CheckCircle className="w-5 h-5 mr-3 flex-shrink-0" />
                 <div>
-                  <p className="font-semibold">Permintaan Terkirim!</p>
+                  <p className="font-semibold">Request Berhasil Dikirim.</p>
                   <p className="text-sm opacity-90">
-                    Terima kasih! Pantau notifikasi Shopee kamu ya.
+                    Simpan kode tracking untuk memantau progres request kamu.
                   </p>
+                  <div className="mt-2 text-sm">
+                    <span className="font-medium">Tracking Code:</span>{' '}
+                    <span className="font-bold">{trackingCode || '-'}</span>
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={copyTrackingCode}
+                      className="inline-flex items-center px-3 py-1.5 rounded-md bg-white text-green-700 border border-green-200 text-xs font-semibold"
+                    >
+                      <Copy size={14} className="mr-1" /> Copy Kode
+                    </button>
+                    {trackingCode && (
+                      <Link
+                        to={`/request-status?code=${trackingCode}`}
+                        className="inline-flex items-center px-3 py-1.5 rounded-md bg-green-700 text-white text-xs font-semibold"
+                      >
+                        Cek Status Sekarang
+                      </Link>
+                    )}
+                  </div>
                 </div>
               </div>
             )}
@@ -222,6 +275,16 @@ const RequestGamePage = () => {
                     Game ini sudah ada di daftar request. Kami menambahkan +1
                     vote dukunganmu.
                   </p>
+                  {trackingCode && (
+                    <div className="mt-2">
+                      <Link
+                        to={`/request-status?code=${trackingCode}`}
+                        className="text-xs font-semibold underline"
+                      >
+                        Cek Status Request dengan Kode: {trackingCode}
+                      </Link>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -272,12 +335,12 @@ const RequestGamePage = () => {
               />
 
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">
+                <label className="block text-sm font-semibold text-[#C8CFDA] mb-2">
                   Username Shopee *
                 </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <ShoppingBag className="h-5 w-5 text-slate-400" />
+                    <ShoppingBag className="h-5 w-5 text-[#9CA3AF]" />
                   </div>
                   <input
                     type="text"
@@ -292,7 +355,7 @@ const RequestGamePage = () => {
                         message: 'Username mengandung karakter tidak valid',
                       },
                     })}
-                    className="w-full pl-10 pr-4 py-3 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all outline-none"
+                    className="w-full pl-10 pr-4 py-3 rounded-lg border border-[#2F3643] bg-[#111317] text-[#F3F4F6] focus:ring-2 focus:ring-[#FFD100]/50 focus:border-[#FFD100]/50 transition-all outline-none"
                     placeholder="Contoh: user123_shop"
                   />
                 </div>
@@ -301,12 +364,12 @@ const RequestGamePage = () => {
                     {errors.shopeeUsername.message}
                   </span>
                 )}
-                <p className="text-xs text-slate-500 mt-1">
+                <p className="text-xs text-[#9CA3AF] mt-1">
                   Kami akan menghubungi via Shopee jika game tersedia.
                 </p>
               </div>
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">
+                <label className="block text-sm font-semibold text-[#C8CFDA] mb-2">
                   Judul Game PC yang Dicari *
                 </label>
                 <input
@@ -316,10 +379,10 @@ const RequestGamePage = () => {
                     minLength: { value: 3, message: 'Judul terlalu pendek' },
                     maxLength: {
                       value: 50,
-                      message: 'Judul terlalu panjang (maks 100)',
+                      message: 'Judul terlalu panjang (maks 50)',
                     },
                   })}
-                  className="w-full px-4 py-3 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all outline-none"
+                  className="w-full px-4 py-3 rounded-lg border border-[#2F3643] bg-[#111317] text-[#F3F4F6] focus:ring-2 focus:ring-[#FFD100]/50 focus:border-[#FFD100]/50 transition-all outline-none"
                   placeholder="Contoh: Tekken 8, Cyberpunk 2077..."
                 />
                 {errors.gameTitle && (
@@ -331,7 +394,7 @@ const RequestGamePage = () => {
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-lg shadow-blue-200 active:transform active:scale-[0.98] transition-all flex items-center justify-center disabled:opacity-70 disabled:cursor-not-allowed"
+                className="w-full py-4 bg-[#FFD100] hover:brightness-95 text-[#111317] font-bold rounded-xl shadow-lg shadow-[#000]/20 active:transform active:scale-[0.98] transition-all flex items-center justify-center disabled:opacity-70 disabled:cursor-not-allowed"
               >
                 {isSubmitting ? (
                   <>
@@ -344,6 +407,9 @@ const RequestGamePage = () => {
                   </>
                 )}
               </button>
+              <p className="text-xs text-[#9CA3AF] text-center">
+                Request diproses sesuai ketersediaan file.
+              </p>
             </form>
           </div>
         </div>

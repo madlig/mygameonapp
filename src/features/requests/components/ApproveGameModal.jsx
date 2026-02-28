@@ -22,6 +22,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../../../config/firebaseConfig';
 import Swal from 'sweetalert2';
+import { REQUEST_STATUS } from '../../../shared/requestStatus';
 
 const ApproveGameModal = ({ request, onClose, onSuccess }) => {
   const {
@@ -84,10 +85,11 @@ const ApproveGameModal = ({ request, onClose, onSuccess }) => {
       // 2. Simpan ke koleksi 'games'
       await addDoc(collection(db, 'games'), gameData);
 
-      // 3. Update status Request jadi 'completed'
+      // 3. Update status Request jadi 'available' untuk tracking publik
       await updateDoc(doc(db, 'requests', request.id), {
-        status: 'completed',
+        status: REQUEST_STATUS.AVAILABLE,
         approvedAt: serverTimestamp(),
+        availableAt: serverTimestamp(),
         finalGameTitle: data.name,
       });
 

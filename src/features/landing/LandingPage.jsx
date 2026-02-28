@@ -109,88 +109,141 @@ const CustomHits = () => {
 
 const LandingPage = () => {
   return (
-    <div className="min-h-screen bg-neutral-950 text-neutral-100">
-      <section className="relative overflow-hidden bg-neutral-900 border-b border-neutral-800">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_rgba(255,209,0,0.12),_transparent_45%)]" />
-        <div className="relative max-w-7xl mx-auto px-6 py-20 md:py-28">
-          <div className="max-w-3xl">
-            <p className="inline-flex items-center rounded-full border border-yellow-400/40 bg-yellow-400/10 px-3 py-1 text-sm text-yellow-300 mb-6">
-              Jasa Instalasi Game Profesional
+    <div className="min-h-screen bg-[#111317] text-[#F3F4F6]">
+      <section className="relative overflow-hidden border-b border-[#2A2F39]">
+        <div className="pointer-events-none absolute inset-0 opacity-30 [background-image:linear-gradient(rgba(255,209,0,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(255,209,0,0.08)_1px,transparent_1px)] [background-size:20px_20px]" />
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_15%_15%,rgba(255,209,0,0.14),transparent_40%),radial-gradient(circle_at_90%_20%,rgba(255,255,255,0.06),transparent_28%)]" />
+
+        <div className="relative max-w-7xl mx-auto px-6 py-20 md:py-24">
+          <div className="max-w-4xl">
+            <p className="inline-flex items-center rounded-md border border-[#FFD100]/30 bg-[#FFD100]/10 px-3 py-1 text-xs font-semibold tracking-widest text-[#FFD100] mb-6">
+              GAMER STREET | MYGAMEON
             </p>
+
             <h1 className="text-4xl md:text-6xl font-extrabold leading-tight tracking-tight">
-              Main Game Impian Tanpa Ribet.
+              Cari Game Favoritmu Sekarang, Request Jika Belum Tersedia.
             </h1>
-            <p className="mt-5 text-lg md:text-xl text-neutral-300 max-w-2xl">
-              Hemat, Cepat, dan Aman. Nikmati ribuan game offline dengan
-              launcher khusus yang memudahkan instalasi.
+
+            <p className="mt-5 text-lg md:text-xl text-[#C8CFDA] max-w-3xl">
+              Katalog terus diperbarui. Game yang belum tersedia bisa direquest,
+              lalu diproses jika file tersedia.
             </p>
+
             <div className="mt-8 flex flex-wrap gap-3">
               <a
                 href="#game-search"
-                className="inline-flex items-center justify-center rounded-lg bg-[#ffd100] px-6 py-3 font-semibold text-neutral-900 hover:brightness-95 transition"
+                className="inline-flex items-center justify-center rounded-lg bg-[#FFD100] px-6 py-3 font-bold text-[#111317] hover:brightness-95 transition"
               >
                 Cari Game Sekarang
               </a>
               <a
-                href="#launcher"
-                className="inline-flex items-center justify-center rounded-lg border border-white/70 px-6 py-3 font-semibold text-white hover:bg-white hover:text-neutral-900 transition"
+                href="/request-game"
+                className="inline-flex items-center justify-center rounded-lg border border-[#F3F4F6]/70 px-6 py-3 font-semibold text-[#F3F4F6] hover:bg-[#F3F4F6] hover:text-[#111317] transition"
               >
-                Download Launcher
+                Request Game
               </a>
+              <a
+                href="/request-status"
+                className="inline-flex items-center justify-center rounded-lg border border-[#2F3643] bg-[#1A1F27] px-6 py-3 font-semibold text-[#C8CFDA] hover:border-[#FFD100]/40 hover:text-[#F3F4F6] transition"
+              >
+                Cek Status Request
+              </a>
+            </div>
+
+            <p className="mt-3 text-xs text-[#9CA3AF]">
+              Request diproses sesuai ketersediaan file.
+            </p>
+
+            <div className="mt-8 flex flex-wrap gap-2 text-xs">
+              <span className="rounded-sm border border-[#2F3643] bg-[#1A1F27] px-2.5 py-1 text-[#C8CFDA]">
+                Katalog terus update
+              </span>
+              <span className="rounded-sm border border-[#2F3643] bg-[#1A1F27] px-2.5 py-1 text-[#C8CFDA]">
+                Request tanpa login
+              </span>
+              <span className="rounded-sm border border-[#2F3643] bg-[#1A1F27] px-2.5 py-1 text-[#C8CFDA]">
+                Support jika terkendala
+              </span>
             </div>
           </div>
         </div>
       </section>
 
       <section className="max-w-7xl mx-auto px-6 py-14 md:py-16">
+        <div className="mb-8">
+          <h2 className="text-2xl md:text-3xl font-bold">
+            Kenapa Pilih MyGameON?
+          </h2>
+          <p className="text-[#9CA3AF] mt-2">
+            Dibuat untuk gamer yang mau proses cepat dan jelas.
+          </p>
+        </div>
+
         <div className="grid gap-4 md:grid-cols-3">
-          <article className="rounded-2xl border border-neutral-800 bg-neutral-900 p-6">
-            <div className="w-11 h-11 rounded-full bg-yellow-400/20 text-yellow-300 grid place-items-center mb-4">
-              <span className="text-xl" aria-hidden="true">
-                🚀
+          <article className="rounded-xl border border-[#2A2F39] bg-[#1A1F27] p-6">
+            <div className="w-11 h-11 rounded-md border border-[#FFD100]/35 bg-[#FFD100]/10 text-[#FFD100] grid place-items-center mb-4">
+              <span className="text-sm font-bold" aria-hidden="true">
+                01
               </span>
             </div>
-            <h3 className="text-lg font-bold text-neutral-100">
-              Server Google Drive
+            <h3 className="text-lg font-bold text-[#F3F4F6]">
+              Cari Cepat, Ketemu Lebih Mudah
             </h3>
-            <p className="text-neutral-400 mt-2">
-              Download super cepat tanpa limitasi speed.
+            <p className="text-[#9CA3AF] mt-2">
+              Gunakan pencarian untuk menemukan game favoritmu dalam hitungan
+              detik.
             </p>
           </article>
 
-          <article className="rounded-2xl border border-neutral-800 bg-neutral-900 p-6">
-            <div className="w-11 h-11 rounded-full bg-yellow-400/20 text-yellow-300 grid place-items-center mb-4">
-              <span className="text-xl" aria-hidden="true">
-                🛡️
+          <article className="rounded-xl border border-[#2A2F39] bg-[#1A1F27] p-6">
+            <div className="w-11 h-11 rounded-md border border-[#FFD100]/35 bg-[#FFD100]/10 text-[#FFD100] grid place-items-center mb-4">
+              <span className="text-sm font-bold" aria-hidden="true">
+                02
               </span>
             </div>
-            <h3 className="text-lg font-bold text-neutral-100">
-              MyGameON Launcher
+            <h3 className="text-lg font-bold text-[#F3F4F6]">
+              Belum Ada? Tetap Bisa Request
             </h3>
-            <p className="text-neutral-400 mt-2">
-              Satu klik untuk install &amp; update. Bebas virus.
+            <p className="text-[#9CA3AF] mt-2">
+              Kalau game belum tersedia, kirim request dan tim kami akan cek
+              ketersediaannya.
             </p>
           </article>
 
-          <article className="rounded-2xl border border-neutral-800 bg-neutral-900 p-6">
-            <div className="w-11 h-11 rounded-full bg-yellow-400/20 text-yellow-300 grid place-items-center mb-4">
-              <span className="text-xl" aria-hidden="true">
-                🎧
+          <article className="rounded-xl border border-[#2A2F39] bg-[#1A1F27] p-6">
+            <div className="w-11 h-11 rounded-md border border-[#FFD100]/35 bg-[#FFD100]/10 text-[#FFD100] grid place-items-center mb-4">
+              <span className="text-sm font-bold" aria-hidden="true">
+                03
               </span>
             </div>
-            <h3 className="text-lg font-bold text-neutral-100">Full Support</h3>
-            <p className="text-neutral-400 mt-2">
-              Bantuan instalasi jarak jauh jika mengalami kendala.
+            <h3 className="text-lg font-bold text-[#F3F4F6]">
+              Proses Jelas, Tidak Bikin Bingung
+            </h3>
+            <p className="text-[#9CA3AF] mt-2">
+              Setiap request diproses bertahap supaya kamu tahu progresnya.
             </p>
           </article>
         </div>
       </section>
 
-      <section id="launcher" className="max-w-7xl mx-auto px-6 pb-6">
-        <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-6 text-neutral-300">
-          <p className="text-sm">
-            Launcher segera tersedia untuk publik. Tombol &quot;Download
-            Launcher&quot; saat ini masih placeholder.
+      <section className="max-w-7xl mx-auto px-6 pb-6">
+        <div className="rounded-xl border border-[#2A2F39] bg-[#1A1F27] p-6 md:p-7">
+          <h3 className="text-2xl font-bold text-[#F3F4F6]">
+            Mulai Dalam 3 Langkah
+          </h3>
+          <div className="mt-4 grid gap-3 md:grid-cols-3 text-sm">
+            <div className="rounded-lg bg-[#111317] border border-[#2A2F39] p-3 text-[#C8CFDA]">
+              1. Cari game di katalog
+            </div>
+            <div className="rounded-lg bg-[#111317] border border-[#2A2F39] p-3 text-[#C8CFDA]">
+              2. Jika belum ada, kirim request
+            </div>
+            <div className="rounded-lg bg-[#111317] border border-[#2A2F39] p-3 text-[#C8CFDA]">
+              3. Tunggu konfirmasi ketersediaan
+            </div>
+          </div>
+          <p className="mt-4 text-sm text-[#9CA3AF]">
+            Simple, cepat, dan transparan dari awal.
           </p>
         </div>
       </section>
@@ -199,14 +252,13 @@ const LandingPage = () => {
         id="game-search"
         className="max-w-7xl mx-auto px-6 py-12 md:py-14"
       >
-        <div className="rounded-2xl border border-neutral-800 bg-neutral-900/80 p-6 md:p-8 shadow-2xl">
+        <div className="rounded-2xl border border-[#2A2F39] bg-[#1A1F27] p-6 md:p-8 shadow-2xl">
           <div className="mb-8">
-            <h2 className="text-3xl md:text-4xl font-extrabold text-neutral-100">
+            <h2 className="text-3xl md:text-4xl font-extrabold text-[#F3F4F6]">
               Katalog Game Kami
             </h2>
-            <p className="text-neutral-400 mt-2">
-              Temukan game favorit Anda lalu lanjutkan proses instalasi dengan
-              cepat.
+            <p className="text-[#9CA3AF] mt-2">
+              Cari dulu di katalog. Kalau belum ada, kamu bisa lanjut request.
             </p>
           </div>
 
@@ -220,12 +272,12 @@ const LandingPage = () => {
                   root: 'w-full',
                   form: 'relative flex w-full',
                   input:
-                    'w-full rounded-xl border border-neutral-700 bg-neutral-950 text-neutral-100 p-4 pl-12 focus:outline-none focus:ring-2 focus:ring-yellow-400/60 focus:border-yellow-400/60',
+                    'w-full rounded-xl border border-[#2F3643] bg-[#111317] text-[#F3F4F6] p-4 pl-12 focus:outline-none focus:ring-2 focus:ring-[#FFD100]/60 focus:border-[#FFD100]/50',
                   submit:
-                    'absolute left-4 top-1/2 -translate-y-1/2 text-neutral-400',
+                    'absolute left-4 top-1/2 -translate-y-1/2 text-[#9CA3AF]',
                   submitIcon: 'w-5 h-5',
                   reset:
-                    'absolute right-4 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-200',
+                    'absolute right-4 top-1/2 -translate-y-1/2 text-[#9CA3AF] hover:text-[#F3F4F6]',
                   resetIcon: 'w-5 h-5',
                 }}
               />
@@ -239,9 +291,8 @@ const LandingPage = () => {
                   root: 'flex justify-center items-center',
                   list: 'flex flex-wrap gap-2',
                   item: 'list-none',
-                  link: 'px-4 py-2 border border-neutral-700 rounded-md text-neutral-200 hover:bg-neutral-800',
-                  selectedItem:
-                    'bg-[#ffd100] text-neutral-900 border-[#ffd100]',
+                  link: 'px-4 py-2 border border-[#2F3643] rounded-md text-[#C8CFDA] hover:bg-[#111317]',
+                  selectedItem: 'bg-[#FFD100] text-[#111317] border-[#FFD100]',
                   disabledItem: 'opacity-50 cursor-not-allowed',
                 }}
               />
@@ -250,7 +301,36 @@ const LandingPage = () => {
         </div>
       </section>
 
-      <footer className="border-t border-neutral-800 text-neutral-500 py-8 px-6 text-center">
+      <section className="max-w-7xl mx-auto px-6 pb-14">
+        <div className="rounded-xl border border-[#2A2F39] bg-[#1A1F27] p-6 md:p-8">
+          <h3 className="text-2xl font-bold text-[#F3F4F6]">
+            Game yang Kamu Cari Belum Ada?
+          </h3>
+          <p className="mt-2 text-[#9CA3AF]">
+            Kirim request sekarang. Kami review satu per satu dan memproses
+            request jika file tersedia.
+          </p>
+          <div className="mt-5 flex flex-wrap gap-3">
+            <a
+              href="/request-game"
+              className="inline-flex items-center justify-center rounded-lg bg-[#FFD100] px-5 py-3 font-bold text-[#111317] hover:brightness-95 transition"
+            >
+              Kirim Request Sekarang
+            </a>
+            <a
+              href="/request-status"
+              className="inline-flex items-center justify-center rounded-lg border border-[#2F3643] px-5 py-3 font-semibold text-[#C8CFDA] hover:bg-[#111317] transition"
+            >
+              Cek Status Request
+            </a>
+          </div>
+          <p className="mt-3 text-xs text-[#9CA3AF]">
+            Request yang masuk lebih dulu akan diproses lebih dulu.
+          </p>
+        </div>
+      </section>
+
+      <footer className="border-t border-[#2A2F39] text-[#7E8796] py-8 px-6 text-center">
         <p>
           &copy; {new Date().getFullYear()} MyGameON Hub. All rights reserved.
         </p>

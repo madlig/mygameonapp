@@ -2,7 +2,6 @@ import React from 'react';
 import {
   Clock,
   CheckCircle,
-  Trash2,
   User,
   Gamepad2,
   Calendar,
@@ -13,30 +12,48 @@ import {
   Loader2,
   FileCheck,
   XCircle,
+  Copy,
+  Link2,
 } from 'lucide-react';
-import { doc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../../../config/firebaseConfig';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
 import Swal from 'sweetalert2';
+import {
+  getRequestStatusBadgeClass,
+  getRequestStatusLabel,
+  REQUEST_STATUS,
+} from '../../../shared/requestStatus';
 
 const RequestCard = ({ request, onApproveClick }) => {
   // Handlers
+  const handleMarkAsReviewing = async () => {
+    await updateDoc(doc(db, 'requests', request.id), {
+      status: REQUEST_STATUS.REVIEWING,
+      reviewedAt: new Date(),
+      updatedAt: new Date(),
+    });
+  };
+
   const handleAcceptToQueue = async () => {
     await updateDoc(doc(db, 'requests', request.id), {
-      status: 'queued',
+      status: REQUEST_STATUS.QUEUED,
       acceptedAt: new Date(),
+      updatedAt: new Date(),
     });
   };
   const handleStartUpload = async () => {
     await updateDoc(doc(db, 'requests', request.id), {
-      status: 'processing',
+      status: REQUEST_STATUS.PROCESSING,
       startedAt: new Date(),
+      updatedAt: new Date(),
     });
   };
   const toggleRdpBatch = async () => {
     await updateDoc(doc(db, 'requests', request.id), {
       isRdpBatch: !request.isRdpBatch,
+      updatedAt: new Date(),
     });
   };
 
@@ -44,7 +61,27 @@ const RequestCard = ({ request, onApproveClick }) => {
   const toggleUrgent = async () => {
     await updateDoc(doc(db, 'requests', request.id), {
       isUrgent: !request.isUrgent,
+      updatedAt: new Date(),
     });
+  };
+
+  const handleMarkNotAvailable = async () => {
+    const result = await Swal.fire({
+      title: 'Tandai Tidak Tersedia?',
+      text: 'Status request akan ditandai sebagai Tidak Tersedia.',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Ya, Tandai',
+      cancelButtonText: 'Batal',
+    });
+
+    if (result.isConfirmed) {
+      await updateDoc(doc(db, 'requests', request.id), {
+        status: REQUEST_STATUS.NOT_AVAILABLE,
+        unavailableAt: new Date(),
+        updatedAt: new Date(),
+      });
+    }
   };
 
   const handleMarkAsUploaded = async () => {
@@ -58,8 +95,9 @@ const RequestCard = ({ request, onApproveClick }) => {
     });
     if (result.isConfirmed) {
       await updateDoc(doc(db, 'requests', request.id), {
-        status: 'uploaded',
+        status: REQUEST_STATUS.UPLOADED,
         uploadedAt: new Date(),
+        updatedAt: new Date(),
       });
       Swal.fire({
         title: 'Berhasil!',
@@ -80,57 +118,47 @@ const RequestCard = ({ request, onApproveClick }) => {
       cancelButtonText: 'Tidak',
     });
     if (result.isConfirmed)
-      await updateDoc(doc(db, 'requests', request.id), { status: 'queued' });
-  };
-
-  const handleReject = async () => {
-    const result = await Swal.fire({
-      title: 'Hapus Request?',
-      text: 'Data akan dihapus permanen.',
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonColor: '#d33',
-      confirmButtonText: 'Hapus',
-      cancelButtonText: 'Batal',
-    });
-    if (result.isConfirmed) {
-      await deleteDoc(doc(db, 'requests', request.id));
-      Swal.fire({
-        title: 'Dihapus!',
-        icon: 'success',
-        timer: 1000,
-        showConfirmButton: false,
+      await updateDoc(doc(db, 'requests', request.id), {
+        status: REQUEST_STATUS.QUEUED,
+        updatedAt: new Date(),
       });
-    }
   };
 
   const getStatusBadge = () => {
-    const s = request.status || 'pending';
+    const s = request.status || REQUEST_STATUS.PENDING;
+    const baseClass = `px-2 py-1 rounded-md text-[10px] font-bold ${getRequestStatusBadgeClass(s)}`;
+
     switch (s) {
-      case 'pending':
+      case REQUEST_STATUS.PENDING:
+        return <span className={baseClass}>{getRequestStatusLabel(s)}</span>;
+      case REQUEST_STATUS.QUEUED:
         return (
-          <span className="bg-yellow-100 text-yellow-800 px-2 py-1 rounded-md text-[10px] font-bold border border-yellow-200">
-            Pending
+          <span className={`${baseClass} flex items-center`}>
+            <Clock size={10} className="mr-1" /> {getRequestStatusLabel(s)}
           </span>
         );
-      case 'queued':
+      case REQUEST_STATUS.REVIEWING:
         return (
-          <span className="bg-slate-100 text-slate-600 px-2 py-1 rounded-md text-[10px] font-bold border border-slate-200 flex items-center">
-            <Clock size={10} className="mr-1" /> Antrian
+          <span className={`${baseClass} flex items-center`}>
+            <Clock size={10} className="mr-1" /> {getRequestStatusLabel(s)}
           </span>
         );
-      case 'processing':
+      case REQUEST_STATUS.PROCESSING:
         return (
-          <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-md text-[10px] font-bold border border-blue-200 flex items-center animate-pulse">
+          <span className={`${baseClass} flex items-center animate-pulse`}>
             <Loader2 size={10} className="mr-1 animate-spin" /> Uploading...
           </span>
         );
-      case 'uploaded':
+      case REQUEST_STATUS.UPLOADED:
         return (
-          <span className="bg-emerald-100 text-emerald-800 px-2 py-1 rounded-md text-[10px] font-bold border border-emerald-200 flex items-center">
-            <FileCheck size={10} className="mr-1" /> Siap Publish
+          <span className={`${baseClass} flex items-center`}>
+            <FileCheck size={10} className="mr-1" /> {getRequestStatusLabel(s)}
           </span>
         );
+      case REQUEST_STATUS.NOT_AVAILABLE:
+        return <span className={baseClass}>{getRequestStatusLabel(s)}</span>;
+      case REQUEST_STATUS.AVAILABLE:
+        return <span className={baseClass}>{getRequestStatusLabel(s)}</span>;
       default:
         return (
           <span className="bg-gray-100 text-gray-500 px-2 py-1 rounded-md text-[10px] font-bold">
@@ -151,12 +179,26 @@ const RequestCard = ({ request, onApproveClick }) => {
       })
     : 'No Date';
 
+  const trackingCode = request.trackingCode || '-';
+
+  const copyTrackingCode = async () => {
+    if (!request.trackingCode) return;
+    await navigator.clipboard.writeText(request.trackingCode);
+  };
+
+  const copyTrackingLink = async () => {
+    if (!request.trackingCode) return;
+    const link = `${window.location.origin}/request-status?code=${request.trackingCode}`;
+    await navigator.clipboard.writeText(link);
+  };
+
   return (
     <div
       className={`bg-white rounded-xl p-5 border shadow-sm transition-all hover:shadow-md relative group
       ${request.isUrgent ? 'border-red-400 ring-1 ring-red-100' : 'border-slate-100'}
-      ${request.status === 'processing' ? 'ring-1 ring-blue-200 bg-blue-50/30' : ''}
-      ${request.status === 'uploaded' ? 'bg-emerald-50/30 border-emerald-200' : ''}
+      ${request.status === REQUEST_STATUS.PROCESSING ? 'ring-1 ring-blue-200 bg-blue-50/30' : ''}
+      ${request.status === REQUEST_STATUS.UPLOADED ? 'bg-emerald-50/30 border-emerald-200' : ''}
+      ${request.status === REQUEST_STATUS.NOT_AVAILABLE ? 'bg-amber-50/40 border-amber-200' : ''}
     `}
     >
       <div className="absolute top-4 right-4 flex gap-2">
@@ -195,27 +237,76 @@ const RequestCard = ({ request, onApproveClick }) => {
             &quot;{request.notes}&quot;
           </div>
         )}
+
+        <div className="mb-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
+          <div className="flex items-center justify-between gap-2">
+            <span>
+              Tracking:{' '}
+              <span className="font-bold text-slate-800">{trackingCode}</span>
+            </span>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={copyTrackingCode}
+                className="inline-flex items-center rounded border border-slate-300 px-2 py-1 text-[11px] font-semibold hover:bg-white"
+                title="Copy kode tracking"
+              >
+                <Copy size={12} className="mr-1" /> Kode
+              </button>
+              <button
+                type="button"
+                onClick={copyTrackingLink}
+                className="inline-flex items-center rounded border border-slate-300 px-2 py-1 text-[11px] font-semibold hover:bg-white"
+                title="Copy link tracking"
+              >
+                <Link2 size={12} className="mr-1" /> Link
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div className="flex items-center justify-between pt-4 border-t border-slate-100 mt-2">
-        {(request.status || 'pending') === 'pending' && (
+        {(request.status || REQUEST_STATUS.PENDING) ===
+          REQUEST_STATUS.PENDING && (
           <>
             <button
-              onClick={handleReject}
-              className="text-slate-400 hover:text-red-600 text-xs font-medium px-2 flex items-center"
+              onClick={handleMarkNotAvailable}
+              className="text-amber-700 hover:text-amber-800 text-xs font-medium px-2 flex items-center"
             >
-              <Trash2 size={14} className="mr-1" /> Tolak
+              <XCircle size={14} className="mr-1" /> Tidak Tersedia
+            </button>
+            <button
+              onClick={handleMarkAsReviewing}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg shadow-sm ml-auto flex items-center"
+            >
+              Mulai Review <ArrowRight size={14} className="ml-2" />
+            </button>
+          </>
+        )}
+
+        {request.status === REQUEST_STATUS.REVIEWING && (
+          <>
+            <button
+              onClick={handleMarkNotAvailable}
+              className="text-amber-700 hover:text-amber-800 text-xs font-medium px-2 flex items-center"
+            >
+              <XCircle size={14} className="mr-1" /> Tidak Tersedia
             </button>
             <button
               onClick={handleAcceptToQueue}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg shadow-sm ml-auto flex items-center"
+              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg shadow-sm ml-auto flex items-center"
             >
               Masuk Antrian <ArrowRight size={14} className="ml-2" />
             </button>
           </>
         )}
 
-        {['queued', 'processing', 'uploaded'].includes(request.status) && (
+        {[
+          REQUEST_STATUS.QUEUED,
+          REQUEST_STATUS.PROCESSING,
+          REQUEST_STATUS.UPLOADED,
+        ].includes(request.status) && (
           <>
             <div className="flex gap-2">
               <button
@@ -237,13 +328,14 @@ const RequestCard = ({ request, onApproveClick }) => {
               </button>
             </div>
             <div className="flex gap-2 ml-auto items-center">
-              {request.status === 'queued' && (
+              {request.status === REQUEST_STATUS.QUEUED && (
                 <>
                   <button
-                    onClick={handleReject}
-                    className="p-2 text-slate-400 hover:text-red-600 rounded-lg"
+                    onClick={handleMarkNotAvailable}
+                    className="p-2 text-slate-400 hover:text-amber-700 rounded-lg"
+                    title="Tandai tidak tersedia"
                   >
-                    <Trash2 size={16} />
+                    <XCircle size={16} />
                   </button>
                   <button
                     onClick={handleStartUpload}
@@ -254,7 +346,7 @@ const RequestCard = ({ request, onApproveClick }) => {
                   </button>
                 </>
               )}
-              {request.status === 'processing' && (
+              {request.status === REQUEST_STATUS.PROCESSING && (
                 <>
                   <button
                     onClick={handleCancelUpload}
@@ -271,7 +363,7 @@ const RequestCard = ({ request, onApproveClick }) => {
                   </button>
                 </>
               )}
-              {request.status === 'uploaded' && (
+              {request.status === REQUEST_STATUS.UPLOADED && (
                 <button
                   onClick={() => onApproveClick(request)}
                   className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg shadow-sm flex items-center"
@@ -281,6 +373,14 @@ const RequestCard = ({ request, onApproveClick }) => {
               )}
             </div>
           </>
+        )}
+
+        {[REQUEST_STATUS.AVAILABLE, REQUEST_STATUS.NOT_AVAILABLE].includes(
+          request.status
+        ) && (
+          <div className="text-xs text-slate-500">
+            Status final tersimpan. Gunakan kode tracking untuk update pembeli.
+          </div>
         )}
       </div>
     </div>

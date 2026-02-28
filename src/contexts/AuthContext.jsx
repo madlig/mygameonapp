@@ -19,6 +19,7 @@ export function useAuth() {
 // Provider untuk membungkus aplikasi dan menyediakan nilai konteks
 export function AuthProvider({ children }) {
   const [currentUser, setCurrentUser] = useState(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true); // State untuk menunjukkan loading autentikasi awal
 
   // Fungsi untuk mendaftar pengguna baru
@@ -38,9 +39,26 @@ export function AuthProvider({ children }) {
 
   // Efek samping untuk memantau perubahan status autentikasi
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setCurrentUser(user);
-      setLoading(false); // Setelah status diketahui, set loading menjadi false
+
+      if (!user) {
+        setIsAdmin(false);
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const tokenResult = await user.getIdTokenResult();
+        const claims = tokenResult?.claims || {};
+        const hasAdminClaim = claims.admin === true || claims.role === 'admin';
+        setIsAdmin(hasAdminClaim);
+      } catch (error) {
+        console.error('Failed to read auth claims:', error);
+        setIsAdmin(false);
+      } finally {
+        setLoading(false); // Setelah status diketahui, set loading menjadi false
+      }
     });
 
     return unsubscribe; // Cleanup function
@@ -49,6 +67,7 @@ export function AuthProvider({ children }) {
   // Nilai yang akan disediakan oleh AuthContext
   const value = {
     currentUser,
+    isAdmin,
     loading,
     signup,
     login,

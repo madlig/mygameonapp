@@ -8,6 +8,7 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
+    "auth:set-admin": "node src/scripts/auth/setAdminClaim.cjs",
     "algolia:diag": "node src/scripts/algolia/diagnose.mjs",
     "algolia:backfill": "node src/scripts/algolia/backfill-existing.mjs",
     "algolia:csv": "node src/scripts/algolia/bulk-upsert-from-csv.mjs games.csv"

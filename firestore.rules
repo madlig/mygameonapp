@@ -3,61 +3,138 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // --- FUNGSI HELPER ---
     function isSignedIn() {
       return request.auth != null;
     }
 
-    // --- ATURAN GAMES (DILONGGARKAN) ---
+    function isAdmin() {
+      return isSignedIn() && (
+        request.auth.token.admin == true ||
+        request.auth.token.role == 'admin'
+      );
+    }
+
+    function isValidTrackingCode() {
+      return request.resource.data.trackingCode is string &&
+        request.resource.data.trackingCode.matches('^RQ-[A-Z0-9]{6}$');
+    }
+
+    function isPublicRequestCreate() {
+      return request.resource.data.keys().hasOnly([
+          'title',
+          'title_lower',
+          'platform',
+          'notes',
+          'requesterName',
+          'source',
+          'userId',
+          'status',
+          'isUrgent',
+          'isRdpBatch',
+          'trackingCode',
+          'votes',
+          'createdAt',
+          'updatedAt'
+      ]) &&
+        request.resource.data.title is string &&
+        request.resource.data.title.size() >= 3 &&
+        request.resource.data.title.size() <= 50 &&
+        request.resource.data.title_lower is string &&
+        request.resource.data.platform == 'PC' &&
+        request.resource.data.notes is string &&
+        request.resource.data.requesterName is string &&
+        request.resource.data.source is string &&
+        request.resource.data.userId is string &&
+        request.resource.data.status == 'pending' &&
+        request.resource.data.isUrgent == false &&
+        request.resource.data.isRdpBatch == false &&
+        request.resource.data.votes == 1 &&
+        request.resource.data.createdAt is timestamp &&
+        request.resource.data.updatedAt is timestamp &&
+        isValidTrackingCode();
+    }
+
+    // Optional helper: update publik hanya untuk vote duplicate request dari landing
+    function isPublicVoteUpdate() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['votes', 'updatedAt']) &&
+        request.resource.data.votes is number &&
+        resource.data.votes is number &&
+        request.resource.data.votes == resource.data.votes + 1 &&
+        request.resource.data.updatedAt is timestamp;
+    }
+
+    // =========================
+    // PUBLIC COLLECTIONS
+    // =========================
+
+    // Games: publik boleh baca (landing/search), write hanya admin login
     match /games/{gameId} {
-      // 1. Publik boleh membaca (untuk Landing Page & Tabel)
       allow read: if true;
-
-      // 2. Admin boleh Tulis/Edit/Hapus
-      // PERUBAHAN: Kita ganti validasi ketat (field-by-field) menjadi cek login saja.
-      // Ini mengizinkan field baru (location, email, image) dan tipe data baru (size number) masuk tanpa error permission.
-      allow write: if isSignedIn();
+      allow write: if isAdmin();
     }
 
-    // --- ATURAN REQUEST (PUBLIK) ---
+    // Requests:
+    // - create: publik boleh submit request dari landing tanpa login (dibatasi field/shape)
+    // - read: publik boleh baca untuk cek duplikat di landing
+    // - update:
+    //   - admin: full update
+    //   - publik: hanya vote increment (duplicate request flow)
+    // - delete: admin only
     match /requests/{reqId} {
-      // Izinkan publik membuat request (Anonymous write)
-      allow create: if true;
-      
-      // Admin boleh baca/edit/hapus
-      allow read, update, delete: if isSignedIn();
+      allow create: if isAdmin() || isPublicRequestCreate();
+      allow read: if true;
+      allow update: if isAdmin() || isPublicVoteUpdate();
+      allow delete: if isAdmin();
     }
 
-    // --- ATURAN FITUR LAIN (TETAP SAMA) ---
-    match /projects/{projectId} {
-      allow read, write: if isSignedIn();
-    }
-    
-    match /tasks/{taskId} {
-      allow read, write: if isSignedIn();
-    }
+    // =========================
+    // ADMIN / PRIVATE COLLECTIONS
+    // =========================
 
     match /genres/{genreId} {
-      allow read, write: if isSignedIn();
-    }
-    
-    match /emailLocations/{locId} {
-      allow read, write: if isSignedIn();
-    }
-    
-    match /adminShifts/{shiftId} {
-        allow read, write: if isSignedIn();
-    }
-    
-    match /dailyRevenues/{revId} {
-        allow read, write: if isSignedIn();
+      allow read, write: if isAdmin();
     }
 
+    match /emailLocations/{locId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /projects/{projectId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /tasks/{taskId} {
+      allow read, write: if isAdmin();
+    }
+
+    // Operational collections (pakai yang sekarang dipakai app + legacy yang sempat ada)
+    match /adminShifts/{shiftId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /dailyRevenues/{revId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /operational_daily_recap/{docId} {
+      allow read, write: if isAdmin();
+    }
+
+    // Legacy names (aman dipertahankan agar tidak putus jika masih ada pemakaian lama)
+    match /shifts/{shiftId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /daily_revenues/{dateId} {
+      allow read, write: if isAdmin();
+    }
+
+    // User-scoped docs
     match /users/{userId}/{document=**} {
       allow read, write: if isSignedIn() && request.auth.uid == userId;
     }
 
-    // Default deny untuk koleksi tidak dikenal
+    // Default deny
     match /{document=**} {
       allow read, write: if false;
     }

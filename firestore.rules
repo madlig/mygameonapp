@@ -28,6 +28,9 @@ service cloud.firestore {
           'requesterName',
           'source',
           'userId',
+          'shopeeUsername',
+          'contactWhatsApp',
+          'contactEmail',
           'status',
           'isUrgent',
           'isRdpBatch',
@@ -45,6 +48,18 @@ service cloud.firestore {
         request.resource.data.requesterName is string &&
         request.resource.data.source is string &&
         request.resource.data.userId is string &&
+        request.resource.data.shopeeUsername is string &&
+        request.resource.data.shopeeUsername.size() > 0 &&
+        request.resource.data.shopeeUsername.size() <= 30 &&
+        request.resource.data.contactWhatsApp is string &&
+        request.resource.data.contactWhatsApp.size() >= 9 &&
+        request.resource.data.contactWhatsApp.size() <= 20 &&
+        request.resource.data.contactWhatsApp.matches('^[0-9+\\-\\s]+$') &&
+        request.resource.data.contactEmail is string &&
+        (
+          request.resource.data.contactEmail.size() == 0 ||
+          request.resource.data.contactEmail.matches('^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$')
+        ) &&
         request.resource.data.status == 'pending' &&
         request.resource.data.isUrgent == false &&
         request.resource.data.isRdpBatch == false &&

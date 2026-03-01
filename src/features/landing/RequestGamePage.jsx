@@ -143,6 +143,9 @@ const RequestGamePage = () => {
           requesterName: displayName,
           source: source,
           userId: currentUser ? currentUser.uid : 'anonymous',
+          shopeeUsername: data.shopeeUsername.trim(),
+          contactWhatsApp: data.contactWhatsApp.trim(),
+          contactEmail: (data.contactEmail || '').trim(),
 
           status: REQUEST_STATUS.PENDING,
           isUrgent: false,
@@ -224,6 +227,14 @@ const RequestGamePage = () => {
                   <li>
                     Request dengan nama yang salah/typo berpotensi{' '}
                     <b>tidak tersedia</b> saat direview.
+                  </li>
+                  <li>
+                    Kami punya 2 jalur upload: <b>Direct (&lt;=20GB)</b> dan{' '}
+                    <b>Batch RDP (&gt;20GB)</b>.
+                  </li>
+                  <li>
+                    Untuk jalur Batch RDP, link checkout Shopee dibuka saat slot
+                    batch aktif.
                   </li>
                 </ul>
               </div>
@@ -370,6 +381,60 @@ const RequestGamePage = () => {
               </div>
               <div>
                 <label className="block text-sm font-semibold text-[#C8CFDA] mb-2">
+                  Nomor WhatsApp Aktif *
+                </label>
+                <input
+                  type="text"
+                  {...register('contactWhatsApp', {
+                    required: 'Nomor WhatsApp wajib diisi',
+                    minLength: {
+                      value: 9,
+                      message: 'Nomor WhatsApp terlalu pendek',
+                    },
+                    maxLength: {
+                      value: 20,
+                      message: 'Nomor WhatsApp terlalu panjang',
+                    },
+                    pattern: {
+                      value: /^[0-9+\-\s]+$/,
+                      message: 'Format nomor WhatsApp tidak valid',
+                    },
+                  })}
+                  className="w-full px-4 py-3 rounded-lg border border-[#2F3643] bg-[#111317] text-[#F3F4F6] focus:ring-2 focus:ring-[#FFD100]/50 focus:border-[#FFD100]/50 transition-all outline-none"
+                  placeholder="Contoh: 081234567890"
+                />
+                {errors.contactWhatsApp && (
+                  <span className="text-red-500 text-sm mt-1">
+                    {errors.contactWhatsApp.message}
+                  </span>
+                )}
+                <p className="text-xs text-[#9CA3AF] mt-1">
+                  Dipakai untuk kirim link checkout Shopee saat review selesai.
+                </p>
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-[#C8CFDA] mb-2">
+                  Email (Opsional)
+                </label>
+                <input
+                  type="email"
+                  {...register('contactEmail', {
+                    pattern: {
+                      value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+                      message: 'Format email tidak valid',
+                    },
+                  })}
+                  className="w-full px-4 py-3 rounded-lg border border-[#2F3643] bg-[#111317] text-[#F3F4F6] focus:ring-2 focus:ring-[#FFD100]/50 focus:border-[#FFD100]/50 transition-all outline-none"
+                  placeholder="Contoh: kamu@email.com"
+                />
+                {errors.contactEmail && (
+                  <span className="text-red-500 text-sm mt-1">
+                    {errors.contactEmail.message}
+                  </span>
+                )}
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-[#C8CFDA] mb-2">
                   Judul Game PC yang Dicari *
                 </label>
                 <input
@@ -408,7 +473,8 @@ const RequestGamePage = () => {
                 )}
               </button>
               <p className="text-xs text-[#9CA3AF] text-center">
-                Request diproses sesuai ketersediaan file.
+                Request diproses sesuai ketersediaan file dan jalur upload
+                berdasarkan ukuran game.
               </p>
             </form>
           </div>

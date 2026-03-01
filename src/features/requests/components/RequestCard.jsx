@@ -14,6 +14,9 @@ import {
   XCircle,
   Copy,
   Link2,
+  ShoppingBag,
+  Pencil,
+  MessageCircle,
 } from 'lucide-react';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../../../config/firebaseConfig';
@@ -27,6 +30,10 @@ import {
 } from '../../../shared/requestStatus';
 
 const RequestCard = ({ request, onApproveClick }) => {
+  const isRdpMode =
+    request.uploadMode === 'rdp_batch' || request.isRdpBatch === true;
+  const routeLabel = isRdpMode ? 'Batch RDP (>20GB)' : 'Direct (<=20GB)';
+
   // Handlers
   const handleMarkAsReviewing = async () => {
     await updateDoc(doc(db, 'requests', request.id), {
@@ -36,13 +43,98 @@ const RequestCard = ({ request, onApproveClick }) => {
     });
   };
 
-  const handleAcceptToQueue = async () => {
+  const collectCheckoutLink = async () => {
+    const result = await Swal.fire({
+      title: 'Masukkan Link Checkout Shopee',
+      input: 'url',
+      inputValue: request.shopeeCheckoutUrl || '',
+      inputLabel: 'Link produk checkout Shopee',
+      inputPlaceholder: 'https://shopee.co.id/....',
+      showCancelButton: true,
+      confirmButtonText: 'Simpan Link',
+      cancelButtonText: 'Batal',
+      inputValidator: (value) => {
+        if (!value) return 'Link Shopee wajib diisi.';
+        if (!/^https?:\/\//.test(value)) {
+          return 'Link harus diawali http:// atau https://';
+        }
+        return null;
+      },
+    });
+
+    if (!result.isConfirmed) return '';
+
+    return result.value;
+  };
+
+  const handleSetDirectFlow = async () => {
+    const checkoutLink = await collectCheckoutLink();
+    if (!checkoutLink) return;
+
     await updateDoc(doc(db, 'requests', request.id), {
-      status: REQUEST_STATUS.QUEUED,
-      acceptedAt: new Date(),
+      status: REQUEST_STATUS.AWAITING_PAYMENT,
+      uploadMode: 'direct',
+      isRdpBatch: false,
+      shopeeCheckoutUrl: checkoutLink,
+      paymentRequestedAt: new Date(),
       updatedAt: new Date(),
     });
   };
+
+  const handleSetRdpBatchFlow = async () => {
+    await updateDoc(doc(db, 'requests', request.id), {
+      status: REQUEST_STATUS.QUEUED,
+      uploadMode: 'rdp_batch',
+      isRdpBatch: true,
+      batchQueuedAt: new Date(),
+      updatedAt: new Date(),
+    });
+  };
+
+  const handleOpenBatchCheckoutWindow = async () => {
+    const checkoutLink = await collectCheckoutLink();
+    if (!checkoutLink) return;
+
+    const now = new Date();
+    const deadline = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+
+    await updateDoc(doc(db, 'requests', request.id), {
+      status: REQUEST_STATUS.AWAITING_PAYMENT,
+      uploadMode: 'rdp_batch',
+      isRdpBatch: true,
+      shopeeCheckoutUrl: checkoutLink,
+      checkoutWindowOpenedAt: now,
+      checkoutDeadlineAt: deadline,
+      paymentRequestedAt: now,
+      updatedAt: now,
+    });
+  };
+
+  const handleEditCheckoutLink = async () => {
+    const checkoutLink = await collectCheckoutLink();
+    if (!checkoutLink) return;
+
+    await updateDoc(doc(db, 'requests', request.id), {
+      shopeeCheckoutUrl: checkoutLink,
+      updatedAt: new Date(),
+    });
+  };
+
+  const handleMarkAsPaid = async () => {
+    await updateDoc(doc(db, 'requests', request.id), {
+      status: REQUEST_STATUS.PAID,
+      paidAt: new Date(),
+      updatedAt: new Date(),
+    });
+  };
+
+  const handleBackToReview = async () => {
+    await updateDoc(doc(db, 'requests', request.id), {
+      status: REQUEST_STATUS.REVIEWING,
+      updatedAt: new Date(),
+    });
+  };
+
   const handleStartUpload = async () => {
     await updateDoc(doc(db, 'requests', request.id), {
       status: REQUEST_STATUS.PROCESSING,
@@ -50,13 +142,6 @@ const RequestCard = ({ request, onApproveClick }) => {
       updatedAt: new Date(),
     });
   };
-  const toggleRdpBatch = async () => {
-    await updateDoc(doc(db, 'requests', request.id), {
-      isRdpBatch: !request.isRdpBatch,
-      updatedAt: new Date(),
-    });
-  };
-
   // LOGIKA BARU: Cukup toggle boolean, tidak perlu hitung score lagi
   const toggleUrgent = async () => {
     await updateDoc(doc(db, 'requests', request.id), {
@@ -134,7 +219,26 @@ const RequestCard = ({ request, onApproveClick }) => {
       case REQUEST_STATUS.QUEUED:
         return (
           <span className={`${baseClass} flex items-center`}>
-            <Clock size={10} className="mr-1" /> {getRequestStatusLabel(s)}
+            {isRdpMode ? (
+              <Server size={10} className="mr-1" />
+            ) : (
+              <Clock size={10} className="mr-1" />
+            )}{' '}
+            {getRequestStatusLabel(s)}
+          </span>
+        );
+      case REQUEST_STATUS.AWAITING_PAYMENT:
+        return (
+          <span className={`${baseClass} flex items-center`}>
+            <ShoppingBag size={10} className="mr-1" />{' '}
+            {getRequestStatusLabel(s)}
+          </span>
+        );
+      case REQUEST_STATUS.PAID:
+        return (
+          <span className={`${baseClass} flex items-center`}>
+            <CheckCircle size={10} className="mr-1" />
+            {getRequestStatusLabel(s)}
           </span>
         );
       case REQUEST_STATUS.REVIEWING:
@@ -192,10 +296,72 @@ const RequestCard = ({ request, onApproveClick }) => {
     await navigator.clipboard.writeText(link);
   };
 
+  const formatTimestamp = (value) => {
+    if (!value) return '-';
+    if (value?.seconds) {
+      return format(new Date(value.seconds * 1000), 'd MMM yyyy HH:mm', {
+        locale: id,
+      });
+    }
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return '-';
+    return format(parsed, 'd MMM yyyy HH:mm', { locale: id });
+  };
+
+  const checkoutDeadlineText = formatTimestamp(request.checkoutDeadlineAt);
+
+  const buildBuyerUpdateMessage = () => {
+    const statusLabel = getRequestStatusLabel(
+      request.status || REQUEST_STATUS.PENDING
+    );
+    const trackingLink = `${window.location.origin}/request-status?code=${trackingCode}`;
+
+    if (
+      (request.status || REQUEST_STATUS.PENDING) ===
+      REQUEST_STATUS.AWAITING_PAYMENT
+    ) {
+      if (isRdpMode) {
+        return `Halo, request ${title} sudah masuk slot batch RDP.\nStatus: ${statusLabel}\nSilakan checkout lewat link Shopee berikut (aktif 24 jam): ${request.shopeeCheckoutUrl || '-'}\nTracking: ${trackingLink}`;
+      }
+      return `Halo, request ${title} sudah selesai review awal.\nStatus: ${statusLabel}\nSilakan checkout lewat link Shopee berikut: ${request.shopeeCheckoutUrl || '-'}\nTracking: ${trackingLink}`;
+    }
+
+    if (
+      (request.status || REQUEST_STATUS.PENDING) === REQUEST_STATUS.QUEUED &&
+      isRdpMode
+    ) {
+      return `Halo, request ${title} sudah masuk antrean batch RDP.\nCheckout akan dibuka saat jadwal upload aktif.\nTracking: ${trackingLink}`;
+    }
+
+    return `Halo, update request ${title}.\nStatus saat ini: ${statusLabel}.\nTracking: ${trackingLink}`;
+  };
+
+  const copyBuyerUpdateMessage = async () => {
+    await navigator.clipboard.writeText(buildBuyerUpdateMessage());
+    await Swal.fire({
+      icon: 'success',
+      title: 'Template pesan disalin',
+      timer: 900,
+      showConfirmButton: false,
+    });
+  };
+
+  const copyShopeeLink = async () => {
+    if (!request.shopeeCheckoutUrl) return;
+    await navigator.clipboard.writeText(request.shopeeCheckoutUrl);
+  };
+
+  const openShopeeLink = () => {
+    if (!request.shopeeCheckoutUrl) return;
+    window.open(request.shopeeCheckoutUrl, '_blank', 'noopener,noreferrer');
+  };
+
   return (
     <div
       className={`bg-white rounded-xl p-5 border shadow-sm transition-all hover:shadow-md relative group
       ${request.isUrgent ? 'border-red-400 ring-1 ring-red-100' : 'border-slate-100'}
+      ${request.status === REQUEST_STATUS.AWAITING_PAYMENT ? 'ring-1 ring-amber-200 bg-amber-50/30' : ''}
+      ${request.status === REQUEST_STATUS.PAID ? 'ring-1 ring-green-200 bg-green-50/30' : ''}
       ${request.status === REQUEST_STATUS.PROCESSING ? 'ring-1 ring-blue-200 bg-blue-50/30' : ''}
       ${request.status === REQUEST_STATUS.UPLOADED ? 'bg-emerald-50/30 border-emerald-200' : ''}
       ${request.status === REQUEST_STATUS.NOT_AVAILABLE ? 'bg-amber-50/40 border-amber-200' : ''}
@@ -238,6 +404,21 @@ const RequestCard = ({ request, onApproveClick }) => {
           </div>
         )}
 
+        <div className="mb-3 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-600">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="rounded bg-slate-100 px-2 py-1 font-semibold text-slate-700">
+              Jalur: {routeLabel}
+            </span>
+            {request.contactWhatsApp && (
+              <span>WA: {request.contactWhatsApp}</span>
+            )}
+            {request.contactEmail && <span>Email: {request.contactEmail}</span>}
+            {request.shopeeUsername && (
+              <span>Shopee: {request.shopeeUsername}</span>
+            )}
+          </div>
+        </div>
+
         <div className="mb-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
           <div className="flex items-center justify-between gap-2">
             <span>
@@ -261,9 +442,46 @@ const RequestCard = ({ request, onApproveClick }) => {
               >
                 <Link2 size={12} className="mr-1" /> Link
               </button>
+              <button
+                type="button"
+                onClick={copyBuyerUpdateMessage}
+                className="inline-flex items-center rounded border border-slate-300 px-2 py-1 text-[11px] font-semibold hover:bg-white"
+                title="Copy template update pembeli"
+              >
+                <MessageCircle size={12} className="mr-1" /> Pesan
+              </button>
             </div>
           </div>
         </div>
+
+        {request.shopeeCheckoutUrl && (
+          <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+            <div className="flex items-center justify-between gap-2">
+              <span className="line-clamp-1">
+                Checkout Shopee tersimpan untuk pembeli.
+                {isRdpMode && request.checkoutDeadlineAt
+                  ? ` Deadline: ${checkoutDeadlineText}`
+                  : ''}
+              </span>
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={copyShopeeLink}
+                  className="inline-flex items-center rounded border border-amber-300 px-2 py-1 text-[11px] font-semibold hover:bg-white"
+                >
+                  <Copy size={12} className="mr-1" /> Link
+                </button>
+                <button
+                  type="button"
+                  onClick={openShopeeLink}
+                  className="inline-flex items-center rounded border border-amber-300 px-2 py-1 text-[11px] font-semibold hover:bg-white"
+                >
+                  <ShoppingBag size={12} className="mr-1" /> Buka
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="flex items-center justify-between pt-4 border-t border-slate-100 mt-2">
@@ -293,16 +511,26 @@ const RequestCard = ({ request, onApproveClick }) => {
             >
               <XCircle size={14} className="mr-1" /> Tidak Tersedia
             </button>
-            <button
-              onClick={handleAcceptToQueue}
-              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg shadow-sm ml-auto flex items-center"
-            >
-              Masuk Antrian <ArrowRight size={14} className="ml-2" />
-            </button>
+            <div className="ml-auto flex gap-2">
+              <button
+                onClick={handleSetRdpBatchFlow}
+                className="px-3 py-2 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded-lg shadow-sm flex items-center"
+              >
+                <Server size={14} className="mr-2" /> Batch RDP (&gt;20GB)
+              </button>
+              <button
+                onClick={handleSetDirectFlow}
+                className="px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg shadow-sm flex items-center"
+              >
+                Direct (&lt;=20GB) <ArrowRight size={14} className="ml-2" />
+              </button>
+            </div>
           </>
         )}
 
         {[
+          REQUEST_STATUS.AWAITING_PAYMENT,
+          REQUEST_STATUS.PAID,
           REQUEST_STATUS.QUEUED,
           REQUEST_STATUS.PROCESSING,
           REQUEST_STATUS.UPLOADED,
@@ -319,33 +547,70 @@ const RequestCard = ({ request, onApproveClick }) => {
                   className={request.isUrgent ? 'fill-red-600' : ''}
                 />
               </button>
-              <button
-                onClick={toggleRdpBatch}
-                className={`p-2 rounded-lg border ${request.isRdpBatch ? 'bg-purple-50 border-purple-200 text-purple-600' : 'bg-white border-slate-200 text-slate-400'}`}
-                title="Set RDP Batch"
-              >
-                <Server size={16} />
-              </button>
             </div>
             <div className="flex gap-2 ml-auto items-center">
-              {request.status === REQUEST_STATUS.QUEUED && (
+              {request.status === REQUEST_STATUS.AWAITING_PAYMENT && (
                 <>
                   <button
-                    onClick={handleMarkNotAvailable}
-                    className="p-2 text-slate-400 hover:text-amber-700 rounded-lg"
-                    title="Tandai tidak tersedia"
+                    onClick={handleBackToReview}
+                    className="px-3 py-2 text-slate-600 hover:bg-slate-100 rounded-lg text-xs font-medium flex items-center"
                   >
-                    <XCircle size={16} />
+                    <Pencil size={14} className="mr-1" /> Kembali Review
                   </button>
                   <button
-                    onClick={handleStartUpload}
-                    className="px-3 py-2 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-bold rounded-lg shadow-sm flex items-center"
+                    onClick={handleEditCheckoutLink}
+                    className="px-3 py-2 bg-white border border-amber-200 text-amber-700 hover:bg-amber-50 text-xs font-bold rounded-lg shadow-sm flex items-center"
                   >
-                    <Play size={14} className="mr-2 fill-slate-700" /> Start
-                    Upload
+                    <ShoppingBag size={14} className="mr-2" /> Edit Link
+                  </button>
+                  <button
+                    onClick={handleMarkAsPaid}
+                    className="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg shadow-sm flex items-center"
+                  >
+                    <CheckCircle size={14} className="mr-2" /> Tandai Checkout
                   </button>
                 </>
               )}
+
+              {request.status === REQUEST_STATUS.QUEUED && isRdpMode && (
+                <>
+                  <button
+                    onClick={handleBackToReview}
+                    className="px-3 py-2 text-slate-600 hover:bg-slate-100 rounded-lg text-xs font-medium flex items-center"
+                  >
+                    <Pencil size={14} className="mr-1" /> Kembali Review
+                  </button>
+                  <button
+                    onClick={handleOpenBatchCheckoutWindow}
+                    className="px-3 py-2 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold rounded-lg shadow-sm flex items-center"
+                  >
+                    <ShoppingBag size={14} className="mr-2" /> Buka Checkout 24
+                    Jam
+                  </button>
+                </>
+              )}
+
+              {[REQUEST_STATUS.PAID, REQUEST_STATUS.QUEUED].includes(
+                request.status
+              ) &&
+                (!isRdpMode || request.status === REQUEST_STATUS.PAID) && (
+                  <>
+                    <button
+                      onClick={handleMarkNotAvailable}
+                      className="p-2 text-slate-400 hover:text-amber-700 rounded-lg"
+                      title="Tandai tidak tersedia"
+                    >
+                      <XCircle size={16} />
+                    </button>
+                    <button
+                      onClick={handleStartUpload}
+                      className="px-3 py-2 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-bold rounded-lg shadow-sm flex items-center"
+                    >
+                      <Play size={14} className="mr-2 fill-slate-700" /> Start
+                      Upload
+                    </button>
+                  </>
+                )}
               {request.status === REQUEST_STATUS.PROCESSING && (
                 <>
                   <button

@@ -1,11 +1,19 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { collection, getDocs, query, where } from 'firebase/firestore';
-import { ArrowLeft, Search, Copy, CheckCircle2, Circle } from 'lucide-react';
+import {
+  ArrowLeft,
+  Search,
+  Copy,
+  CheckCircle2,
+  Circle,
+  ShoppingBag,
+} from 'lucide-react';
 import { db } from '../../config/firebaseConfig';
 import {
   getRequestStatusDescription,
   getRequestStatusLabel,
+  REQUEST_PUBLIC_TIMELINE_BATCH_STEPS,
   REQUEST_PUBLIC_TIMELINE_STEPS,
   REQUEST_STATUS,
 } from '../../shared/requestStatus';
@@ -92,8 +100,20 @@ const RequestStatusPage = () => {
   };
 
   const currentStatus = requestData?.status || REQUEST_STATUS.PENDING;
-  const statusIndex = REQUEST_PUBLIC_TIMELINE_STEPS.indexOf(currentStatus);
+  const isRdpMode =
+    requestData?.uploadMode === 'rdp_batch' || requestData?.isRdpBatch === true;
+  const timelineSteps = isRdpMode
+    ? REQUEST_PUBLIC_TIMELINE_BATCH_STEPS
+    : REQUEST_PUBLIC_TIMELINE_STEPS;
+  const timelineStatus =
+    !isRdpMode && currentStatus === REQUEST_STATUS.QUEUED
+      ? REQUEST_STATUS.REVIEWING
+      : currentStatus;
+  const statusIndex = timelineSteps.indexOf(timelineStatus);
   const isNotAvailable = currentStatus === REQUEST_STATUS.NOT_AVAILABLE;
+  const isAwaitingPayment =
+    currentStatus === REQUEST_STATUS.AWAITING_PAYMENT &&
+    !!requestData?.shopeeCheckoutUrl;
 
   return (
     <div className="min-h-screen bg-[#111317] text-[#F3F4F6]">
@@ -159,6 +179,15 @@ const RequestStatusPage = () => {
 
             {requestData && (
               <div className="space-y-5 rounded-xl border border-[#2A2F39] bg-[#111317] p-5">
+                <div className="rounded-lg border border-[#2F3643] bg-[#1A1F27] px-4 py-3 text-xs text-[#C8CFDA]">
+                  Jalur request:{' '}
+                  <span className="font-semibold text-[#F3F4F6]">
+                    {isRdpMode
+                      ? 'Batch RDP (> 20GB, checkout saat batch dibuka)'
+                      : 'Direct Upload (<= 20GB)'}
+                  </span>
+                </div>
+
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#2A2F39] pb-4">
                   <div>
                     <p className="text-xs text-[#9CA3AF]">Request ditemukan</p>
@@ -189,9 +218,33 @@ const RequestStatusPage = () => {
                   </span>
                 </div>
 
+                {isAwaitingPayment && (
+                  <div className="space-y-2">
+                    <a
+                      href={requestData.shopeeCheckoutUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[#FFD100] px-4 py-3 text-sm font-bold text-[#111317] hover:brightness-95"
+                    >
+                      <ShoppingBag size={16} /> Checkout Sekarang di Shopee
+                    </a>
+                    <p className="text-xs text-[#9CA3AF]">
+                      Link checkout aktif saat jadwal upload dibuka admin. Untuk
+                      jalur batch, window checkout maksimal 24 jam.
+                    </p>
+                  </div>
+                )}
+
+                {isRdpMode && currentStatus === REQUEST_STATUS.QUEUED && (
+                  <div className="rounded-lg border border-[#4B5563] bg-[#1A1F27] p-4 text-sm text-[#C8CFDA]">
+                    Request kamu sudah masuk antrean batch RDP. Admin akan
+                    mengirim link checkout Shopee saat slot upload batch dibuka.
+                  </div>
+                )}
+
                 {!isNotAvailable ? (
                   <div className="space-y-3">
-                    {REQUEST_PUBLIC_TIMELINE_STEPS.map((step, index) => {
+                    {timelineSteps.map((step, index) => {
                       const done = statusIndex >= index;
                       return (
                         <div key={step} className="flex items-start gap-3">
@@ -223,7 +276,8 @@ const RequestStatusPage = () => {
                 )}
 
                 <p className="text-xs text-[#9CA3AF]">
-                  Request diproses sesuai ketersediaan file.
+                  Status akan diperbarui bertahap: review, checkout, lalu
+                  upload.
                 </p>
               </div>
             )}

@@ -51,7 +51,29 @@ const RequestsPage = () => {
 
         // --- LOGIKA SORTING BARU (Tanpa priority_score) ---
         const sortedRequests = requestsData.sort((a, b) => {
-          // 1. Status Priority: Uploaded & Processing selalu di atas di tab antrian
+          // 1. Status Priority untuk flow pembayaran -> upload
+          if (
+            a.status === REQUEST_STATUS.AWAITING_PAYMENT &&
+            b.status !== REQUEST_STATUS.AWAITING_PAYMENT
+          )
+            return -1;
+          if (
+            a.status !== REQUEST_STATUS.AWAITING_PAYMENT &&
+            b.status === REQUEST_STATUS.AWAITING_PAYMENT
+          )
+            return 1;
+
+          if (
+            a.status === REQUEST_STATUS.PAID &&
+            b.status !== REQUEST_STATUS.PAID
+          )
+            return -1;
+          if (
+            a.status !== REQUEST_STATUS.PAID &&
+            b.status === REQUEST_STATUS.PAID
+          )
+            return 1;
+
           if (
             a.status === REQUEST_STATUS.UPLOADED &&
             b.status !== REQUEST_STATUS.UPLOADED
@@ -122,7 +144,13 @@ const RequestsPage = () => {
 
     if (mainTab === 'queue') {
       if (viewFilter === 'rdp' && !req.isRdpBatch) return false;
+      if (viewFilter === 'direct' && req.isRdpBatch) return false;
       if (viewFilter === 'urgent' && !req.isUrgent) return false;
+      if (
+        viewFilter === 'awaiting_payment' &&
+        status !== REQUEST_STATUS.AWAITING_PAYMENT
+      )
+        return false;
       if (viewFilter === 'ready' && status !== REQUEST_STATUS.UPLOADED)
         return false;
     }
@@ -162,7 +190,7 @@ const RequestsPage = () => {
               Pusat Request
             </h1>
             <p className="text-slate-500 text-sm">
-              Kelola permintaan game & antrian upload.
+              Kelola permintaan game, checkout Shopee, dan proses upload.
             </p>
           </div>
 
@@ -173,6 +201,17 @@ const RequestsPage = () => {
             <Plus size={18} className="mr-2" />
             Tambah Manual
           </button>
+        </div>
+
+        <div className="mb-6 rounded-xl border border-slate-200 bg-white p-4 text-xs text-slate-600">
+          <p className="font-semibold text-slate-800 mb-1">
+            Aturan Jalur Upload
+          </p>
+          <p>
+            Direct untuk game &lt;= 20GB (checkout setelah review). Batch RDP
+            untuk game &gt; 20GB (checkout dibuka saat slot batch, window 24
+            jam).
+          </p>
         </div>
 
         <div className="flex border-b border-slate-200 mb-6 space-x-6 overflow-x-auto">
@@ -192,7 +231,7 @@ const RequestsPage = () => {
             onClick={() => setMainTab('queue')}
             className={`pb-3 text-sm font-medium flex items-center gap-2 whitespace-nowrap ${mainTab === 'queue' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-slate-500'}`}
           >
-            <ListTodo size={18} /> Antrian Upload
+            <ListTodo size={18} /> Pembayaran & Upload
             {queueCount > 0 && (
               <span className="bg-slate-200 text-slate-700 text-xs px-2 py-0.5 rounded-full">
                 {queueCount}
@@ -229,16 +268,28 @@ const RequestsPage = () => {
                 <Server size={12} /> Batch RDP
               </button>
               <button
+                onClick={() => setViewFilter('direct')}
+                className={`px-3 py-1.5 text-xs font-medium rounded-lg whitespace-nowrap ${viewFilter === 'direct' ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-600'}`}
+              >
+                Direct
+              </button>
+              <button
                 onClick={() => setViewFilter('urgent')}
                 className={`px-3 py-1.5 text-xs font-medium rounded-lg whitespace-nowrap flex items-center gap-1 ${viewFilter === 'urgent' ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-600'}`}
               >
                 <Zap size={12} /> Urgent
               </button>
               <button
+                onClick={() => setViewFilter('awaiting_payment')}
+                className={`px-3 py-1.5 text-xs font-medium rounded-lg whitespace-nowrap ${viewFilter === 'awaiting_payment' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-600'}`}
+              >
+                Menunggu Checkout
+              </button>
+              <button
                 onClick={() => setViewFilter('ready')}
                 className={`px-3 py-1.5 text-xs font-medium rounded-lg whitespace-nowrap flex items-center gap-1 ${viewFilter === 'ready' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}
               >
-                <FileCheck size={12} /> Siap Publish{' '}
+                <FileCheck size={12} /> Upload Selesai{' '}
                 {readyCount > 0 && (
                   <span className="ml-1 bg-emerald-500 text-white px-1.5 rounded-full text-[10px]">
                     {readyCount}

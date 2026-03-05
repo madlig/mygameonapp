@@ -151,6 +151,8 @@ const RequestsPage = () => {
         status !== REQUEST_STATUS.AWAITING_PAYMENT
       )
         return false;
+      if (viewFilter === 'uploading' && status !== REQUEST_STATUS.PROCESSING)
+        return false;
       if (viewFilter === 'ready' && status !== REQUEST_STATUS.UPLOADED)
         return false;
     }
@@ -176,6 +178,9 @@ const RequestsPage = () => {
   ).length;
   const readyCount = requests.filter(
     (r) => r.status === REQUEST_STATUS.UPLOADED
+  ).length;
+  const uploadingCount = requests.filter(
+    (r) => r.status === REQUEST_STATUS.PROCESSING
   ).length;
   const resultCount = requests.filter((r) =>
     REQUEST_RESULT_STATUSES.includes(r.status)
@@ -293,6 +298,17 @@ const RequestsPage = () => {
                 {readyCount > 0 && (
                   <span className="ml-1 bg-emerald-500 text-white px-1.5 rounded-full text-[10px]">
                     {readyCount}
+                  </span>
+                )}
+              </button>
+              <button
+                onClick={() => setViewFilter('uploading')}
+                className={`px-3 py-1.5 text-xs font-medium rounded-lg whitespace-nowrap flex items-center gap-1 ${viewFilter === 'uploading' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-600'}`}
+              >
+                <Loader2 size={12} /> Uploading{' '}
+                {uploadingCount > 0 && (
+                  <span className="ml-1 bg-blue-500 text-white px-1.5 rounded-full text-[10px]">
+                    {uploadingCount}
                   </span>
                 )}
               </button>

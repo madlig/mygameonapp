@@ -15,10 +15,9 @@ import {
 } from 'lucide-react';
 import {
   collection,
-  addDoc,
-  updateDoc,
   doc,
   serverTimestamp,
+  writeBatch,
 } from 'firebase/firestore';
 import { db } from '../../../config/firebaseConfig';
 import Swal from 'sweetalert2';
@@ -31,67 +30,61 @@ const ApproveGameModal = ({ request, onClose, onSuccess }) => {
     formState: { isSubmitting },
   } = useForm({
     defaultValues: {
-      name: request.title, // Sesuai field 'name' di GameFormModal
-      version: 'v1.0', // Default version
-      size: '', // Input angka
-      unit: 'GB', // Default unit
-      jumlahPart: 1, // Default jumlah part
-      genre: '', // String dipisah koma
-      location: '', // Diisi Link GDrive
-      description: request.notes || '', // Ambil dari notes request
+      title: request.title,
+      version: 'v1.0',
+      size: '',
+      sizeUnit: 'GB',
+      numberOfParts: 1,
+      genre: '',
+      location: '',
+      description: request.notes || '',
       status: 'Available',
-      coverArtUrl: '', // Opsional untuk gambar
+      coverArtUrl: '',
+      installerType: 'PRE-INSTALLED',
+      shopeeLink: '',
     },
   });
 
   const onSubmit = async (data) => {
     try {
-      // 1. Format Data agar COCOK dengan standar GameFormModal
+      const now = serverTimestamp();
       const gameData = {
-        name: data.name,
+        title: data.title,
         version: data.version || null,
-
-        // Pastikan size dan jumlahPart dikonversi ke Number
         size: Number(data.size),
-        unit: data.unit,
-        jumlahPart: Number(data.jumlahPart),
-
-        // Konversi string genre ke Array
+        sizeUnit: data.sizeUnit,
+        numberOfParts: Number(data.numberOfParts),
         genre: data.genre
           .split(',')
           .map((g) => g.trim())
           .filter((g) => g !== ''),
-
-        // Mengikuti skema existing games: locations adalah array
-        locations: [data.location],
+        location: data.location,
         description: data.description,
         status: data.status,
-
-        // Tambahan: Platform dari request (meski tidak ada di snippet GameFormModal,
-        // sebaiknya tetap disimpan untuk filter/kategori)
         platform: request.platform || 'PC',
-
-        // Mengikuti skema existing games: coverArtUrl
         coverArtUrl: data.coverArtUrl || '',
-        shopeeLink: '',
-
-        dateAdded: serverTimestamp(),
-
-        // Metadata tracking asal usul data
+        installerType: data.installerType,
+        shopeeLink: data.shopeeLink || '',
+        createdAt: now,
+        lastVersionDate: now,
         originRequestId: request.id,
+        finalizedAt: now,
         addedBy: 'Admin Approval',
       };
 
-      // 2. Simpan ke koleksi 'games'
-      await addDoc(collection(db, 'games'), gameData);
+      const batch = writeBatch(db);
+      const gameRef = doc(collection(db, 'games'));
+      const requestRef = doc(db, 'requests', request.id);
 
-      // 3. Update status Request jadi 'available' untuk tracking publik
-      await updateDoc(doc(db, 'requests', request.id), {
+      batch.set(gameRef, gameData);
+      batch.update(requestRef, {
         status: REQUEST_STATUS.AVAILABLE,
-        approvedAt: serverTimestamp(),
-        availableAt: serverTimestamp(),
-        finalGameTitle: data.name,
+        approvedAt: now,
+        availableAt: now,
+        finalGameTitle: data.title,
       });
+
+      await batch.commit();
 
       Swal.fire({
         title: 'Sukses!',
@@ -107,7 +100,7 @@ const ApproveGameModal = ({ request, onClose, onSuccess }) => {
       console.error('Error approving game:', error);
       Swal.fire({
         title: 'Error',
-        text: 'Gagal menyimpan data. Pastikan input angka valid.',
+        text: `Finalisasi gagal: ${error?.message || 'Terjadi kesalahan saat menyimpan data.'}`,
         icon: 'error',
       });
     }
@@ -123,7 +116,7 @@ const ApproveGameModal = ({ request, onClose, onSuccess }) => {
               Finalisasi ke Katalog
             </h3>
             <p className="text-slate-500 text-xs">
-              Data disesuaikan dengan standar GameFormModal.
+              Data disesuaikan dengan schema katalog games.
             </p>
           </div>
           <button
@@ -138,7 +131,7 @@ const ApproveGameModal = ({ request, onClose, onSuccess }) => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* KOLOM KIRI: Identitas Game */}
             <div className="space-y-4">
-              {/* Name */}
+              {/* Title */}
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">
                   Nama Game
@@ -149,7 +142,9 @@ const ApproveGameModal = ({ request, onClose, onSuccess }) => {
                     size={18}
                   />
                   <input
-                    {...register('name', { required: 'Nama game wajib diisi' })}
+                    {...register('title', {
+                      required: 'Nama game wajib diisi',
+                    })}
                     className="w-full pl-10 pr-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                   />
                 </div>
@@ -214,7 +209,23 @@ const ApproveGameModal = ({ request, onClose, onSuccess }) => {
                 >
                   <option value="Available">Available</option>
                   <option value="Maintenance">Maintenance</option>
-                  <option value="Empty">Empty</option>
+                  <option value="Broken">Broken</option>
+                  <option value="Testing">Testing</option>
+                </select>
+              </div>
+
+              {/* Installer Type */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Installer Type
+                </label>
+                <select
+                  {...register('installerType')}
+                  className="w-full px-3 py-2 border rounded-lg bg-white focus:ring-2 focus:ring-blue-500 outline-none"
+                >
+                  <option value="PRE-INSTALLED">PRE-INSTALLED</option>
+                  <option value="INSTALLER GOG">INSTALLER GOG</option>
+                  <option value="INSTALLER ELAMIGOS">INSTALLER ELAMIGOS</option>
                 </select>
               </div>
             </div>
@@ -246,7 +257,7 @@ const ApproveGameModal = ({ request, onClose, onSuccess }) => {
                     Unit
                   </label>
                   <select
-                    {...register('unit')}
+                    {...register('sizeUnit')}
                     className="w-full px-3 py-2 border rounded-lg bg-white focus:ring-2 focus:ring-blue-500 outline-none"
                   >
                     <option value="GB">GB</option>
@@ -268,7 +279,7 @@ const ApproveGameModal = ({ request, onClose, onSuccess }) => {
                   />
                   <input
                     type="number"
-                    {...register('jumlahPart', {
+                    {...register('numberOfParts', {
                       required: 'Wajib diisi',
                       min: 1,
                     })}
@@ -291,6 +302,24 @@ const ApproveGameModal = ({ request, onClose, onSuccess }) => {
                   <input
                     {...register('location', { required: 'Link wajib diisi' })}
                     placeholder="https://drive.google.com/..."
+                    className="w-full pl-10 pr-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-blue-600 font-mono text-sm"
+                  />
+                </div>
+              </div>
+
+              {/* Shopee Link */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Shopee Link (Opsional)
+                </label>
+                <div className="relative">
+                  <LinkIcon
+                    className="absolute top-2.5 left-3 text-slate-400"
+                    size={18}
+                  />
+                  <input
+                    {...register('shopeeLink')}
+                    placeholder="https://shopee.co.id/..."
                     className="w-full pl-10 pr-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-blue-600 font-mono text-sm"
                   />
                 </div>

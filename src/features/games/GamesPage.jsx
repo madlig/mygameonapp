@@ -1,5 +1,13 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { collection, onSnapshot, writeBatch, doc } from 'firebase/firestore';
+import {
+  collection,
+  onSnapshot,
+  writeBatch,
+  doc,
+  addDoc,
+  updateDoc,
+  serverTimestamp,
+} from 'firebase/firestore';
 import { db } from '../../config/firebaseConfig';
 import {
   Search,
@@ -22,7 +30,7 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import Swal from 'sweetalert2';
-import { format } from 'date-fns';
+import { format, formatDistanceToNow } from 'date-fns';
 import { id as localeId } from 'date-fns/locale';
 import GameFormModal from './components/GameFormModal';
 import BulkGameImportModal from './components/BulkGameImportModal';
@@ -33,6 +41,7 @@ const GamesPage = () => {
   const [games, setGames] = useState([]);
   const [rawGames, setRawGames] = useState([]);
   const [loading, setLoading] = useState(true);
+  const storeUrl = 'https://shopee.co.id/mygameon';
 
   // State Filter & Search
   const [searchTerm, setSearchTerm] = useState('');
@@ -175,7 +184,8 @@ const GamesPage = () => {
 
         if (
           sortConfig.key === 'createdAt' ||
-          sortConfig.key === 'lastVersionDate'
+          sortConfig.key === 'lastVersionDate' ||
+          sortConfig.key === 'updatedAt'
         ) {
           aValue = aValue?.seconds || 0;
           bValue = bValue?.seconds || 0;
@@ -216,6 +226,27 @@ const GamesPage = () => {
   const handleOpenEdit = (game) => {
     setEditingGame(game);
     setIsModalOpen(true);
+  };
+
+  const handleSaveGame = async (formData, gameId) => {
+    const payload = {
+      ...formData,
+      updatedAt: serverTimestamp(),
+    };
+
+    if (!payload.createdAt) {
+      payload.createdAt = serverTimestamp();
+    }
+
+    if (!payload.lastVersionDate) {
+      payload.lastVersionDate = payload.createdAt;
+    }
+
+    if (gameId) {
+      await updateDoc(doc(db, 'games', gameId), payload);
+    } else {
+      await addDoc(collection(db, 'games'), payload);
+    }
   };
 
   // HANDLER BARU: UPDATE VERSI VIA TASK
@@ -278,6 +309,38 @@ const GamesPage = () => {
       ? new Date(timestamp.seconds * 1000)
       : new Date(timestamp);
     return format(date, 'd MMM yyyy', { locale: localeId });
+  };
+
+  const resolveTimestamp = (timestamp) => {
+    if (!timestamp) return null;
+    if (timestamp.seconds) return new Date(timestamp.seconds * 1000);
+    return new Date(timestamp);
+  };
+
+  const formatRelative = (timestamp) => {
+    const date = resolveTimestamp(timestamp);
+    if (!date || Number.isNaN(date.getTime())) return '-';
+    return formatDistanceToNow(date, { addSuffix: true, locale: localeId });
+  };
+
+  const getShopeeLink = (game) => game.shopeeLink || storeUrl;
+
+  const handleCopyShopeeLink = async (link) => {
+    try {
+      await navigator.clipboard.writeText(link);
+      Swal.fire({
+        icon: 'success',
+        title: 'Link disalin',
+        timer: 1200,
+        showConfirmButton: false,
+      });
+    } catch (error) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Gagal menyalin link',
+        text: error?.message || 'Coba copy manual.',
+      });
+    }
   };
 
   const getFieldType = (value) => {
@@ -414,6 +477,11 @@ const GamesPage = () => {
           >
             {game.status}
           </span>
+          <span
+            className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase border ${game.shopeeLink ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`}
+          >
+            {game.shopeeLink ? 'Shopee Set' : 'Shopee Missing'}
+          </span>
           {game.version && (
             <span className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded border border-slate-200 font-medium flex items-center">
               <Tag size={10} className="mr-1 opacity-50" /> {game.version}
@@ -464,8 +532,28 @@ const GamesPage = () => {
           )}
           <div className="flex items-center">
             <Calendar size={12} className="mr-1.5" />
-            {formatVersionDate(game.lastVersionDate)}
+            {formatRelative(game.updatedAt || game.createdAt)}
           </div>
+        </div>
+        <div className="col-span-2 flex items-center gap-2">
+          <button
+            className="px-2 py-1 text-[10px] font-bold rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100"
+            onClick={(e) => {
+              e.stopPropagation();
+              window.open(getShopeeLink(game), '_blank');
+            }}
+          >
+            Shopee
+          </button>
+          <button
+            className="px-2 py-1 text-[10px] font-bold rounded-lg border border-slate-200 bg-white hover:bg-slate-50"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleCopyShopeeLink(getShopeeLink(game));
+            }}
+          >
+            Copy
+          </button>
         </div>
       </div>
     </div>
@@ -623,6 +711,11 @@ const GamesPage = () => {
                       width="w-32"
                     />
                     <SortableHeader
+                      label="Updated"
+                      sortKey="updatedAt"
+                      width="w-36"
+                    />
+                    <SortableHeader
                       label="Location"
                       sortKey="location"
                       width="w-1/4"
@@ -635,14 +728,14 @@ const GamesPage = () => {
                 <tbody className="divide-y divide-slate-100">
                   {loading ? (
                     <tr>
-                      <td colSpan="6" className="p-8 text-center">
+                      <td colSpan="7" className="p-8 text-center">
                         <Loader2 className="animate-spin mx-auto text-blue-500" />
                       </td>
                     </tr>
                   ) : processedGames.length === 0 ? (
                     <tr>
                       <td
-                        colSpan="6"
+                        colSpan="7"
                         className="p-8 text-center text-slate-500"
                       >
                         Tidak ada game ditemukan.
@@ -681,6 +774,15 @@ const GamesPage = () => {
                               </span>
                             </div>
                           )}
+                          <div className="flex items-center gap-2 mt-2">
+                            <span
+                              className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase border ${game.shopeeLink ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`}
+                            >
+                              {game.shopeeLink
+                                ? 'Shopee Set'
+                                : 'Shopee Missing'}
+                            </span>
+                          </div>
                         </td>
                         <td className="p-4">
                           <div className="text-sm text-slate-600 font-mono whitespace-nowrap">
@@ -704,6 +806,16 @@ const GamesPage = () => {
                           >
                             {game.status}
                           </span>
+                        </td>
+                        <td className="p-4">
+                          <div
+                            className="text-xs text-slate-600"
+                            title={formatVersionDate(
+                              game.updatedAt || game.createdAt
+                            )}
+                          >
+                            {formatRelative(game.updatedAt || game.createdAt)}
+                          </div>
                         </td>
                         <td className="p-4">
                           <div className="flex items-center text-sm text-slate-600 font-medium">
@@ -734,6 +846,26 @@ const GamesPage = () => {
                             <div className="flex items-center opacity-70">
                               <Calendar size={12} className="mr-1" />
                               {formatVersionDate(game.lastVersionDate)}
+                            </div>
+                            <div className="flex items-center gap-2 mt-2">
+                              <button
+                                className="px-2 py-1 text-[10px] font-bold rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  window.open(getShopeeLink(game), '_blank');
+                                }}
+                              >
+                                Shopee
+                              </button>
+                              <button
+                                className="px-2 py-1 text-[10px] font-bold rounded-lg border border-slate-200 bg-white hover:bg-slate-50"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleCopyShopeeLink(getShopeeLink(game));
+                                }}
+                              >
+                                Copy
+                              </button>
                             </div>
                           </div>
 
@@ -794,6 +926,7 @@ const GamesPage = () => {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         initialData={editingGame}
+        onSubmit={handleSaveGame}
         onSuccess={() => {}}
       />
 

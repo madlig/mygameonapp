@@ -22,15 +22,15 @@ import CloseButton from '../../../components/common/CloseButton';
 
 // Skema validasi
 const schema = yup.object().shape({
-  name: yup.string().required('Name is required'),
+  title: yup.string().required('Nama game wajib diisi'),
   version: yup.string().nullable(),
   size: yup
     .number()
     .typeError('Size must be a number')
     .required('Size is required')
     .positive('Size must be positive'),
-  unit: yup.string().required('Unit is required'),
-  jumlahPart: yup
+  sizeUnit: yup.string().required('Unit is required'),
+  numberOfParts: yup
     .number()
     .typeError('Jumlah Part must be a number')
     .required('Jumlah Part is required')
@@ -41,9 +41,10 @@ const schema = yup.object().shape({
   genre: yup.array().min(1, 'At least one genre is required'),
   shopeeLink: yup.string().nullable(),
   status: yup.string().required('Status is required'),
-  dateAdded: yup
+  installerType: yup.string().required('Installer type is required'),
+  createdAt: yup
     .date()
-    .required('Date Added is required')
+    .required('Tanggal ditambahkan wajib diisi')
     .max(new Date(), 'Tanggal tidak boleh melebihi hari ini'),
   description: yup.string().nullable(),
 });
@@ -59,17 +60,18 @@ const GameFormModal = ({ isOpen, onClose, onSubmit, initialData = null }) => {
   } = useForm({
     resolver: yupResolver(schema),
     defaultValues: initialData || {
-      name: '',
+      title: '',
       version: '',
       size: '',
-      unit: 'MB',
-      jumlahPart: '',
+      sizeUnit: 'MB',
+      numberOfParts: '',
       platform: '',
       locations: [],
       genre: [],
       shopeeLink: '',
       status: '',
-      dateAdded: new Date().toISOString().split('T')[0],
+      installerType: 'PRE-INSTALLED',
+      createdAt: new Date().toISOString().split('T')[0],
       description: '',
     },
   });
@@ -77,8 +79,9 @@ const GameFormModal = ({ isOpen, onClose, onSubmit, initialData = null }) => {
   const isEditMode = Boolean(initialData);
   const watchedGenres = watch('genre') || [];
   const watchedLocations = watch('locations') || [];
-  const watchedUnit = watch('unit');
+  const watchedUnit = watch('sizeUnit');
   const watchedStatus = watch('status');
+  const watchedInstallerType = watch('installerType');
 
   const [coverImage, setCoverImage] = useState(null);
   const [uploading, setUploading] = useState(false);
@@ -113,8 +116,8 @@ const GameFormModal = ({ isOpen, onClose, onSubmit, initialData = null }) => {
 
   useEffect(() => {
     if (isEditMode && initialData) {
-      const dateFromFirestore = initialData.dateAdded?.toDate
-        ? initialData.dateAdded.toDate()
+      const dateFromFirestore = initialData.createdAt?.toDate
+        ? initialData.createdAt.toDate()
         : null;
       let formattedDate = '';
       if (dateFromFirestore) {
@@ -126,27 +129,32 @@ const GameFormModal = ({ isOpen, onClose, onSubmit, initialData = null }) => {
 
       const formValues = {
         ...initialData,
-        dateAdded: formattedDate,
-        size: parseFloat(initialData.size) || '',
-        unit: (initialData.size || ' MB').split(' ')[1] || 'MB',
+        title: initialData.title || '',
+        locations: initialData.location ? [initialData.location] : [],
+        createdAt: formattedDate,
+        size: Number(initialData.size) || '',
+        sizeUnit: initialData.sizeUnit || 'MB',
+        numberOfParts: Number(initialData.numberOfParts) || '',
+        installerType: initialData.installerType || 'PRE-INSTALLED',
       };
       reset(formValues);
-      setValue('dateAdded', formattedDate);
+      setValue('createdAt', formattedDate);
 
       if (initialData.coverArtUrl) setImagePreview(initialData.coverArtUrl);
     } else {
       reset({
-        name: '',
+        title: '',
         version: '',
         size: '',
-        unit: 'MB',
-        jumlahPart: '',
+        sizeUnit: 'MB',
+        numberOfParts: '',
         platform: '',
         locations: [],
         genre: [],
         shopeeLink: '',
         status: '',
-        dateAdded: new Date().toISOString().split('T')[0],
+        installerType: 'PRE-INSTALLED',
+        createdAt: new Date().toISOString().split('T')[0],
         description: '',
       });
       setImagePreview('');
@@ -216,7 +224,7 @@ const GameFormModal = ({ isOpen, onClose, onSubmit, initialData = null }) => {
     if (isImageRemoved) {
       finalCoverArtUrl = '';
     } else if (coverImage) {
-      const fileName = `covers/${data.name.replace(/\s+/g, '-').toLowerCase()}-${Date.now()}`;
+      const fileName = `covers/${data.title.replace(/\s+/g, '-').toLowerCase()}-${Date.now()}`;
       const storageRef = ref(storage, fileName);
       try {
         const snapshot = await uploadBytes(storageRef, coverImage);
@@ -230,7 +238,7 @@ const GameFormModal = ({ isOpen, onClose, onSubmit, initialData = null }) => {
     }
 
     try {
-      const localDate = new Date(data.dateAdded);
+      const localDate = new Date(data.createdAt);
       const dateInUTC = new Date(
         Date.UTC(
           localDate.getFullYear(),
@@ -240,18 +248,22 @@ const GameFormModal = ({ isOpen, onClose, onSubmit, initialData = null }) => {
       );
 
       const finalData = {
-        name: data.name,
+        title: data.title,
         version: data.version || '',
-        size: `${data.size} ${data.unit}`,
-        jumlahPart: data.jumlahPart,
+        size: Number(data.size),
+        sizeUnit: data.sizeUnit,
+        numberOfParts: Number(data.numberOfParts),
         platform: data.platform,
         coverArtUrl: finalCoverArtUrl,
         genre: data.genre,
         shopeeLink: data.shopeeLink || '',
         status: data.status,
-        dateAdded: dateInUTC,
+        installerType: data.installerType,
+        createdAt: dateInUTC,
+        lastVersionDate: initialData?.lastVersionDate || dateInUTC,
         description: data.description || '',
-        locations: data.locations,
+        location: data.locations?.[0] || '',
+        tags: initialData?.tags || [],
       };
 
       await onSubmit(finalData, initialData?.id);
@@ -296,16 +308,16 @@ const GameFormModal = ({ isOpen, onClose, onSubmit, initialData = null }) => {
         >
           <div className="space-y-4">
             <div>
-              <label htmlFor="name" className="block text-sm font-medium mb-1">
-                Name
+              <label htmlFor="title" className="block text-sm font-medium mb-1">
+                Nama Game
               </label>
               <input
-                id="name"
-                {...register('name')}
+                id="title"
+                {...register('title')}
                 className="w-full border border-gray-300 rounded px-3 py-2"
               />
-              {errors.name && (
-                <p className="text-red-500 text-sm">{errors.name.message}</p>
+              {errors.title && (
+                <p className="text-red-500 text-sm">{errors.title.message}</p>
               )}
             </div>
 
@@ -372,30 +384,32 @@ const GameFormModal = ({ isOpen, onClose, onSubmit, initialData = null }) => {
                 <label className="block text-sm font-medium mb-1">Unit</label>
                 <UnitSelector
                   selectedUnit={watchedUnit}
-                  onSelect={(unit) => setValue('unit', unit)}
+                  onSelect={(unit) => setValue('sizeUnit', unit)}
                 />
-                {errors.unit && (
-                  <p className="text-red-500 text-sm">{errors.unit.message}</p>
+                {errors.sizeUnit && (
+                  <p className="text-red-500 text-sm">
+                    {errors.sizeUnit.message}
+                  </p>
                 )}
               </div>
             </div>
 
             <div>
               <label
-                htmlFor="jumlahPart"
+                htmlFor="numberOfParts"
                 className="block text-sm font-medium mb-1"
               >
                 Jumlah Part
               </label>
               <input
-                id="jumlahPart"
+                id="numberOfParts"
                 type="number"
-                {...register('jumlahPart')}
+                {...register('numberOfParts')}
                 className="w-full border border-gray-300 rounded px-3 py-2"
               />
-              {errors.jumlahPart && (
+              {errors.numberOfParts && (
                 <p className="text-red-500 text-sm">
-                  {errors.jumlahPart.message}
+                  {errors.numberOfParts.message}
                 </p>
               )}
             </div>
@@ -457,7 +471,7 @@ const GameFormModal = ({ isOpen, onClose, onSubmit, initialData = null }) => {
 
             <div>
               <label className="block text-sm font-medium mb-2">
-                Locations
+                Location (pilih satu)
               </label>
               <MultiSelectDropdown
                 options={allLocations}
@@ -467,7 +481,7 @@ const GameFormModal = ({ isOpen, onClose, onSubmit, initialData = null }) => {
                 onDelete={(location) =>
                   handleDeleteOption(location, 'emailLocations', 'email')
                 }
-                placeholderText="Select Locations"
+                placeholderText="Select Location"
               />
               {errors.locations && (
                 <p className="text-red-500 text-sm">
@@ -494,6 +508,27 @@ const GameFormModal = ({ isOpen, onClose, onSubmit, initialData = null }) => {
             </div>
 
             <div>
+              <label className="block text-sm font-medium mb-1">
+                Installer Type
+              </label>
+              <select
+                {...register('installerType')}
+                value={watchedInstallerType}
+                onChange={(e) => setValue('installerType', e.target.value)}
+                className="w-full border border-gray-300 rounded px-3 py-2"
+              >
+                <option value="PRE-INSTALLED">PRE-INSTALLED</option>
+                <option value="INSTALLER GOG">INSTALLER GOG</option>
+                <option value="INSTALLER ELAMIGOS">INSTALLER ELAMIGOS</option>
+              </select>
+              {errors.installerType && (
+                <p className="text-red-500 text-sm">
+                  {errors.installerType.message}
+                </p>
+              )}
+            </div>
+
+            <div>
               <label className="block text-sm font-medium mb-1">Status</label>
               <StatusSelector
                 selectedStatus={watchedStatus}
@@ -506,20 +541,20 @@ const GameFormModal = ({ isOpen, onClose, onSubmit, initialData = null }) => {
 
             <div>
               <label
-                htmlFor="dateAdded"
+                htmlFor="createdAt"
                 className="block text-sm font-medium mb-1"
               >
-                Date Added
+                Tanggal Ditambahkan
               </label>
               <input
-                id="dateAdded"
+                id="createdAt"
                 type="date"
-                {...register('dateAdded')}
+                {...register('createdAt')}
                 className="w-full border border-gray-300 rounded px-3 py-2"
               />
-              {errors.dateAdded && (
+              {errors.createdAt && (
                 <p className="text-red-500 text-sm">
-                  {errors.dateAdded.message}
+                  {errors.createdAt.message}
                 </p>
               )}
             </div>

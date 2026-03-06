@@ -141,6 +141,14 @@ const OperationalPage = () => {
           (sum, r) => sum + (r.grossIncome || 0),
           0
         );
+        const totalAdjustedGross = calculatedRevenueReport.reduce(
+          (sum, r) =>
+            sum +
+            ((r.grossIncome || 0) -
+              (r.canceledValue || 0) -
+              (r.returnedValue || 0)),
+          0
+        );
         const totalNetRevenue = calculatedRevenueReport.reduce(
           (sum, r) => sum + (r.calculatedNetRevenue || 0),
           0
@@ -164,6 +172,7 @@ const OperationalPage = () => {
 
         setRecapData({
           totalGrossRevenue,
+          totalAdjustedGross,
           totalAdminPay,
           totalNetRevenue,
           netProfit,

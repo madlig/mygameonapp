@@ -11,6 +11,7 @@
     "auth:set-admin": "node src/scripts/auth/setAdminClaim.cjs",
     "games:cleanup": "node src/scripts/cleanupGames.cjs",
     "algolia:diag": "node src/scripts/algolia/diagnose.mjs",
+    "algolia:reindex": "node src/scripts/algolia/reindex-from-firestore.mjs",
     "algolia:backfill": "node src/scripts/algolia/backfill-existing.mjs",
     "algolia:csv": "node src/scripts/algolia/bulk-upsert-from-csv.mjs games.csv"
   },

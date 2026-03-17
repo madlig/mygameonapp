@@ -64,6 +64,7 @@ const BulkImportModal = ({
   onClose,
   reports = [],
   onConfirmImport,
+  isImporting = false,
 }) => {
   const [rows, setRows] = useState([]);
   const [excludedIds, setExcludedIds] = useState(new Set());
@@ -116,6 +117,7 @@ const BulkImportModal = ({
   };
 
   const handleConfirm = () => {
+    if (isImporting) return;
     // collect non-excluded and non-error rows
     const toImport = rows
       .filter(
@@ -123,7 +125,6 @@ const BulkImportModal = ({
       )
       .map((r) => r.normalized);
     onConfirmImport && onConfirmImport(toImport);
-    onClose && onClose();
   };
 
   if (!isOpen) return null;
@@ -302,21 +303,21 @@ const BulkImportModal = ({
         )}
 
         <div className="mt-6 flex justify-end gap-3">
-          <button onClick={onClose} className="px-4 py-2 bg-gray-200 rounded">
+          <button
+            onClick={onClose}
+            disabled={isImporting}
+            className="px-4 py-2 bg-gray-200 rounded disabled:opacity-50"
+          >
             Batal
           </button>
           <button
             onClick={handleConfirm}
-            className="px-4 py-2 bg-green-600 text-white rounded"
+            disabled={isImporting}
+            className="px-4 py-2 bg-green-600 text-white rounded disabled:opacity-50"
           >
-            Confirm Import (
-            {
-              rows.filter(
-                (r) =>
-                  !excludedIds.has(r.id) && (!r.errors || r.errors.length === 0)
-              ).length
-            }
-            )
+            {isImporting
+              ? 'Mengimpor...'
+              : `Confirm Import (${rows.filter((r) => !excludedIds.has(r.id) && (!r.errors || r.errors.length === 0)).length})`}
           </button>
         </div>
       </div>

@@ -17,12 +17,10 @@ import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import EndShiftModal from './components/EndShiftModal';
 
-import NetRevenueSection from './components/NetRevenueSection';
-import AdminShiftSection from './components/AdminShiftSection';
-import DailyRecapSection from './components/DailyRecapSection';
+import OperationalDashboard from './ui/OperationalDashboard';
+import ShiftQuickPanel from './ui/ShiftQuickPanel';
 
 const OperationalPage = () => {
-  const [activeTab, setActiveTab] = useState('dailyRecap');
   const [loading, setLoading] = useState(false);
 
   const [startDate, setStartDate] = useState(new Date());
@@ -30,7 +28,6 @@ const OperationalPage = () => {
   const [activePreset, setActivePreset] = useState('thisMonth');
   const [showManualDateRange, setShowManualDateRange] = useState(false);
 
-  const [shiftReport, setShiftReport] = useState([]);
   const [revenueReport, setRevenueReport] = useState([]);
   const [recapData, setRecapData] = useState({});
 
@@ -115,8 +112,6 @@ const OperationalPage = () => {
             return { ...reportData, pay };
           })
           .sort((a, b) => b.date - a.date);
-        setShiftReport(calculatedShiftReport);
-
         // Fetch revenues
         const revenueQuery = query(
           collection(db, 'dailyRevenues'),
@@ -218,6 +213,23 @@ const OperationalPage = () => {
       setActivePreset(preset);
       setShowManualDateRange(false);
       fetchDataForPeriod(start, end);
+    },
+    [fetchDataForPeriod]
+  );
+
+  const handleImportedRangeDetected = useCallback(
+    (minDate, maxDate) => {
+      if (!(minDate instanceof Date) || !(maxDate instanceof Date)) return;
+      const nextStart = new Date(minDate);
+      nextStart.setHours(0, 0, 0, 0);
+      const nextEnd = new Date(maxDate);
+      nextEnd.setHours(23, 59, 59, 999);
+
+      setStartDate(nextStart);
+      setEndDate(nextEnd);
+      setActivePreset('importedRange');
+      setShowManualDateRange(true);
+      fetchDataForPeriod(nextStart, nextEnd);
     },
     [fetchDataForPeriod]
   );
@@ -328,29 +340,14 @@ const OperationalPage = () => {
         Operational Dashboard
       </h1>
 
-      {/* Tabs (responsive: scrollable on small screens) */}
-      <div className="overflow-x-auto no-scrollbar">
-        <div className="inline-flex bg-white rounded-lg shadow p-1">
-          <button
-            onClick={() => setActiveTab('dailyRecap')}
-            className={`px-4 py-2 rounded-md ${activeTab === 'dailyRecap' ? 'bg-blue-600 text-white' : 'text-gray-700'}`}
-          >
-            Daily Recap
-          </button>
-          <button
-            onClick={() => setActiveTab('adminShift')}
-            className={`ml-2 px-4 py-2 rounded-md ${activeTab === 'adminShift' ? 'bg-blue-600 text-white' : 'text-gray-700'}`}
-          >
-            Admin Shift
-          </button>
-          <button
-            onClick={() => setActiveTab('netRevenue')}
-            className={`ml-2 px-4 py-2 rounded-md ${activeTab === 'netRevenue' ? 'bg-blue-600 text-white' : 'text-gray-700'}`}
-          >
-            Net Revenue
-          </button>
-        </div>
-      </div>
+      <ShiftQuickPanel
+        adminName={adminName}
+        setAdminName={setAdminName}
+        activeShift={activeShift}
+        handleStartShift={handleStartShift}
+        handleEndShift={() => setIsEndShiftModalOpen(true)}
+        getActiveShiftDuration={getActiveShiftDuration}
+      />
 
       {/* Preset buttons */}
       <div className="bg-white p-4 rounded-lg shadow">
@@ -408,39 +405,17 @@ const OperationalPage = () => {
         )}
       </div>
 
-      {/* Content area */}
-      <div>
-        {loading ? (
-          <p className="text-center text-gray-500">Memuat data...</p>
-        ) : (
-          <>
-            {activeTab === 'dailyRecap' && (
-              <DailyRecapSection data={recapData} />
-            )}
-            {activeTab === 'adminShift' && (
-              <AdminShiftSection
-                shiftReport={shiftReport}
-                onRefreshRequest={() => fetchDataForPeriod(startDate, endDate)}
-                adminName={adminName}
-                setAdminName={setAdminName}
-                activeShift={activeShift}
-                handleStartShift={handleStartShift}
-                handleEndShift={() => setIsEndShiftModalOpen(true)}
-                getActiveShiftDuration={getActiveShiftDuration}
-              />
-            )}
-            {activeTab === 'netRevenue' && (
-              <NetRevenueSection
-                revenueReport={revenueReport}
-                onRefreshRequest={() => fetchDataForPeriod(startDate, endDate)}
-                onRevenueSubmitSuccess={() =>
-                  fetchDataForPeriod(startDate, endDate)
-                }
-              />
-            )}
-          </>
-        )}
-      </div>
+      {loading ? (
+        <p className="text-center text-gray-500">Memuat data...</p>
+      ) : (
+        <OperationalDashboard
+          revenueReport={revenueReport}
+          recapData={recapData}
+          onRefreshRequest={() => fetchDataForPeriod(startDate, endDate)}
+          onImportedRangeDetected={handleImportedRangeDetected}
+        />
+      )}
+
       <EndShiftModal
         isOpen={isEndShiftModalOpen}
         onClose={() => setIsEndShiftModalOpen(false)}

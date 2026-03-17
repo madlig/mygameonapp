@@ -1,6 +1,6 @@
 // src/pages/OperationalPage/NetRevenueSection.jsx
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { db } from '../../../config/firebaseConfig';
 import {
   collection,
@@ -17,8 +17,21 @@ import {
 import Swal from 'sweetalert2';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
+import BulkImportModal from './BulkImportModal';
+import AdSpendDistributionModal from './AdSpendDistributionModal';
+import VoucherImportModal from './VoucherImportModal';
+import { parseShopeeReportForBulk } from '../utils/fileParser';
+import { parseVoucherReportForBulk } from '../utils/voucherParser';
+import { importDailyRevenueReports } from '../utils/dailyRevenueImporter';
+import { buildFinancialSnapshot } from '../services/financialCalculator';
+import { importVoucherReports } from '../services/voucherImporter';
+import { normalizeToLocalMidnight } from '../utils/dateUtils';
 
-const NetRevenueSection = ({ revenueReport, onRefreshRequest }) => {
+const NetRevenueSection = ({
+  revenueReport,
+  onRefreshRequest,
+  onImportedRangeDetected,
+}) => {
   // --- STATE UNTUK FORM INPUT ---
   const [reportDate, setReportDate] = useState(new Date());
   const [grossIncome, setGrossIncome] = useState('');
@@ -36,7 +49,19 @@ const NetRevenueSection = ({ revenueReport, onRefreshRequest }) => {
 
   // --- STATE UNTUK NAMPUNG TAB INTERNAL & MASS INPUT ---
   const [activeInputTab, setActiveInputTab] = useState('penjualan');
+  const [activeBiayaTab, setActiveBiayaTab] = useState('voucher');
+  const [activeIklanMode, setActiveIklanMode] = useState('manual');
   const [stagedUpdates, setStagedUpdates] = useState([]);
+  const [isAdDistributionModalOpen, setIsAdDistributionModalOpen] =
+    useState(false);
+  const [isBulkImportOpen, setIsBulkImportOpen] = useState(false);
+  const [parsedBulkReports, setParsedBulkReports] = useState([]);
+  const [isBulkImporting, setIsBulkImporting] = useState(false);
+  const [isVoucherImportOpen, setIsVoucherImportOpen] = useState(false);
+  const [parsedVoucherReports, setParsedVoucherReports] = useState([]);
+  const [isVoucherImporting, setIsVoucherImporting] = useState(false);
+  const shopeeFileInputRef = useRef(null);
+  const voucherFileInputRef = useRef(null);
 
   useEffect(() => {
     const initialData = revenueReport.map((r) => ({
@@ -46,6 +71,126 @@ const NetRevenueSection = ({ revenueReport, onRefreshRequest }) => {
     }));
     setStagedUpdates(initialData);
   }, [revenueReport]);
+
+  const handleOpenShopeeImport = () => {
+    shopeeFileInputRef.current?.click();
+  };
+
+  const handleShopeeFileSelected = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+
+    try {
+      const buffer = await file.arrayBuffer();
+      const parsedReports = parseShopeeReportForBulk(buffer);
+
+      if (!parsedReports.length) {
+        Swal.fire(
+          'Tidak Ada Data Harian',
+          'File terdeteksi tetapi tidak menemukan baris harian yang valid.',
+          'warning'
+        );
+        return;
+      }
+
+      setParsedBulkReports(parsedReports);
+      setIsBulkImportOpen(true);
+    } catch (error) {
+      console.error('Failed to parse Shopee report file:', error);
+      Swal.fire('Error', 'Gagal membaca file Shopee.', 'error');
+    }
+  };
+
+  const handleConfirmShopeeImport = async (reportsToImport) => {
+    if (!reportsToImport?.length) {
+      Swal.fire('Info', 'Tidak ada data valid untuk diimpor.', 'info');
+      return;
+    }
+
+    setIsBulkImporting(true);
+    try {
+      const result = await importDailyRevenueReports(reportsToImport);
+      const validDates = reportsToImport
+        .map((item) => item?.date)
+        .filter((d) => d instanceof Date && !Number.isNaN(d.getTime()))
+        .sort((a, b) => a.getTime() - b.getTime());
+
+      const minDate = validDates[0] || null;
+      const maxDate = validDates[validDates.length - 1] || null;
+
+      Swal.fire(
+        'Berhasil!',
+        `Import selesai. Dibuat: ${result.created}, Diperbarui: ${result.updated}.`,
+        'success'
+      );
+      setIsBulkImportOpen(false);
+      setParsedBulkReports([]);
+      if (minDate && maxDate && onImportedRangeDetected) {
+        onImportedRangeDetected(minDate, maxDate);
+      }
+      onRefreshRequest();
+    } catch (error) {
+      console.error('Failed to import daily revenues:', error);
+      Swal.fire('Error', 'Gagal mengimpor laporan harian.', 'error');
+    } finally {
+      setIsBulkImporting(false);
+    }
+  };
+
+  const handleOpenVoucherImport = () => {
+    voucherFileInputRef.current?.click();
+  };
+
+  const handleVoucherFileSelected = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+
+    try {
+      const buffer = await file.arrayBuffer();
+      const parsedReports = parseVoucherReportForBulk(buffer);
+      if (!parsedReports.length) {
+        Swal.fire(
+          'Tidak Ada Data Voucher',
+          'File tidak berisi data voucher harian yang valid.',
+          'warning'
+        );
+        return;
+      }
+
+      setParsedVoucherReports(parsedReports);
+      setIsVoucherImportOpen(true);
+    } catch (error) {
+      console.error('Failed to parse voucher report file:', error);
+      Swal.fire('Error', 'Gagal membaca file voucher.', 'error');
+    }
+  };
+
+  const handleConfirmVoucherImport = async (reportsToImport = []) => {
+    if (!reportsToImport?.length) {
+      Swal.fire('Info', 'Tidak ada data voucher untuk diimpor.', 'info');
+      return;
+    }
+
+    setIsVoucherImporting(true);
+    try {
+      const result = await importVoucherReports(reportsToImport);
+      Swal.fire(
+        'Berhasil!',
+        `Import voucher selesai. Dibuat: ${result.created}, Diperbarui: ${result.updated}, Dilewati: ${result.skipped}.`,
+        'success'
+      );
+      setIsVoucherImportOpen(false);
+      setParsedVoucherReports([]);
+      onRefreshRequest();
+    } catch (error) {
+      console.error('Failed to import voucher reports:', error);
+      Swal.fire('Error', 'Gagal mengimpor laporan voucher.', 'error');
+    } finally {
+      setIsVoucherImporting(false);
+    }
+  };
 
   const handleReportSubmit = async (e) => {
     e.preventDefault();
@@ -67,29 +212,15 @@ const NetRevenueSection = ({ revenueReport, onRefreshRequest }) => {
       );
       return;
     }
-    const successfulOrders =
-      inputs.totalOrders - inputs.canceledOrders - inputs.returnedOrders;
-    const actualGrossIncome =
-      inputs.grossIncome - inputs.canceledValue - inputs.returnedValue;
-    const adminFeeBase = actualGrossIncome - inputs.voucherCost;
-    const adminFee = adminFeeBase * 0.075;
-    const fixedFee = successfulOrders * 1250;
-    const netRevenue =
-      actualGrossIncome -
-      inputs.voucherCost -
-      adminFee -
-      fixedFee -
-      inputs.adSpend;
-    const reportDateToSave = new Date(reportDate);
-    reportDateToSave.setHours(0, 0, 0, 0);
-    const newReport = {
+    const financial = buildFinancialSnapshot(inputs);
+    const reportDateToSave = normalizeToLocalMidnight(reportDate);
+    const basePayload = {
       date: reportDateToSave,
-      ...inputs,
-      successfulOrders,
-      calculatedNetRevenue: netRevenue,
-      month: reportDateToSave.getMonth(),
       year: reportDateToSave.getFullYear(),
-      createdAt: serverTimestamp(),
+      month: reportDateToSave.getMonth(),
+      ...inputs,
+      ...financial,
+      adSpendSource: 'manual',
       voucherCost: inputs.voucherCost,
       adSpend: inputs.adSpend,
     };
@@ -110,13 +241,17 @@ const NetRevenueSection = ({ revenueReport, onRefreshRequest }) => {
         });
         if (confirm.isConfirmed) {
           await updateDoc(doc(db, 'dailyRevenues', docId), {
-            ...newReport,
+            ...basePayload,
             updatedAt: serverTimestamp(),
           });
           Swal.fire('Berhasil!', 'Laporan diperbarui.', 'success');
         }
       } else {
-        await addDoc(collection(db, 'dailyRevenues'), newReport);
+        await addDoc(collection(db, 'dailyRevenues'), {
+          ...basePayload,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        });
         Swal.fire('Berhasil!', 'Laporan disimpan.', 'success');
       }
       setGrossIncome('');
@@ -153,26 +288,12 @@ const NetRevenueSection = ({ revenueReport, onRefreshRequest }) => {
       adSpend: parseFloat(editingReport.adSpend) || 0,
     };
 
-    // 2. Lakukan perhitungan ULANG, sama seperti saat submit
-    const successfulOrders =
-      inputs.totalOrders - inputs.canceledOrders - inputs.returnedOrders;
-    const actualGrossIncome =
-      inputs.grossIncome - inputs.canceledValue - inputs.returnedValue;
-    const adminFeeBase = actualGrossIncome - inputs.voucherCost;
-    const adminFee = adminFeeBase * 0.075;
-    const fixedFee = successfulOrders * 1250;
-    const netRevenue =
-      actualGrossIncome -
-      inputs.voucherCost -
-      adminFee -
-      fixedFee -
-      inputs.adSpend;
+    const financial = buildFinancialSnapshot(inputs);
 
-    // 3. Siapkan data LENGKAP untuk di-update
     const updatedData = {
-      ...inputs, // Simpan kembali semua nilai input yang mungkin diubah
-      successfulOrders,
-      calculatedNetRevenue: netRevenue,
+      ...inputs,
+      ...financial,
+      adSpendSource: 'manual',
       updatedAt: serverTimestamp(),
     };
 
@@ -217,10 +338,16 @@ const NetRevenueSection = ({ revenueReport, onRefreshRequest }) => {
     );
   };
 
-  const handleBatchUpdate = async () => {
+  const handleBatchUpdate = async (scope) => {
+    const scopeLabel =
+      scope === 'voucher'
+        ? 'Voucher'
+        : scope === 'adSpend'
+          ? 'Iklan'
+          : 'Voucher & Iklan';
     const confirmation = await Swal.fire({
       title: 'Simpan Perubahan?',
-      text: `Anda akan memperbarui data Voucher & Iklan untuk laporan yang ditampilkan.`,
+      text: `Anda akan memperbarui data ${scopeLabel} untuk laporan yang ditampilkan.`,
       icon: 'info',
       showCancelButton: true,
       confirmButtonText: 'Ya, Simpan!',
@@ -229,7 +356,8 @@ const NetRevenueSection = ({ revenueReport, onRefreshRequest }) => {
     if (!confirmation.isConfirmed) return;
 
     try {
-      const batch = writeBatch(db);
+      const MAX_BATCH_OPERATIONS = 450;
+      const operations = [];
       let changesCount = 0;
 
       // Loop melalui data yang mungkin telah diubah di UI
@@ -242,13 +370,16 @@ const NetRevenueSection = ({ revenueReport, onRefreshRequest }) => {
         // Konversi nilai input menjadi angka untuk perbandingan yang akurat
         const updatedVoucherCost = parseFloat(updatedReport.voucherCost) || 0;
         const updatedAdSpend = parseFloat(updatedReport.adSpend) || 0;
+        const shouldCheckVoucher = scope === 'voucher' || scope === 'both';
+        const shouldCheckAdSpend = scope === 'adSpend' || scope === 'both';
+        const voucherChanged =
+          shouldCheckVoucher &&
+          originalReport.voucherCost !== updatedVoucherCost;
+        const adSpendChanged =
+          shouldCheckAdSpend && originalReport.adSpend !== updatedAdSpend;
 
         // Lanjutkan hanya jika ada perubahan pada voucher atau iklan
-        if (
-          originalReport &&
-          (originalReport.voucherCost !== updatedVoucherCost ||
-            originalReport.adSpend !== updatedAdSpend)
-        ) {
+        if (originalReport && (voucherChanged || adSpendChanged)) {
           changesCount++;
           const reportDocRef = doc(db, 'dailyRevenues', updatedReport.id);
 
@@ -260,32 +391,28 @@ const NetRevenueSection = ({ revenueReport, onRefreshRequest }) => {
             canceledValue: parseFloat(updatedReport.canceledValue) || 0,
             returnedOrders: parseInt(updatedReport.returnedOrders) || 0,
             returnedValue: parseFloat(updatedReport.returnedValue) || 0,
-            voucherCost: updatedVoucherCost, // Gunakan nilai yang sudah divalidasi
-            adSpend: updatedAdSpend, // Gunakan nilai yang sudah divalidasi
+            voucherCost: shouldCheckVoucher
+              ? updatedVoucherCost
+              : parseFloat(originalReport.voucherCost) || 0,
+            adSpend: shouldCheckAdSpend
+              ? updatedAdSpend
+              : parseFloat(originalReport.adSpend) || 0,
           };
 
-          // Lakukan perhitungan ulang dengan data terbaru
-          const successfulOrders =
-            inputs.totalOrders - inputs.canceledOrders - inputs.returnedOrders;
-          const actualGrossIncome =
-            inputs.grossIncome - inputs.canceledValue - inputs.returnedValue;
-          const adminFeeBase = actualGrossIncome - inputs.voucherCost;
-          const adminFee = adminFeeBase * 0.075;
-          const fixedFee = successfulOrders * 1250;
-          const netRevenue =
-            actualGrossIncome -
-            inputs.voucherCost -
-            adminFee -
-            fixedFee -
-            inputs.adSpend;
+          const financial = buildFinancialSnapshot(inputs);
 
           // Tambahkan operasi update ke batch
-          batch.update(reportDocRef, {
-            voucherCost: inputs.voucherCost,
-            adSpend: inputs.adSpend,
-            calculatedNetRevenue: netRevenue,
+          const payload = {
+            calculatedNetRevenue: financial.calculatedNetRevenue,
+            successfulOrders: financial.successfulOrders,
             updatedAt: serverTimestamp(),
-          });
+          };
+          if (shouldCheckVoucher) payload.voucherCost = inputs.voucherCost;
+          if (shouldCheckAdSpend) {
+            payload.adSpend = inputs.adSpend;
+            payload.adSpendSource = 'manual';
+          }
+          operations.push({ ref: reportDocRef, payload });
         }
       });
 
@@ -294,7 +421,14 @@ const NetRevenueSection = ({ revenueReport, onRefreshRequest }) => {
         return;
       }
 
-      await batch.commit();
+      for (let i = 0; i < operations.length; i += MAX_BATCH_OPERATIONS) {
+        const chunk = operations.slice(i, i + MAX_BATCH_OPERATIONS);
+        const batch = writeBatch(db);
+        chunk.forEach((operation) => {
+          batch.update(operation.ref, operation.payload);
+        });
+        await batch.commit();
+      }
       Swal.fire(
         'Berhasil!',
         `${changesCount} laporan telah diperbarui.`,
@@ -335,9 +469,31 @@ const NetRevenueSection = ({ revenueReport, onRefreshRequest }) => {
         {/* Tab 1: Input data penjualan */}
         {activeInputTab === 'penjualan' && (
           <form onSubmit={handleReportSubmit} className="space-y-4">
-            <h3 className="text-lg font-semibold text-gray-800">
-              Input Rekap Penjualan Harian
-            </h3>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <h3 className="text-lg font-semibold text-gray-800">
+                Input Rekap Penjualan Harian
+              </h3>
+              <div className="flex items-center gap-2">
+                <input
+                  ref={shopeeFileInputRef}
+                  type="file"
+                  accept=".xlsx,.xls"
+                  className="hidden"
+                  onChange={handleShopeeFileSelected}
+                />
+                <button
+                  type="button"
+                  onClick={handleOpenShopeeImport}
+                  className="bg-indigo-600 text-white px-3 py-2 rounded-md hover:bg-indigo-700"
+                >
+                  Import Shopee XLSX
+                </button>
+              </div>
+            </div>
+            <p className="text-sm text-gray-500">
+              Import otomatis membaca data harian dari sheet Pesanan Siap
+              Dikirim.
+            </p>
             <div>
               <label className="block text-sm">Tanggal Laporan</label>
               <DatePicker
@@ -435,83 +591,206 @@ const NetRevenueSection = ({ revenueReport, onRefreshRequest }) => {
             <h3 className="text-lg font-semibold text-gray-800">
               Input Biaya untuk Periode yang Ditampilkan
             </h3>
-            <div className="overflow-x-auto border rounded-md">
-              <table className="min-w-full">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-                      Tanggal
-                    </th>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-                      Biaya Voucher (Rp)
-                    </th>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-                      Biaya Iklan (Rp)
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {stagedUpdates.length > 0 ? (
-                    stagedUpdates.map((report) => (
-                      <tr key={report.id}>
-                        <td className="px-3 py-2 whitespace-nowrap text-sm font-medium text-gray-800">
-                          {report.date.toLocaleDateString('id-ID', {
-                            day: '2-digit',
-                            month: 'short',
-                          })}
-                        </td>
-                        <td className="px-3 py-2 whitespace-nowrap">
-                          <input
-                            type="number"
-                            value={report.voucherCost || ''}
-                            onChange={(e) =>
-                              handleStagedUpdateChange(
-                                report.id,
-                                'voucherCost',
-                                e.target.value
-                              )
-                            }
-                            className="w-full p-1 border rounded-md"
-                            placeholder="0"
-                          />
-                        </td>
-                        <td className="px-3 py-2 whitespace-nowrap">
-                          <input
-                            type="number"
-                            value={report.adSpend || ''}
-                            onChange={(e) =>
-                              handleStagedUpdateChange(
-                                report.id,
-                                'adSpend',
-                                e.target.value
-                              )
-                            }
-                            className="w-full p-1 border rounded-md"
-                            placeholder="0"
-                          />
-                        </td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td
-                        colSpan="3"
-                        className="text-center py-4 text-gray-500"
-                      >
-                        Pilih rentang tanggal di atas untuk menampilkan data.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
+            <div className="border-b border-gray-200">
+              <nav className="-mb-px flex space-x-4">
+                <button
+                  onClick={() => setActiveBiayaTab('voucher')}
+                  className={`py-2 px-1 border-b-2 font-medium text-sm ${activeBiayaTab === 'voucher' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
+                >
+                  Voucher
+                </button>
+                <button
+                  onClick={() => setActiveBiayaTab('iklan')}
+                  className={`py-2 px-1 border-b-2 font-medium text-sm ${activeBiayaTab === 'iklan' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
+                >
+                  Iklan
+                </button>
+              </nav>
             </div>
-            {stagedUpdates.length > 0 && (
-              <button
-                onClick={handleBatchUpdate}
-                className="w-full bg-blue-600 text-white font-semibold py-2 px-4 rounded-md hover:bg-blue-700"
-              >
-                Simpan Semua Perubahan Biaya
-              </button>
+
+            {activeBiayaTab === 'voucher' && (
+              <>
+                <div className="flex items-center justify-end">
+                  <input
+                    ref={voucherFileInputRef}
+                    type="file"
+                    accept=".xlsx,.xls"
+                    className="hidden"
+                    onChange={handleVoucherFileSelected}
+                  />
+                  <button
+                    type="button"
+                    onClick={handleOpenVoucherImport}
+                    className="bg-emerald-600 text-white px-3 py-2 rounded-md hover:bg-emerald-700"
+                  >
+                    Import Voucher XLSX
+                  </button>
+                </div>
+                <div className="overflow-x-auto border rounded-md">
+                  <table className="min-w-full">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                          Tanggal
+                        </th>
+                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                          Biaya Voucher (Rp)
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {stagedUpdates.length > 0 ? (
+                        stagedUpdates.map((report) => (
+                          <tr key={report.id}>
+                            <td className="px-3 py-2 whitespace-nowrap text-sm font-medium text-gray-800">
+                              {report.date.toLocaleDateString('id-ID', {
+                                day: '2-digit',
+                                month: 'short',
+                              })}
+                            </td>
+                            <td className="px-3 py-2 whitespace-nowrap">
+                              <input
+                                type="number"
+                                value={report.voucherCost || ''}
+                                onChange={(e) =>
+                                  handleStagedUpdateChange(
+                                    report.id,
+                                    'voucherCost',
+                                    e.target.value
+                                  )
+                                }
+                                className="w-full p-1 border rounded-md"
+                                placeholder="0"
+                              />
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td
+                            colSpan="2"
+                            className="text-center py-4 text-gray-500"
+                          >
+                            Pilih rentang tanggal di atas untuk menampilkan
+                            data.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+                {stagedUpdates.length > 0 && (
+                  <button
+                    onClick={() => handleBatchUpdate('voucher')}
+                    className="w-full bg-blue-600 text-white font-semibold py-2 px-4 rounded-md hover:bg-blue-700"
+                  >
+                    Simpan Perubahan Voucher
+                  </button>
+                )}
+              </>
+            )}
+
+            {activeBiayaTab === 'iklan' && (
+              <div className="space-y-4">
+                <div className="border-b border-gray-200">
+                  <nav className="-mb-px flex space-x-4">
+                    <button
+                      onClick={() => setActiveIklanMode('manual')}
+                      className={`py-2 px-1 border-b-2 font-medium text-sm ${activeIklanMode === 'manual' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
+                    >
+                      Manual Input
+                    </button>
+                    <button
+                      onClick={() => setActiveIklanMode('automatic')}
+                      className={`py-2 px-1 border-b-2 font-medium text-sm ${activeIklanMode === 'automatic' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
+                    >
+                      Automatic Distribution
+                    </button>
+                  </nav>
+                </div>
+
+                {activeIklanMode === 'manual' && (
+                  <>
+                    <div className="overflow-x-auto border rounded-md">
+                      <table className="min-w-full">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                              Tanggal
+                            </th>
+                            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                              Biaya Iklan (Rp)
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                          {stagedUpdates.length > 0 ? (
+                            stagedUpdates.map((report) => (
+                              <tr key={report.id}>
+                                <td className="px-3 py-2 whitespace-nowrap text-sm font-medium text-gray-800">
+                                  {report.date.toLocaleDateString('id-ID', {
+                                    day: '2-digit',
+                                    month: 'short',
+                                  })}
+                                </td>
+                                <td className="px-3 py-2 whitespace-nowrap">
+                                  <input
+                                    type="number"
+                                    value={report.adSpend || ''}
+                                    onChange={(e) =>
+                                      handleStagedUpdateChange(
+                                        report.id,
+                                        'adSpend',
+                                        e.target.value
+                                      )
+                                    }
+                                    className="w-full p-1 border rounded-md"
+                                    placeholder="0"
+                                  />
+                                </td>
+                              </tr>
+                            ))
+                          ) : (
+                            <tr>
+                              <td
+                                colSpan="2"
+                                className="text-center py-4 text-gray-500"
+                              >
+                                Pilih rentang tanggal di atas untuk menampilkan
+                                data.
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                    {stagedUpdates.length > 0 && (
+                      <button
+                        onClick={() => handleBatchUpdate('adSpend')}
+                        className="w-full bg-blue-600 text-white font-semibold py-2 px-4 rounded-md hover:bg-blue-700"
+                      >
+                        Simpan Perubahan Iklan
+                      </button>
+                    )}
+                  </>
+                )}
+
+                {activeIklanMode === 'automatic' && (
+                  <div className="p-4 border rounded-md bg-indigo-50">
+                    <p className="text-sm text-indigo-900">
+                      Distribusikan total biaya iklan ke beberapa hari secara
+                      otomatis (equal atau revenue-weighted) dengan preview
+                      sebelum disimpan.
+                    </p>
+                    <button
+                      onClick={() => setIsAdDistributionModalOpen(true)}
+                      className="mt-3 bg-indigo-600 text-white px-3 py-2 rounded-md hover:bg-indigo-700"
+                    >
+                      Buka Ad Spend Distribution
+                    </button>
+                  </div>
+                )}
+              </div>
             )}
           </div>
         )}
@@ -830,6 +1109,37 @@ const NetRevenueSection = ({ revenueReport, onRefreshRequest }) => {
           </div>
         </div>
       </div>
+
+      <BulkImportModal
+        isOpen={isBulkImportOpen}
+        onClose={() => {
+          if (isBulkImporting) return;
+          setIsBulkImportOpen(false);
+        }}
+        reports={parsedBulkReports}
+        onConfirmImport={handleConfirmShopeeImport}
+        isImporting={isBulkImporting}
+      />
+
+      <VoucherImportModal
+        isOpen={isVoucherImportOpen}
+        onClose={() => {
+          if (isVoucherImporting) return;
+          setIsVoucherImportOpen(false);
+        }}
+        reports={parsedVoucherReports}
+        onConfirmImport={handleConfirmVoucherImport}
+        isImporting={isVoucherImporting}
+      />
+
+      <AdSpendDistributionModal
+        isOpen={isAdDistributionModalOpen}
+        onClose={() => setIsAdDistributionModalOpen(false)}
+        onApplied={() => {
+          setIsAdDistributionModalOpen(false);
+          onRefreshRequest();
+        }}
+      />
     </section>
   );
 };

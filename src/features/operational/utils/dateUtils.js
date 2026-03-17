@@ -8,6 +8,31 @@ export const normalizeToLocalMidnight = (input) => {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0);
 };
 
+export const parseYmdToLocalDate = (ymd) => {
+  if (typeof ymd !== 'string') return null;
+  const parts = ymd.split('-').map((part) => Number(part));
+  if (parts.length !== 3) return null;
+  const [year, month, day] = parts;
+  if (!year || !month || !day) return null;
+  return new Date(year, month - 1, day, 0, 0, 0, 0);
+};
+
+export const toLocalStartOfDay = (input) => normalizeToLocalMidnight(input);
+
+export const toLocalEndOfDay = (input) => {
+  const normalized = normalizeToLocalMidnight(input);
+  if (!normalized) return null;
+  return new Date(
+    normalized.getFullYear(),
+    normalized.getMonth(),
+    normalized.getDate(),
+    23,
+    59,
+    59,
+    999
+  );
+};
+
 export const excelSerialToLocalDate = (serial) => {
   if (typeof serial !== 'number') return null;
   // Excel serial number -> JS Date

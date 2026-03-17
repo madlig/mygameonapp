@@ -16,6 +16,9 @@ const RequestsPage = lazy(() => import('../features/requests/RequestsPage'));
 const OperationalPage = lazy(
   () => import('../features/operational/OperationalPage')
 );
+const OperationalShiftPage = lazy(
+  () => import('../features/operational/OperationalShiftPage')
+);
 const LandingPage = lazy(() => import('../features/landing/LandingPage'));
 const RequestGamePage = lazy(
   () => import('../features/landing/RequestGamePage')
@@ -53,6 +56,10 @@ const AppRouter = () => {
             <Route path="/task" element={<TaskPage />} />
             <Route path="/requests" element={<RequestsPage />} />
             <Route path="/operational" element={<OperationalPage />} />
+            <Route
+              path="/operational/shift"
+              element={<OperationalShiftPage />}
+            />
             <Route path="/feedback" element={<FeedbackPage />} />
             <Route path="/about" element={<AboutPage />} />
           </Route>

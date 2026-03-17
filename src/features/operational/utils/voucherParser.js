@@ -1,121 +1,142 @@
-// src/features/operational/utils/voucherParser.js
 import * as XLSX from 'xlsx';
-import { excelSerialToLocalDate, normalizeToLocalMidnight } from '../utils/dateUtils';
+import { excelSerialToLocalDate, normalizeToLocalMidnight } from './dateUtils';
 
-const cleanAndParseNumber = (rawValue) => {
-  if (typeof rawValue === 'number') return rawValue;
-  if (typeof rawValue === 'string') {
-    const cleanedString = rawValue.replace(/[^\d,-]/g, '').replace(',', '.');
-    const number = parseFloat(cleanedString);
-    return isNaN(number) ? 0 : number;
+const MAX_HEADER_SCAN_ROWS = 20;
+
+const normalizeText = (value) =>
+  String(value || '')
+    .toLowerCase()
+    .replace(/[()]/g, ' ')
+    .replace(/[.,:/_-]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+const toNumber = (value) => {
+  if (typeof value === 'number') return value;
+  if (typeof value !== 'string') return 0;
+  const cleaned = value.trim().replace(/[^\d.,-]/g, '');
+  if (!cleaned) return 0;
+
+  let normalized = cleaned;
+  if (cleaned.includes('.') && cleaned.includes(',')) {
+    normalized = cleaned.replace(/\./g, '').replace(',', '.');
+  } else if (cleaned.includes('.')) {
+    const parts = cleaned.split('.');
+    if (parts.length > 1 && parts.slice(1).every((part) => part.length === 3)) {
+      normalized = cleaned.replace(/\./g, '');
+    }
+  } else if (cleaned.includes(',')) {
+    const parts = cleaned.split(',');
+    normalized =
+      parts.length === 2 && parts[1].length === 3
+        ? cleaned.replace(/,/g, '')
+        : cleaned.replace(',', '.');
   }
-  return 0;
+
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : 0;
 };
 
-const parseStringDateToLocal = (rawStr) => {
-  if (!rawStr || typeof rawStr !== 'string') return null;
-  // common formats: "01-10-2025" or "01/10/2025" or "01.10.2025"
-  const sep = rawStr.includes('-') ? '-' : rawStr.includes('/') ? '/' : rawStr.includes('.') ? '.' : null;
-  if (!sep) return null;
-  const parts = rawStr.split(sep).map(p => p.trim());
-  if (parts.length !== 3) return null;
-  const [dStr, mStr, yStr] = parts;
-  const day = parseInt(dStr, 10);
-  const month = parseInt(mStr, 10) - 1;
-  const year = parseInt(yStr, 10);
-  if (Number.isNaN(day) || Number.isNaN(month) || Number.isNaN(year)) return null;
-  return normalizeToLocalMidnight(new Date(year, month, day));
+const parsePromoDate = (rawValue) => {
+  if (rawValue instanceof Date) return normalizeToLocalMidnight(rawValue);
+  if (typeof rawValue === 'number') return excelSerialToLocalDate(rawValue);
+  if (typeof rawValue !== 'string') return null;
+
+  const value = rawValue.trim();
+  if (!value) return null;
+  const datePart = value.split(' ')[0];
+
+  let match = datePart.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/);
+  if (match) {
+    const day = Number(match[1]);
+    const month = Number(match[2]) - 1;
+    const year = Number(match[3]);
+    return normalizeToLocalMidnight(new Date(year, month, day));
+  }
+
+  match = datePart.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})$/);
+  if (match) {
+    const year = Number(match[1]);
+    const month = Number(match[2]) - 1;
+    const day = Number(match[3]);
+    return normalizeToLocalMidnight(new Date(year, month, day));
+  }
+
+  return null;
+};
+
+const findHeader = (rows) => {
+  const limit = Math.min(rows.length, MAX_HEADER_SCAN_ROWS);
+  for (let i = 0; i < limit; i += 1) {
+    const row = rows[i] || [];
+    const normalized = row.map((cell) => normalizeText(cell));
+
+    const dateIndex = normalized.findIndex((cell) =>
+      cell.includes('waktu promo')
+    );
+    const voucherIndex = normalized.findIndex((cell) =>
+      cell.includes('total biaya pesanan dibuat idr')
+    );
+
+    if (dateIndex !== -1 && voucherIndex !== -1) {
+      return { headerRowIndex: i, dateIndex, voucherIndex };
+    }
+  }
+  return null;
+};
+
+const pickTargetSheet = (workbook) => {
+  const exact = workbook.SheetNames.find(
+    (name) => normalizeText(name) === normalizeText('Grafik Kriteria')
+  );
+  if (exact) return exact;
+  const partial = workbook.SheetNames.find((name) =>
+    normalizeText(name).includes(normalizeText('Grafik Kriteria'))
+  );
+  if (partial) return partial;
+  return null;
 };
 
 export const parseVoucherReportForBulk = (arrayBuffer) => {
   try {
-    const workbook = XLSX.read(arrayBuffer, { type: "buffer" });
-    const worksheetNames = workbook.SheetNames;
+    const workbook = XLSX.read(arrayBuffer, { type: 'buffer' });
+    const targetSheet = pickTargetSheet(workbook);
+    if (!targetSheet) return [];
 
-    // Find plausible sheet — prefer "Grafik Kriteria" if exists
-    const targetSheetName = worksheetNames.includes("Grafik Kriteria") ? "Grafik Kriteria" : worksheetNames[0];
-    const worksheet = workbook.Sheets[targetSheetName];
-    if (!worksheet) {
-      console.warn(`Voucher parser: sheet "${targetSheetName}" not found.`);
-      return [];
-    }
+    const worksheet = workbook.Sheets[targetSheet];
+    if (!worksheet) return [];
 
-    const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: null });
-
-    // Find header row that contains "Waktu Promo" or similar
-    let headerRowIndex = -1;
-    for (let i = 0; i < rows.length; i++) {
-      const row = rows[i];
-      if (Array.isArray(row) && (row.includes("Waktu Promo") || row.includes("Waktu") || row.includes("Periode"))) {
-        headerRowIndex = i;
-        break;
-      }
-    }
-    if (headerRowIndex === -1) {
-      console.warn("Voucher parser: header row not found.");
-      return [];
-    }
-
-    const headerRow = rows[headerRowIndex];
-    const headerIndexMap = {};
-    headerRow.forEach((h, idx) => {
-      if (h) headerIndexMap[String(h).trim()] = idx;
+    const rows = XLSX.utils.sheet_to_json(worksheet, {
+      header: 1,
+      defval: null,
+      raw: true,
     });
 
-    // Try to detect date & cost columns using expected header names
-    const dateKeys = ["Waktu Promo", "Waktu", "Tanggal", "Periode"];
-    const costKeys = [
-      "Total Biaya (Pesanan Dibuat) (IDR)",
-      "Total Biaya (Pesanan Dibuat)",
-      "Total Biaya",
-      "Biaya",
-      "Total Biaya (IDR)"
-    ];
+    const header = findHeader(rows);
+    if (!header) return [];
 
-    let dateCol = null;
-    for (const k of dateKeys) if (headerIndexMap[k] !== undefined) { dateCol = headerIndexMap[k]; break; }
-    let costCol = null;
-    for (const k of costKeys) if (headerIndexMap[k] !== undefined) { costCol = headerIndexMap[k]; break; }
+    const dailyMap = new Map();
 
-    // If automatic detection failed, try heuristics
-    if (dateCol === null) {
-      // fallback: find first column that contains "Waktu" substring
-      for (let i = 0; i < headerRow.length; i++) {
-        const h = headerRow[i];
-        if (h && String(h).toLowerCase().includes("waktu")) { dateCol = i; break; }
-      }
-    }
-    if (costCol === null) {
-      for (let i = 0; i < headerRow.length; i++) {
-        const h = headerRow[i];
-        if (h && String(h).toLowerCase().includes("biaya")) { costCol = i; break; }
-      }
+    for (let i = header.headerRowIndex + 1; i < rows.length; i += 1) {
+      const row = rows[i];
+      if (!Array.isArray(row) || row.length === 0) continue;
+
+      const date = parsePromoDate(row[header.dateIndex]);
+      if (!date) continue;
+
+      const voucherCost = toNumber(row[header.voucherIndex]);
+      const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+      dailyMap.set(key, {
+        date,
+        voucherCost: voucherCost + (dailyMap.get(key)?.voucherCost || 0),
+      });
     }
 
-    const dailyVouchers = [];
-    for (let r = headerRowIndex + 1; r < rows.length; r++) {
-      const row = rows[r];
-      if (!row || row.length === 0) continue;
-
-      let rawDate = dateCol !== null ? row[dateCol] : null;
-      let date = null;
-      if (typeof rawDate === 'number') {
-        date = excelSerialToLocalDate(rawDate);
-      } else if (typeof rawDate === 'string') {
-        date = parseStringDateToLocal(rawDate) || excelSerialToLocalDate(Number(rawDate)) || null;
-      }
-
-      const rawCost = costCol !== null ? row[costCol] : null;
-      const voucherCost = cleanAndParseNumber(rawCost);
-
-      if (date && voucherCost && voucherCost > 0) {
-        dailyVouchers.push({ date, voucherCost });
-      }
-    }
-
-    return dailyVouchers;
+    return Array.from(dailyMap.values()).sort(
+      (a, b) => a.date.getTime() - b.date.getTime()
+    );
   } catch (error) {
-    console.error("Error parsing voucher file:", error);
+    console.error('Error parsing voucher report:', error);
     return [];
   }
 };

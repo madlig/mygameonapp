@@ -15,6 +15,7 @@ import DatePicker from 'react-datepicker';
 import { db } from '../../config/firebaseConfig';
 import AdminShiftSection from './components/AdminShiftSection';
 import EndShiftModal from './components/EndShiftModal';
+import { calculateShiftCompensation } from './services/shiftPayrollCalculator';
 
 const OperationalShiftPage = () => {
   const [loading, setLoading] = useState(false);
@@ -27,23 +28,6 @@ const OperationalShiftPage = () => {
   const [ordersCountInput, setOrdersCountInput] = useState('');
   const [isEndShiftModalOpen, setIsEndShiftModalOpen] = useState(false);
   const [endShiftLoading, setEndShiftLoading] = useState(false);
-
-  const calculateShiftPay = useCallback((hours, grossIncome) => {
-    let basePay = 0;
-    if (hours < 4) return Math.max(0, grossIncome * 0.1);
-    if (hours < 8) basePay = 20000;
-    else basePay = hours > 15 ? 50000 : 30000;
-
-    let overtime = 0;
-    if (hours > 8) {
-      const extra = hours - 8;
-      if (hours > 15) overtime = extra * 2500;
-      else overtime = extra <= 1 ? extra * 3000 : 3000 + (extra - 1) * 5000;
-    }
-
-    const bonus = grossIncome * 0.05;
-    return Math.max(0, basePay + overtime + bonus);
-  }, []);
 
   const fetchShiftReport = useCallback(async () => {
     setLoading(true);
@@ -84,7 +68,10 @@ const OperationalShiftPage = () => {
       const report = Object.values(grouped)
         .map((row) => ({
           ...row,
-          pay: calculateShiftPay(row.totalDurationHours, row.totalGrossIncome),
+          pay: calculateShiftCompensation({
+            totalDurationHours: row.totalDurationHours,
+            totalGrossIncome: row.totalGrossIncome,
+          }).totalPay,
         }))
         .sort((a, b) => b.date - a.date);
 
@@ -95,7 +82,7 @@ const OperationalShiftPage = () => {
     } finally {
       setLoading(false);
     }
-  }, [startDate, endDate, calculateShiftPay]);
+  }, [startDate, endDate]);
 
   const fetchActiveShift = useCallback(async () => {
     const activeQuery = query(
@@ -165,11 +152,17 @@ const OperationalShiftPage = () => {
       const endTime = new Date();
       const duration =
         (endTime.getTime() - activeShift.startTime.getTime()) / 3600000;
+      const compensation = calculateShiftCompensation({
+        totalDurationHours: duration,
+        totalGrossIncome: parseFloat(grossIncomeInput),
+      });
       await updateDoc(doc(db, 'adminShifts', activeShift.id), {
         endTime: serverTimestamp(),
         duration,
         grossIncome: parseFloat(grossIncomeInput),
         ordersCount: parseInt(ordersCountInput, 10),
+        pay: compensation.totalPay,
+        payrollBreakdown: compensation.breakdown,
         status: 'completed',
       });
 
@@ -195,6 +188,18 @@ const OperationalShiftPage = () => {
     const seconds = Math.floor((diff % 60000) / 1000);
     return `${hours} jam ${minutes} menit ${seconds} detik`;
   };
+
+  const getActiveShiftDurationHours = () => {
+    if (!activeShift?.startTime) return 0;
+    const diff = Date.now() - activeShift.startTime.getTime();
+    if (diff <= 0) return 0;
+    return diff / 3600000;
+  };
+
+  const estimatedCompensation = calculateShiftCompensation({
+    totalDurationHours: getActiveShiftDurationHours(),
+    totalGrossIncome: parseFloat(grossIncomeInput) || 0,
+  });
 
   return (
     <div className="space-y-5 p-4 sm:p-6">
@@ -251,6 +256,7 @@ const OperationalShiftPage = () => {
         setGrossIncome={setGrossIncomeInput}
         ordersCount={ordersCountInput}
         setOrdersCount={setOrdersCountInput}
+        estimatedCompensation={estimatedCompensation}
         loading={endShiftLoading}
       />
     </div>

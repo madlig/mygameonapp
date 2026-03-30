@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { ADMIN_ROSTER } from '../config/adminRoster';
 
 const ShiftQuickPanel = ({
   adminName,
@@ -10,7 +11,7 @@ const ShiftQuickPanel = ({
   getActiveShiftDuration,
 }) => {
   const [localAdmin, setLocalAdmin] = useState(adminName || '');
-  const adminList = ['Fariz', 'Adli'];
+  const adminList = ADMIN_ROSTER;
 
   return (
     <section className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">

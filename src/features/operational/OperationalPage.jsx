@@ -19,6 +19,7 @@ import EndShiftModal from './components/EndShiftModal';
 
 import OperationalDashboard from './ui/OperationalDashboard';
 import ShiftQuickPanel from './ui/ShiftQuickPanel';
+import { calculateShiftCompensation } from './services/shiftPayrollCalculator';
 
 const OperationalPage = () => {
   const [loading, setLoading] = useState(false);
@@ -39,151 +40,122 @@ const OperationalPage = () => {
   const [isEndShiftModalOpen, setIsEndShiftModalOpen] = useState(false);
   const [endShiftLoading, setEndShiftLoading] = useState(false);
 
-  const calculateShiftPay = useCallback(
-    (totalDurationHours, totalGrossIncome) => {
-      let basePay = 0;
-      const bonusPercentage = 0.05;
-      if (totalDurationHours < 4) return Math.max(0, totalGrossIncome * 0.1);
-      if (totalDurationHours < 8) basePay = 20000;
-      else basePay = totalDurationHours > 15 ? 50000 : 30000;
-      let totalOvertimePay = 0;
-      const standardShiftHours = 8;
-      if (totalDurationHours > standardShiftHours) {
-        const overtimeHours = totalDurationHours - standardShiftHours;
-        if (totalDurationHours > 15) {
-          totalOvertimePay = overtimeHours * 2500;
-        } else {
-          const first = 3000,
-            subsequent = 5000;
-          totalOvertimePay =
-            overtimeHours <= 1
-              ? overtimeHours * first
-              : first + (overtimeHours - 1) * subsequent;
+  const fetchDataForPeriod = useCallback(async (start, end) => {
+    setLoading(true);
+    try {
+      const startOfDay = new Date(start);
+      startOfDay.setHours(0, 0, 0, 0);
+      const endOfDay = new Date(end);
+      endOfDay.setHours(23, 59, 59, 999);
+
+      // Fetch admin shifts
+      const shiftQuery = query(
+        collection(db, 'adminShifts'),
+        where('status', '==', 'completed'),
+        where('startTime', '>=', startOfDay),
+        where('startTime', '<=', endOfDay),
+        orderBy('startTime', 'asc')
+      );
+      const shiftSnapshot = await getDocs(shiftQuery);
+      const dailyAdminAggregates = {};
+      shiftSnapshot.docs.forEach((docItem) => {
+        const d = docItem.data();
+        const startTime = d.startTime.toDate();
+        const groupKey = `${startTime.toISOString().split('T')[0]}_${d.adminName}`;
+        if (!dailyAdminAggregates[groupKey]) {
+          dailyAdminAggregates[groupKey] = {
+            date: startTime,
+            adminName: d.adminName,
+            totalDurationHours: 0,
+            totalGrossIncome: 0,
+            totalOrders: 0,
+          };
         }
-      }
-      const performanceBonus = totalGrossIncome * bonusPercentage;
-      return Math.max(0, basePay + performanceBonus + totalOvertimePay);
-    },
-    []
-  );
+        dailyAdminAggregates[groupKey].totalDurationHours += d.duration || 0;
+        dailyAdminAggregates[groupKey].totalGrossIncome += d.grossIncome || 0;
+        dailyAdminAggregates[groupKey].totalOrders += d.ordersCount || 0;
+      });
+      const calculatedShiftReport = Object.values(dailyAdminAggregates)
+        .map((reportData) => {
+          const compensation = calculateShiftCompensation({
+            totalDurationHours: reportData.totalDurationHours,
+            totalGrossIncome: reportData.totalGrossIncome,
+          });
+          return {
+            ...reportData,
+            pay: compensation.totalPay,
+            payrollBreakdown: compensation.breakdown,
+          };
+        })
+        .sort((a, b) => b.date - a.date);
+      // Fetch revenues
+      const revenueQuery = query(
+        collection(db, 'dailyRevenues'),
+        where('date', '>=', startOfDay),
+        where('date', '<=', endOfDay),
+        orderBy('date', 'desc')
+      );
+      const revenueSnapshot = await getDocs(revenueQuery);
+      const calculatedRevenueReport = revenueSnapshot.docs.map((d) => ({
+        id: d.id,
+        ...d.data(),
+        date: d.data().date.toDate(),
+      }));
+      setRevenueReport(calculatedRevenueReport);
 
-  const fetchDataForPeriod = useCallback(
-    async (start, end) => {
-      setLoading(true);
-      try {
-        const startOfDay = new Date(start);
-        startOfDay.setHours(0, 0, 0, 0);
-        const endOfDay = new Date(end);
-        endOfDay.setHours(23, 59, 59, 999);
+      // Aggregate recap
+      const totalAdminPay = calculatedShiftReport.reduce(
+        (sum, r) => sum + r.pay,
+        0
+      );
+      const totalGrossRevenue = calculatedRevenueReport.reduce(
+        (sum, r) => sum + (r.grossIncome || 0),
+        0
+      );
+      const totalAdjustedGross = calculatedRevenueReport.reduce(
+        (sum, r) =>
+          sum +
+          ((r.grossIncome || 0) -
+            (r.canceledValue || 0) -
+            (r.returnedValue || 0)),
+        0
+      );
+      const totalNetRevenue = calculatedRevenueReport.reduce(
+        (sum, r) => sum + (r.calculatedNetRevenue || 0),
+        0
+      );
+      const totalSuccessfulOrders = calculatedRevenueReport.reduce(
+        (sum, r) => sum + (r.successfulOrders || 0),
+        0
+      );
+      const totalAdSpend = calculatedRevenueReport.reduce(
+        (sum, r) => sum + (r.adSpend || 0),
+        0
+      );
 
-        // Fetch admin shifts
-        const shiftQuery = query(
-          collection(db, 'adminShifts'),
-          where('status', '==', 'completed'),
-          where('startTime', '>=', startOfDay),
-          where('startTime', '<=', endOfDay),
-          orderBy('startTime', 'asc')
-        );
-        const shiftSnapshot = await getDocs(shiftQuery);
-        const dailyAdminAggregates = {};
-        shiftSnapshot.docs.forEach((docItem) => {
-          const d = docItem.data();
-          const startTime = d.startTime.toDate();
-          const groupKey = `${startTime.toISOString().split('T')[0]}_${d.adminName}`;
-          if (!dailyAdminAggregates[groupKey]) {
-            dailyAdminAggregates[groupKey] = {
-              date: startTime,
-              adminName: d.adminName,
-              totalDurationHours: 0,
-              totalGrossIncome: 0,
-              totalOrders: 0,
-            };
-          }
-          dailyAdminAggregates[groupKey].totalDurationHours += d.duration || 0;
-          dailyAdminAggregates[groupKey].totalGrossIncome += d.grossIncome || 0;
-          dailyAdminAggregates[groupKey].totalOrders += d.ordersCount || 0;
-        });
-        const calculatedShiftReport = Object.values(dailyAdminAggregates)
-          .map((reportData) => {
-            const pay = calculateShiftPay(
-              reportData.totalDurationHours,
-              reportData.totalGrossIncome
-            );
-            return { ...reportData, pay };
-          })
-          .sort((a, b) => b.date - a.date);
-        // Fetch revenues
-        const revenueQuery = query(
-          collection(db, 'dailyRevenues'),
-          where('date', '>=', startOfDay),
-          where('date', '<=', endOfDay),
-          orderBy('date', 'desc')
-        );
-        const revenueSnapshot = await getDocs(revenueQuery);
-        const calculatedRevenueReport = revenueSnapshot.docs.map((d) => ({
-          id: d.id,
-          ...d.data(),
-          date: d.data().date.toDate(),
-        }));
-        setRevenueReport(calculatedRevenueReport);
+      const netProfit = totalNetRevenue - totalAdminPay;
+      const salaryPercentage =
+        totalNetRevenue > 0 ? (totalAdminPay / totalNetRevenue) * 100 : 0;
+      const avgRevenuePerOrder =
+        totalSuccessfulOrders > 0 ? totalNetRevenue / totalSuccessfulOrders : 0;
 
-        // Aggregate recap
-        const totalAdminPay = calculatedShiftReport.reduce(
-          (sum, r) => sum + r.pay,
-          0
-        );
-        const totalGrossRevenue = calculatedRevenueReport.reduce(
-          (sum, r) => sum + (r.grossIncome || 0),
-          0
-        );
-        const totalAdjustedGross = calculatedRevenueReport.reduce(
-          (sum, r) =>
-            sum +
-            ((r.grossIncome || 0) -
-              (r.canceledValue || 0) -
-              (r.returnedValue || 0)),
-          0
-        );
-        const totalNetRevenue = calculatedRevenueReport.reduce(
-          (sum, r) => sum + (r.calculatedNetRevenue || 0),
-          0
-        );
-        const totalSuccessfulOrders = calculatedRevenueReport.reduce(
-          (sum, r) => sum + (r.successfulOrders || 0),
-          0
-        );
-        const totalAdSpend = calculatedRevenueReport.reduce(
-          (sum, r) => sum + (r.adSpend || 0),
-          0
-        );
-
-        const netProfit = totalNetRevenue - totalAdminPay;
-        const salaryPercentage =
-          totalNetRevenue > 0 ? (totalAdminPay / totalNetRevenue) * 100 : 0;
-        const avgRevenuePerOrder =
-          totalSuccessfulOrders > 0
-            ? totalNetRevenue / totalSuccessfulOrders
-            : 0;
-
-        setRecapData({
-          totalGrossRevenue,
-          totalAdjustedGross,
-          totalAdminPay,
-          totalNetRevenue,
-          netProfit,
-          salaryPercentage,
-          avgRevenuePerOrder,
-          totalSuccessfulOrders,
-          totalAdSpend,
-        });
-      } catch (error) {
-        console.error('Error fetching data:', error);
-      } finally {
-        setLoading(false);
-      }
-    },
-    [calculateShiftPay]
-  );
+      setRecapData({
+        totalGrossRevenue,
+        totalAdjustedGross,
+        totalAdminPay,
+        totalNetRevenue,
+        netProfit,
+        salaryPercentage,
+        avgRevenuePerOrder,
+        totalSuccessfulOrders,
+        totalAdSpend,
+      });
+    } catch (error) {
+      console.error('Error fetching data:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   const handlePresetClick = useCallback(
     (preset) => {
@@ -299,11 +271,19 @@ const OperationalPage = () => {
       const endTime = new Date();
       const durationHours =
         (endTime.getTime() - activeShift.startTime.getTime()) / 3600000;
+      const gross = parseFloat(grossIncomeInput);
+      const orders = parseInt(ordersCountInput, 10);
+      const compensation = calculateShiftCompensation({
+        totalDurationHours: durationHours,
+        totalGrossIncome: gross,
+      });
       await updateDoc(shiftDocRef, {
         endTime: serverTimestamp(),
         duration: durationHours,
-        grossIncome: parseFloat(grossIncomeInput),
-        ordersCount: parseInt(ordersCountInput),
+        grossIncome: gross,
+        ordersCount: orders,
+        pay: compensation.totalPay,
+        payrollBreakdown: compensation.breakdown,
         status: 'completed',
       });
       Swal.fire(
@@ -333,6 +313,18 @@ const OperationalPage = () => {
     const seconds = Math.floor((diffMs % 60000) / 1000);
     return `${hours} jam ${minutes} menit ${seconds} detik`;
   };
+
+  const getActiveShiftDurationHours = () => {
+    if (!activeShift?.startTime) return 0;
+    const diffMs = Date.now() - activeShift.startTime.getTime();
+    if (diffMs <= 0) return 0;
+    return diffMs / 3600000;
+  };
+
+  const estimatedCompensation = calculateShiftCompensation({
+    totalDurationHours: getActiveShiftDurationHours(),
+    totalGrossIncome: parseFloat(grossIncomeInput) || 0,
+  });
 
   return (
     <div className="p-4 sm:p-6 space-y-6">
@@ -424,6 +416,7 @@ const OperationalPage = () => {
         setGrossIncome={setGrossIncomeInput}
         ordersCount={ordersCountInput}
         setOrdersCount={setOrdersCountInput}
+        estimatedCompensation={estimatedCompensation}
         loading={endShiftLoading}
       />
     </div>

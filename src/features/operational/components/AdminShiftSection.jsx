@@ -1,5 +1,6 @@
 // src/pages/OperationalPage/AdminShiftSection.jsx
 import React, { useState } from 'react';
+import { ADMIN_ROSTER } from '../config/adminRoster';
 
 const AdminShiftSection = ({
   shiftReport,
@@ -11,7 +12,7 @@ const AdminShiftSection = ({
   getActiveShiftDuration,
 }) => {
   const [localAdmin, setLocalAdmin] = useState(adminName || '');
-  const adminList = ['Fariz', 'Adli'];
+  const adminList = ADMIN_ROSTER;
 
   const totalGaji = shiftReport.reduce(
     (sum, report) => sum + (report.pay || 0),

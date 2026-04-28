@@ -1,12 +1,38 @@
-import React, { useState, useEffect, useMemo } from 'react';
+// src/features/games/GamesPage.jsx
+//
+// Admin Games Catalog Page
+// Refactored: Apr 28, 2026
+//
+// Architecture:
+//   - Pure presentation: hampir semua logic di-extract ke hooks/utils/components
+//   - Schema baru langsung dipakai (no more normalizeGameData)
+//   - Real-time fetch dari games/ + gamesPrivate/ via useGamesData
+//   - Genre filter dari metadata via useMetadataGenres
+//
+// Features preserved:
+//   - List, search, filter, sort, pagination
+//   - Multi-select bulk actions (delete, status change)
+//   - Add/Edit/Import via modals (NOT touched in this refactor)
+//   - Update Versi via Task (modal NOT touched)
+//   - Mobile card + Desktop table views
+//   - Shopee link button + copy
+//
+// Features removed:
+//   - normalizeGameData (no longer needed)
+//   - handleExportSchemaAudit (cleanup tool, not needed post-migration)
+//   - Hardcoded genre dropdown (now dynamic from metadata)
+//   - Inline format helpers (moved to utils/formatters)
+//   - title_lower duplication (Algolia handles)
+//   - Multi-status options (now: available / unavailable only)
+
+import React, { useEffect, useMemo, useState } from 'react';
 import {
-  collection,
-  onSnapshot,
   writeBatch,
   doc,
+  serverTimestamp,
   addDoc,
   updateDoc,
-  serverTimestamp,
+  collection,
 } from 'firebase/firestore';
 import { db } from '../../config/firebaseConfig';
 import {
@@ -15,9 +41,6 @@ import {
   Filter,
   Trash2,
   Loader2,
-  MapPin,
-  Calendar,
-  Disc,
   Tag,
   ChevronLeft,
   ChevronRight,
@@ -28,540 +51,451 @@ import {
   ArrowDown,
   HardDrive,
   RefreshCw,
+  Calendar,
+  Disc,
 } from 'lucide-react';
 import Swal from 'sweetalert2';
-import { format, formatDistanceToNow } from 'date-fns';
-import { id as localeId } from 'date-fns/locale';
+
 import GameFormModal from './components/GameFormModal';
 import BulkGameImportModal from './components/BulkGameImportModal';
-// IMPORT MODAL TASK
 import TaskFormModal from '../tasks/components/TaskFormModal';
 
-const GamesPage = () => {
-  const [games, setGames] = useState([]);
-  const [rawGames, setRawGames] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const storeUrl = 'https://shopee.co.id/mygameon';
+import { useGamesData } from './hooks/useGamesData';
+import { useMetadataGenres } from './hooks/useMetadataGenres';
+import {
+  formatFileSize,
+  formatPackageType,
+  formatRelativeDate,
+  formatAbsoluteDate,
+  resolveTimestamp,
+} from './utils/formatters';
+import StatusBadge from './components/StatusBadge';
+import LocationCell from './components/LocationCell';
 
-  // State Filter & Search
+const STORE_URL = 'https://shopee.co.id/mygameon';
+const ITEMS_PER_PAGE = 10;
+
+// ============================================================
+// MAIN COMPONENT
+// ============================================================
+
+const GamesPage = () => {
+  // === DATA (real-time from Firestore) ===
+  const { games, loading } = useGamesData();
+  const { genres: metadataGenres } = useMetadataGenres();
+
+  // === FILTER & SEARCH STATE ===
   const [searchTerm, setSearchTerm] = useState('');
   const [filterGenre, setFilterGenre] = useState('');
 
-  // State Sorting
+  // === SORT STATE ===
   const [sortConfig, setSortConfig] = useState({
     key: 'createdAt',
     direction: 'desc',
   });
 
-  // State Pagination
+  // === PAGINATION STATE ===
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
 
-  // State Modal Games
+  // === SELECTION & MODAL STATE ===
   const [selectedIds, setSelectedIds] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingGame, setEditingGame] = useState(null);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
-  // STATE MODAL TASK (BARU)
+  // === TASK MODAL STATE (for "Update Versi") ===
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [taskPrefill, setTaskPrefill] = useState(null);
 
-  const normalizeGameData = (rawGame) => {
-    const parsedSizeFromString = (() => {
-      if (typeof rawGame.size !== 'string') return null;
-      const match = rawGame.size.match(/[\d.,]+/);
-      if (!match) return null;
-      const parsed = Number(match[0].replace(',', '.'));
-      return Number.isFinite(parsed) ? parsed : null;
-    })();
+  // ============================================================
+  // FILTERING + SORTING (memoized)
+  // ============================================================
 
-    const inferredSizeUnitFromString = (() => {
-      if (typeof rawGame.size !== 'string') return '';
-      const upper = rawGame.size.toUpperCase();
-      if (upper.includes('TB')) return 'TB';
-      if (upper.includes('MB')) return 'MB';
-      if (upper.includes('GB')) return 'GB';
-      return '';
-    })();
-
-    const normalizedSize =
-      typeof rawGame.size === 'number' ? rawGame.size : parsedSizeFromString;
-    const normalizedSizeUnit =
-      rawGame.sizeUnit || rawGame.unit || inferredSizeUnitFromString || 'GB';
-    const normalizedLocation =
-      typeof rawGame.location === 'string'
-        ? rawGame.location
-        : Array.isArray(rawGame.locations)
-          ? rawGame.locations[0] || ''
-          : '';
-    const normalizedTitle = rawGame.title || rawGame.name || '';
-    const normalizedNumberOfParts = Number(
-      rawGame.numberOfParts ?? rawGame.jumlahPart ?? 1
-    );
-
-    const sizeInGb = (() => {
-      if (!Number.isFinite(normalizedSize)) return 0;
-      if (normalizedSizeUnit === 'TB') return normalizedSize * 1024;
-      if (normalizedSizeUnit === 'MB') return normalizedSize / 1024;
-      return normalizedSize;
-    })();
-
-    return {
-      ...rawGame,
-      title: normalizedTitle,
-      location: normalizedLocation,
-      size: Number.isFinite(normalizedSize) ? normalizedSize : null,
-      sizeUnit: normalizedSizeUnit,
-      numberOfParts: Number.isFinite(normalizedNumberOfParts)
-        ? normalizedNumberOfParts
-        : 1,
-      createdAt: rawGame.createdAt || rawGame.dateAdded || null,
-      lastVersionDate:
-        rawGame.lastVersionDate ||
-        rawGame.dateAdded ||
-        rawGame.createdAt ||
-        null,
-      sortableSize: sizeInGb,
-    };
-  };
-
-  // FETCH REALTIME
-  useEffect(() => {
-    const unsubscribe = onSnapshot(
-      collection(db, 'games'),
-      (snapshot) => {
-        const rawGamesData = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
-        const gamesData = snapshot.docs.map((doc) =>
-          normalizeGameData({ id: doc.id, ...doc.data() })
-        );
-        setRawGames(rawGamesData);
-        setGames(gamesData);
-        setLoading(false);
-      },
-      (error) => {
-        console.error('Error fetching games:', error);
-        setLoading(false);
-      }
-    );
-    return () => unsubscribe();
-  }, []);
-
-  // --- LOGIKA FILTERING & SORTING ---
   const processedGames = useMemo(() => {
-    let data = games.filter((game) => {
-      const searchLower = searchTerm.toLowerCase();
-      const matchesSearch =
-        (game.title || '').toLowerCase().includes(searchLower) ||
-        (game.location || '').toLowerCase().includes(searchLower);
+    const searchLower = searchTerm.toLowerCase().trim();
+    const genreLower = filterGenre.toLowerCase().trim();
 
+    let result = games.filter((game) => {
+      // Search: title OR storage location email
+      let matchesSearch = !searchLower;
+      if (searchLower) {
+        const titleMatch = (game.title || '')
+          .toLowerCase()
+          .includes(searchLower);
+        const locationMatch = (game._private?.storageLocations || []).some(
+          (loc) => (loc.email || '').toLowerCase().includes(searchLower)
+        );
+        matchesSearch = titleMatch || locationMatch;
+      }
+
+      // Genre: array contains
       const matchesGenre =
-        filterGenre === '' ||
-        (Array.isArray(game.genre)
-          ? game.genre.some((g) =>
-              g.toLowerCase().includes(filterGenre.toLowerCase())
-            )
-          : (game.genre || '')
-              .toLowerCase()
-              .includes(filterGenre.toLowerCase()));
+        !genreLower ||
+        (Array.isArray(game.genres) &&
+          game.genres.some((g) => g.toLowerCase() === genreLower));
 
       return matchesSearch && matchesGenre;
     });
 
+    // Sort
     if (sortConfig.key) {
-      data.sort((a, b) => {
-        let aValue = a[sortConfig.key];
-        let bValue = b[sortConfig.key];
-
-        if (aValue === undefined || aValue === null) aValue = '';
-        if (bValue === undefined || bValue === null) bValue = '';
-
-        if (typeof aValue === 'string') aValue = aValue.toLowerCase();
-        if (typeof bValue === 'string') bValue = bValue.toLowerCase();
+      result = [...result].sort((a, b) => {
+        let aVal, bVal;
 
         if (
           sortConfig.key === 'createdAt' ||
-          sortConfig.key === 'lastVersionDate' ||
-          sortConfig.key === 'updatedAt'
+          sortConfig.key === 'updatedAt' ||
+          sortConfig.key === 'lastFileUpdatedAt'
         ) {
-          aValue = aValue?.seconds || 0;
-          bValue = bValue?.seconds || 0;
+          aVal = resolveTimestamp(a[sortConfig.key])?.getTime() || 0;
+          bVal = resolveTimestamp(b[sortConfig.key])?.getTime() || 0;
+        } else if (sortConfig.key === 'fileSizeBytes') {
+          aVal = a.fileSizeBytes || 0;
+          bVal = b.fileSizeBytes || 0;
+        } else if (sortConfig.key === 'location') {
+          // Sort by first storage location email
+          aVal = (a._private?.storageLocations?.[0]?.email || '').toLowerCase();
+          bVal = (b._private?.storageLocations?.[0]?.email || '').toLowerCase();
+        } else {
+          aVal = (a[sortConfig.key] ?? '').toString().toLowerCase();
+          bVal = (b[sortConfig.key] ?? '').toString().toLowerCase();
         }
 
-        if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
-        if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
+        if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
+        if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
         return 0;
       });
     }
-    return data;
+
+    return result;
   }, [games, searchTerm, filterGenre, sortConfig]);
 
+  const totalPages = Math.ceil(processedGames.length / ITEMS_PER_PAGE);
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const displayedGames = processedGames.slice(
+    startIndex,
+    startIndex + ITEMS_PER_PAGE
+  );
+
+  // Reset to page 1 when filter changes
   useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm, filterGenre]);
 
-  const totalPages = Math.ceil(processedGames.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const displayedGames = processedGames.slice(
-    startIndex,
-    startIndex + itemsPerPage
-  );
+  // ============================================================
+  // HANDLERS
+  // ============================================================
 
-  // --- HANDLERS ---
   const handleSort = (key) => {
-    let direction = 'asc';
-    if (sortConfig.key === key && sortConfig.direction === 'asc') {
-      direction = 'desc';
-    }
-    setSortConfig({ key, direction });
+    setSortConfig((prev) => {
+      if (prev.key === key) {
+        return { key, direction: prev.direction === 'asc' ? 'desc' : 'asc' };
+      }
+      return { key, direction: 'asc' };
+    });
   };
 
   const handleOpenAdd = () => {
     setEditingGame(null);
     setIsModalOpen(true);
   };
+
   const handleOpenEdit = (game) => {
     setEditingGame(game);
     setIsModalOpen(true);
   };
 
   const handleSaveGame = async (formData, gameId) => {
-    const payload = {
-      ...formData,
-      updatedAt: serverTimestamp(),
-    };
-
-    if (!payload.createdAt) {
-      payload.createdAt = serverTimestamp();
-    }
-
-    if (!payload.lastVersionDate) {
-      payload.lastVersionDate = payload.createdAt;
-    }
-
-    if (gameId) {
-      await updateDoc(doc(db, 'games', gameId), payload);
-    } else {
-      await addDoc(collection(db, 'games'), payload);
+    try {
+      const dataWithTimestamp = {
+        ...formData,
+        updatedAt: serverTimestamp(),
+      };
+      if (gameId) {
+        await updateDoc(doc(db, 'games', gameId), dataWithTimestamp);
+      } else {
+        await addDoc(collection(db, 'games'), {
+          ...dataWithTimestamp,
+          createdAt: serverTimestamp(),
+        });
+      }
+    } catch (err) {
+      console.error('Error saving game:', err);
+      Swal.fire({
+        title: 'Gagal Menyimpan',
+        text: err.message,
+        icon: 'error',
+        confirmButtonColor: '#0f172a',
+      });
     }
   };
 
-  // HANDLER BARU: UPDATE VERSI VIA TASK
+  /**
+   * Handler "Update Versi" — opens TaskFormModal with prefilled data
+   * to create a task for updating game version.
+   */
   const handleUpdateVersion = (game, e) => {
-    e.stopPropagation(); // Agar tidak membuka modal edit game
+    if (e) e.stopPropagation();
     setTaskPrefill({
+      title: `Update versi: ${game.title}`,
       gameId: game.id,
       gameTitle: game.title,
-      currentVersion: game.version,
+      currentVersion: game.fileVersion || '-',
     });
     setIsTaskModalOpen(true);
   };
 
   const toggleSelection = (id) => {
     setSelectedIds((prev) =>
-      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
     );
   };
 
   const toggleSelectAll = () => {
-    if (selectedIds.length === displayedGames.length) setSelectedIds([]);
-    else setSelectedIds(displayedGames.map((g) => g.id));
+    if (selectedIds.length === displayedGames.length) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(displayedGames.map((g) => g.id));
+    }
   };
 
   const handleBulkDelete = async () => {
     const result = await Swal.fire({
-      title: `Hapus ${selectedIds.length} Game?`,
-      text: 'Data yang dihapus tidak bisa dikembalikan.',
+      title: `Hapus ${selectedIds.length} game?`,
+      text: 'Tindakan ini tidak bisa dibatalkan.',
       icon: 'warning',
       showCancelButton: true,
-      confirmButtonColor: '#d33',
-      confirmButtonText: 'Ya, Hapus Semua',
+      confirmButtonColor: '#dc2626',
+      cancelButtonColor: '#64748b',
+      confirmButtonText: 'Ya, Hapus',
+      cancelButtonText: 'Batal',
     });
-    if (result.isConfirmed) {
+
+    if (!result.isConfirmed) return;
+
+    try {
       const batch = writeBatch(db);
-      selectedIds.forEach((id) => batch.delete(doc(db, 'games', id)));
+      selectedIds.forEach((id) => {
+        batch.delete(doc(db, 'games', id));
+        batch.delete(doc(db, 'gamesPrivate', id));
+      });
       await batch.commit();
       setSelectedIds([]);
-      Swal.fire('Terhapus!', 'Game terpilih telah dihapus.', 'success');
+      Swal.fire({
+        title: 'Berhasil!',
+        text: `${selectedIds.length} game telah dihapus.`,
+        icon: 'success',
+        confirmButtonColor: '#0f172a',
+        timer: 1500,
+      });
+    } catch (err) {
+      console.error('Bulk delete error:', err);
+      Swal.fire({
+        title: 'Gagal Menghapus',
+        text: err.message,
+        icon: 'error',
+        confirmButtonColor: '#0f172a',
+      });
     }
   };
 
   const handleBulkStatus = async (newStatus) => {
-    const batch = writeBatch(db);
-    selectedIds.forEach((id) =>
-      batch.update(doc(db, 'games', id), { status: newStatus })
-    );
-    await batch.commit();
-    setSelectedIds([]);
-    Swal.fire(
-      'Updated!',
-      `Status ${selectedIds.length} game diubah jadi ${newStatus}.`,
-      'success'
-    );
+    if (!['available', 'unavailable'].includes(newStatus)) return;
+
+    try {
+      const batch = writeBatch(db);
+      selectedIds.forEach((id) =>
+        batch.update(doc(db, 'games', id), {
+          availabilityStatus: newStatus,
+          updatedAt: serverTimestamp(),
+        })
+      );
+      await batch.commit();
+      setSelectedIds([]);
+    } catch (err) {
+      console.error('Bulk status error:', err);
+      Swal.fire({
+        title: 'Gagal Update Status',
+        text: err.message,
+        icon: 'error',
+        confirmButtonColor: '#0f172a',
+      });
+    }
   };
 
-  const formatVersionDate = (timestamp) => {
-    if (!timestamp) return '-';
-    const date = timestamp.seconds
-      ? new Date(timestamp.seconds * 1000)
-      : new Date(timestamp);
-    return format(date, 'd MMM yyyy', { locale: localeId });
-  };
-
-  const resolveTimestamp = (timestamp) => {
-    if (!timestamp) return null;
-    if (timestamp.seconds) return new Date(timestamp.seconds * 1000);
-    return new Date(timestamp);
-  };
-
-  const formatRelative = (timestamp) => {
-    const date = resolveTimestamp(timestamp);
-    if (!date || Number.isNaN(date.getTime())) return '-';
-    return formatDistanceToNow(date, { addSuffix: true, locale: localeId });
-  };
-
-  const getShopeeLink = (game) => game.shopeeLink || storeUrl;
+  const getShopeeLink = (game) => game.shopee?.url || STORE_URL;
 
   const handleCopyShopeeLink = async (link) => {
     try {
       await navigator.clipboard.writeText(link);
       Swal.fire({
+        title: 'Tersalin!',
+        text: 'Link Shopee telah disalin ke clipboard.',
         icon: 'success',
-        title: 'Link disalin',
         timer: 1200,
         showConfirmButton: false,
+        toast: true,
+        position: 'top-end',
       });
-    } catch (error) {
-      Swal.fire({
-        icon: 'error',
-        title: 'Gagal menyalin link',
-        text: error?.message || 'Coba copy manual.',
-      });
+    } catch (err) {
+      console.error('Copy failed:', err);
     }
   };
 
-  const getFieldType = (value) => {
-    if (value === null) return 'null';
-    if (Array.isArray(value)) return 'array';
-    if (value?.seconds && value?.nanoseconds !== undefined) return 'timestamp';
-    return typeof value;
-  };
-
-  const handleExportSchemaAudit = () => {
-    if (rawGames.length === 0) {
-      Swal.fire('Tidak ada data', 'Collection games masih kosong.', 'info');
-      return;
-    }
-
-    const fieldMap = {};
-
-    rawGames.forEach((game) => {
-      Object.entries(game).forEach(([key, value]) => {
-        if (!fieldMap[key]) {
-          fieldMap[key] = {
-            count: 0,
-            types: {},
-            samples: [],
-          };
-        }
-
-        const type = getFieldType(value);
-        fieldMap[key].count += 1;
-        fieldMap[key].types[type] = (fieldMap[key].types[type] || 0) + 1;
-
-        if (fieldMap[key].samples.length < 3) {
-          fieldMap[key].samples.push(value);
-        }
-      });
-    });
-
-    const sortedFields = Object.keys(fieldMap).sort();
-    const report = {
-      generatedAt: new Date().toISOString(),
-      totalDocs: rawGames.length,
-      totalUniqueFields: sortedFields.length,
-      fields: sortedFields.reduce((acc, key) => {
-        acc[key] = {
-          presentIn: `${fieldMap[key].count}/${rawGames.length}`,
-          presencePercent: Number(
-            ((fieldMap[key].count / rawGames.length) * 100).toFixed(2)
-          ),
-          types: fieldMap[key].types,
-          samples: fieldMap[key].samples,
-        };
-        return acc;
-      }, {}),
-      docsPreview: rawGames.slice(0, 10),
-    };
-
-    const blob = new Blob([JSON.stringify(report, null, 2)], {
-      type: 'application/json',
-    });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `games-schema-audit-${Date.now()}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-
-    Swal.fire({
-      icon: 'success',
-      title: 'Schema audit diexport',
-      html: `Total dokumen: <b>${rawGames.length}</b><br/>Total field unik: <b>${sortedFields.length}</b>`,
-    });
-  };
+  // ============================================================
+  // SUB-COMPONENTS
+  // ============================================================
 
   const SortableHeader = ({ label, sortKey, width }) => {
     const isActive = sortConfig.key === sortKey;
+    const Icon = !isActive
+      ? ArrowUpDown
+      : sortConfig.direction === 'asc'
+        ? ArrowUp
+        : ArrowDown;
     return (
       <th
-        className={`p-4 text-xs font-bold text-slate-500 uppercase tracking-wider cursor-pointer hover:bg-slate-100 transition-colors select-none ${width}`}
         onClick={() => handleSort(sortKey)}
+        className={`p-4 text-xs font-bold uppercase tracking-wider cursor-pointer select-none transition-colors ${
+          isActive ? 'text-blue-600' : 'text-slate-500 hover:text-slate-700'
+        } ${width || ''}`}
       >
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1.5">
           {label}
-          {isActive ? (
-            sortConfig.direction === 'asc' ? (
-              <ArrowUp size={14} className="text-blue-600" />
-            ) : (
-              <ArrowDown size={14} className="text-blue-600" />
-            )
-          ) : (
-            <ArrowUpDown
-              size={14}
-              className="text-slate-300 opacity-0 group-hover/table:opacity-50 hover:opacity-100"
-            />
-          )}
+          <Icon size={12} className={isActive ? 'opacity-100' : 'opacity-40'} />
         </div>
       </th>
     );
   };
 
-  const MobileGameCard = ({ game }) => (
-    <div
-      onClick={() => handleOpenEdit(game)}
-      className={`bg-white p-4 rounded-xl border ${selectedIds.includes(game.id) ? 'border-blue-500 bg-blue-50/20' : 'border-slate-200'} shadow-sm relative active:scale-[0.98] transition-all`}
-    >
+  const MobileGameCard = ({ game }) => {
+    const isSelected = selectedIds.includes(game.id);
+
+    return (
       <div
-        className="absolute top-3 right-3 z-10 p-2 -m-2"
-        onClick={(e) => {
-          e.stopPropagation();
-          toggleSelection(game.id);
-        }}
+        onClick={() => handleOpenEdit(game)}
+        className={`bg-white p-4 rounded-xl border ${
+          isSelected ? 'border-blue-500 bg-blue-50/20' : 'border-slate-200'
+        } shadow-sm relative active:scale-[0.98] transition-all`}
       >
-        <input
-          type="checkbox"
-          className="w-5 h-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-          checked={selectedIds.includes(game.id)}
-          readOnly
-        />
-      </div>
+        {/* Checkbox */}
+        <div
+          className="absolute top-3 right-3 z-10 p-2 -m-2"
+          onClick={(e) => {
+            e.stopPropagation();
+            toggleSelection(game.id);
+          }}
+        >
+          <input
+            type="checkbox"
+            className="w-5 h-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+            checked={isSelected}
+            readOnly
+          />
+        </div>
 
-      <div className="pr-8 mb-2">
-        <h3 className="font-bold text-slate-800 text-lg leading-snug mb-1">
-          {game.title}
-        </h3>
-        <div className="flex flex-wrap gap-2 items-center">
-          <span
-            className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase border
-                ${game.status === 'Available' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : ''}
-                ${game.status === 'Maintenance' ? 'bg-amber-100 text-amber-700 border-amber-200' : ''}
-                ${game.status === 'Broken' ? 'bg-red-100 text-red-700 border-red-200' : ''}
-                ${game.status === 'Testing' ? 'bg-blue-100 text-blue-700 border-blue-200' : ''}
-            `}
-          >
-            {game.status}
-          </span>
-          <span
-            className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase border ${game.shopeeLink ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`}
-          >
-            {game.shopeeLink ? 'Shopee Set' : 'Shopee Missing'}
-          </span>
-          {game.version && (
-            <span className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded border border-slate-200 font-medium flex items-center">
-              <Tag size={10} className="mr-1 opacity-50" /> {game.version}
+        {/* Title + badges */}
+        <div className="pr-8 mb-2">
+          <h3 className="font-bold text-slate-800 text-lg leading-snug mb-1">
+            {game.title}
+          </h3>
+          <div className="flex flex-wrap gap-2 items-center">
+            <StatusBadge game={game} />
+            <span
+              className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase border ${
+                game.shopee?.url
+                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                  : 'bg-amber-50 text-amber-700 border-amber-200'
+              }`}
+            >
+              {game.shopee?.url ? 'Shopee Set' : 'Shopee Missing'}
             </span>
-          )}
-          {/* TOMBOL UPDATE MOBILE */}
-          <button
-            onClick={(e) => handleUpdateVersion(game, e)}
-            className="text-[10px] px-2 py-0.5 bg-purple-50 text-purple-600 rounded border border-purple-200 font-bold flex items-center active:bg-purple-100"
-          >
-            <RefreshCw size={10} className="mr-1" /> Update
-          </button>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-y-2 gap-x-4 text-xs sm:text-sm text-slate-600 border-t border-slate-100 pt-3 mt-2">
-        <div className="flex items-center">
-          <HardDrive size={12} className="mr-2 text-slate-400" />
-          <span className="font-mono font-medium">
-            {game.size ? `${game.size} ${game.sizeUnit}` : '-'}
-          </span>
-        </div>
-
-        <div className="flex items-center">
-          {game.numberOfParts > 1 ? (
-            <>
-              <Layers size={12} className="mr-2 text-slate-400" />
-              <span>{game.numberOfParts} Parts</span>
-            </>
-          ) : (
-            <span className="text-slate-300">-</span>
-          )}
-        </div>
-
-        <div className="col-span-2 flex items-center">
-          <MapPin size={12} className="mr-2 text-blue-500 shrink-0" />
-          <span className="truncate w-full">{game.location || '-'}</span>
-        </div>
-
-        <div className="col-span-2 flex items-center justify-between text-[10px] sm:text-xs text-slate-400">
-          {game.installerType ? (
-            <div className="flex items-center text-slate-500">
-              <Disc size={12} className="mr-1.5 text-purple-400" />
-              {game.installerType.replace('INSTALLER ', '')}
-            </div>
-          ) : (
-            <span></span>
-          )}
-          <div className="flex items-center">
-            <Calendar size={12} className="mr-1.5" />
-            {formatRelative(game.updatedAt || game.createdAt)}
+            {game.fileVersion && (
+              <span className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded border border-slate-200 font-medium flex items-center">
+                <Tag size={10} className="mr-1 opacity-50" /> {game.fileVersion}
+              </span>
+            )}
+            <button
+              onClick={(e) => handleUpdateVersion(game, e)}
+              className="text-[10px] px-2 py-0.5 bg-purple-50 text-purple-600 rounded border border-purple-200 font-bold flex items-center active:bg-purple-100"
+            >
+              <RefreshCw size={10} className="mr-1" /> Update
+            </button>
           </div>
         </div>
-        <div className="col-span-2 flex items-center gap-2">
-          <button
-            className="px-2 py-1 text-[10px] font-bold rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100"
-            onClick={(e) => {
-              e.stopPropagation();
-              window.open(getShopeeLink(game), '_blank');
-            }}
-          >
-            Shopee
-          </button>
-          <button
-            className="px-2 py-1 text-[10px] font-bold rounded-lg border border-slate-200 bg-white hover:bg-slate-50"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleCopyShopeeLink(getShopeeLink(game));
-            }}
-          >
-            Copy
-          </button>
+
+        {/* Details grid */}
+        <div className="grid grid-cols-2 gap-y-2 gap-x-4 text-xs sm:text-sm text-slate-600 border-t border-slate-100 pt-3 mt-2">
+          <div className="flex items-center">
+            <HardDrive size={12} className="mr-2 text-slate-400" />
+            <span className="font-mono font-medium">
+              {formatFileSize(game.fileSizeBytes)}
+            </span>
+          </div>
+
+          <div className="flex items-center">
+            {game.partsCount > 1 ? (
+              <>
+                <Layers size={12} className="mr-2 text-slate-400" />
+                <span>{game.partsCount} Parts</span>
+              </>
+            ) : (
+              <span className="text-slate-300">-</span>
+            )}
+          </div>
+
+          <div className="col-span-2 flex items-center">
+            <LocationCell game={game} />
+          </div>
+
+          <div className="col-span-2 flex items-center justify-between text-[10px] sm:text-xs text-slate-400">
+            {game.packageType ? (
+              <div className="flex items-center text-slate-500">
+                <Disc size={12} className="mr-1.5 text-purple-400" />
+                {formatPackageType(game.packageType)}
+              </div>
+            ) : (
+              <span></span>
+            )}
+            <div className="flex items-center">
+              <Calendar size={12} className="mr-1.5" />
+              {formatRelativeDate(game.updatedAt || game.createdAt)}
+            </div>
+          </div>
+
+          <div className="col-span-2 flex items-center gap-2">
+            <button
+              className="px-2 py-1 text-[10px] font-bold rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100"
+              onClick={(e) => {
+                e.stopPropagation();
+                window.open(getShopeeLink(game), '_blank');
+              }}
+            >
+              Shopee
+            </button>
+            <button
+              className="px-2 py-1 text-[10px] font-bold rounded-lg border border-slate-200 bg-white hover:bg-slate-50"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleCopyShopeeLink(getShopeeLink(game));
+              }}
+            >
+              Copy
+            </button>
+          </div>
         </div>
       </div>
-    </div>
-  );
+    );
+  };
+
+  // ============================================================
+  // RENDER
+  // ============================================================
 
   return (
     <div className="min-h-screen bg-slate-50 pb-20">
       <div className="max-w-7xl mx-auto px-4 py-8">
+        {/* HEADER */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
           <div>
             <h1 className="text-2xl font-bold text-slate-800">
@@ -572,12 +506,6 @@ const GamesPage = () => {
             </p>
           </div>
           <div className="flex gap-2 w-full sm:w-auto">
-            <button
-              onClick={handleExportSchemaAudit}
-              className="flex-1 sm:flex-none justify-center bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 px-4 py-2 rounded-lg font-bold flex items-center shadow-sm transition-all active:scale-95 text-sm"
-            >
-              Export Schema
-            </button>
             <button
               onClick={() => setIsImportModalOpen(true)}
               className="flex-1 sm:flex-none justify-center bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 px-4 py-2 rounded-lg font-bold flex items-center shadow-sm transition-all active:scale-95 text-sm"
@@ -593,6 +521,7 @@ const GamesPage = () => {
           </div>
         </div>
 
+        {/* FILTERS + BULK ACTIONS BAR */}
         <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm mb-4 flex flex-col lg:flex-row gap-4 items-center justify-between">
           <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto">
             <div className="relative flex-1 sm:w-72">
@@ -619,13 +548,11 @@ const GamesPage = () => {
                 className="w-full sm:w-auto pl-9 pr-8 py-2 border border-slate-200 rounded-lg bg-white focus:outline-none cursor-pointer hover:bg-slate-50 appearance-none"
               >
                 <option value="">Semua Genre</option>
-                <option value="Action">Action</option>
-                <option value="RPG">RPG</option>
-                <option value="Simulation">Simulation</option>
-                <option value="Strategy">Strategy</option>
-                <option value="Sports">Sports</option>
-                <option value="Racing">Racing</option>
-                <option value="Adventure">Adventure</option>
+                {metadataGenres.map((g) => (
+                  <option key={g.id} value={g.id}>
+                    {g.label}
+                  </option>
+                ))}
               </select>
             </div>
           </div>
@@ -638,6 +565,7 @@ const GamesPage = () => {
               <select
                 onChange={(e) => {
                   if (e.target.value) handleBulkStatus(e.target.value);
+                  e.target.value = '';
                 }}
                 className="text-sm border border-slate-300 rounded-lg px-3 py-1.5 bg-white hover:bg-slate-50 cursor-pointer flex-grow lg:flex-grow-0"
                 defaultValue=""
@@ -645,9 +573,8 @@ const GamesPage = () => {
                 <option value="" disabled>
                   Ubah Status...
                 </option>
-                <option value="Available">Set Available</option>
-                <option value="Maintenance">Set Maintenance</option>
-                <option value="Broken">Set Broken</option>
+                <option value="available">Set Available</option>
+                <option value="unavailable">Set Unavailable</option>
               </select>
               <button
                 onClick={handleBulkDelete}
@@ -660,6 +587,7 @@ const GamesPage = () => {
           )}
         </div>
 
+        {/* TABLE / CARDS */}
         <div className="flex flex-col min-h-[400px]">
           {/* MOBILE VIEW */}
           <div className="md:hidden space-y-3">
@@ -702,12 +630,12 @@ const GamesPage = () => {
                     />
                     <SortableHeader
                       label="Size"
-                      sortKey="sortableSize"
+                      sortKey="fileSizeBytes"
                       width="w-24"
                     />
                     <SortableHeader
                       label="Status"
-                      sortKey="status"
+                      sortKey="availabilityStatus"
                       width="w-32"
                     />
                     <SortableHeader
@@ -745,9 +673,12 @@ const GamesPage = () => {
                     displayedGames.map((game) => (
                       <tr
                         key={game.id}
-                        className={`group hover:bg-slate-50 transition-colors cursor-pointer ${selectedIds.includes(game.id) ? 'bg-blue-50/50' : ''}`}
+                        className={`group hover:bg-slate-50 transition-colors cursor-pointer ${
+                          selectedIds.includes(game.id) ? 'bg-blue-50/50' : ''
+                        }`}
                         onClick={() => handleOpenEdit(game)}
                       >
+                        {/* Checkbox */}
                         <td
                           className="p-4"
                           onClick={(e) => {
@@ -762,90 +693,87 @@ const GamesPage = () => {
                             readOnly
                           />
                         </td>
+
+                        {/* Title + version + Shopee badge */}
                         <td className="p-4">
                           <div className="font-bold text-slate-800 group-hover:text-blue-600 transition-colors">
                             {game.title}
                           </div>
-                          {game.version && (
+                          {game.fileVersion && (
                             <div className="flex items-center mt-1">
                               <Tag size={10} className="mr-1 text-slate-400" />
                               <span className="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded border border-slate-200">
-                                {game.version}
+                                {game.fileVersion}
                               </span>
                             </div>
                           )}
                           <div className="flex items-center gap-2 mt-2">
                             <span
-                              className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase border ${game.shopeeLink ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`}
+                              className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase border ${
+                                game.shopee?.url
+                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                  : 'bg-amber-50 text-amber-700 border-amber-200'
+                              }`}
                             >
-                              {game.shopeeLink
+                              {game.shopee?.url
                                 ? 'Shopee Set'
                                 : 'Shopee Missing'}
                             </span>
                           </div>
                         </td>
+
+                        {/* Size */}
                         <td className="p-4">
                           <div className="text-sm text-slate-600 font-mono whitespace-nowrap">
-                            {game.size ? `${game.size} ${game.sizeUnit}` : '-'}
+                            {formatFileSize(game.fileSizeBytes)}
                           </div>
-                          {game.numberOfParts > 1 && (
+                          {game.partsCount > 1 && (
                             <div className="flex items-center mt-1 text-[10px] text-slate-400 font-medium">
                               <Layers size={10} className="mr-1" />{' '}
-                              {game.numberOfParts} Parts
+                              {game.partsCount} Parts
                             </div>
                           )}
                         </td>
+
+                        {/* Status */}
                         <td className="p-4">
-                          <span
-                            className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase
-                                    ${game.status === 'Available' ? 'bg-emerald-100 text-emerald-700' : ''}
-                                    ${game.status === 'Maintenance' ? 'bg-amber-100 text-amber-700' : ''}
-                                    ${game.status === 'Broken' ? 'bg-red-100 text-red-700' : ''}
-                                    ${game.status === 'Testing' ? 'bg-blue-100 text-blue-700' : ''}
-                                `}
-                          >
-                            {game.status}
-                          </span>
+                          <StatusBadge game={game} />
                         </td>
+
+                        {/* Updated */}
                         <td className="p-4">
                           <div
                             className="text-xs text-slate-600"
-                            title={formatVersionDate(
+                            title={formatAbsoluteDate(
                               game.updatedAt || game.createdAt
                             )}
                           >
-                            {formatRelative(game.updatedAt || game.createdAt)}
+                            {formatRelativeDate(
+                              game.updatedAt || game.createdAt
+                            )}
                           </div>
                         </td>
+
+                        {/* Location */}
                         <td className="p-4">
-                          <div className="flex items-center text-sm text-slate-600 font-medium">
-                            <MapPin
-                              size={14}
-                              className="mr-1.5 text-blue-500 shrink-0"
-                            />
-                            <span
-                              className="truncate max-w-[180px]"
-                              title={game.location}
-                            >
-                              {game.location || '-'}
-                            </span>
-                          </div>
+                          <LocationCell game={game} />
                         </td>
+
+                        {/* Info File */}
                         <td className="p-4 text-xs text-slate-500 relative">
-                          {/* INFO BIASA */}
                           <div>
-                            {game.installerType && (
+                            {game.packageType && (
                               <div className="flex items-center mb-1 text-slate-700 font-medium">
                                 <Disc
                                   size={12}
                                   className="mr-1 text-purple-500"
                                 />
-                                {game.installerType.replace('INSTALLER ', '')}
+                                {formatPackageType(game.packageType)}
                               </div>
                             )}
                             <div className="flex items-center opacity-70">
                               <Calendar size={12} className="mr-1" />
-                              {formatVersionDate(game.lastVersionDate)}
+                              {formatAbsoluteDate(game.lastFileUpdatedAt)}
                             </div>
                             <div className="flex items-center gap-2 mt-2">
                               <button
@@ -869,7 +797,7 @@ const GamesPage = () => {
                             </div>
                           </div>
 
-                          {/* BUTTON UPDATE (Tampil saat hover) */}
+                          {/* Update Versi button (visible on row hover) */}
                           <div className="absolute top-1/2 right-4 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
                             <button
                               onClick={(e) => handleUpdateVersion(game, e)}
@@ -888,11 +816,12 @@ const GamesPage = () => {
             </div>
           </div>
 
+          {/* PAGINATION */}
           <div className="mt-4 md:mt-0 border-t border-slate-200 p-4 bg-white md:bg-slate-50 rounded-xl md:rounded-t-none md:rounded-b-xl shadow-sm md:shadow-none border md:border-t-0 border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="text-xs text-slate-500 text-center sm:text-left">
-              Menampilkan {startIndex + 1}-
-              {Math.min(startIndex + itemsPerPage, processedGames.length)} dari{' '}
-              {processedGames.length} game
+              Menampilkan {processedGames.length === 0 ? 0 : startIndex + 1}-
+              {Math.min(startIndex + ITEMS_PER_PAGE, processedGames.length)}{' '}
+              dari {processedGames.length} game
             </div>
             {totalPages > 1 && (
               <div className="flex items-center gap-2">
@@ -921,7 +850,7 @@ const GamesPage = () => {
         </div>
       </div>
 
-      {/* MODAL EDIT GAME */}
+      {/* MODALS (untouched, will be refactored in separate task) */}
       <GameFormModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
@@ -930,18 +859,16 @@ const GamesPage = () => {
         onSuccess={() => {}}
       />
 
-      {/* MODAL IMPORT */}
       <BulkGameImportModal
         isOpen={isImportModalOpen}
         onClose={() => setIsImportModalOpen(false)}
         onSuccess={() => {}}
       />
 
-      {/* MODAL TASK (UPDATE VERSI) */}
       <TaskFormModal
         isOpen={isTaskModalOpen}
         onClose={() => setIsTaskModalOpen(false)}
-        prefillData={taskPrefill} // Data dari tombol update
+        prefillData={taskPrefill}
         onSuccess={() => {}}
       />
     </div>

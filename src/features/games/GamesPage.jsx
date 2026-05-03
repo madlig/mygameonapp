@@ -855,8 +855,7 @@ const GamesPage = () => {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         initialData={editingGame}
-        onSubmit={handleSaveGame}
-        onSuccess={() => {}}
+        onSuccess={() => setIsModalOpen(false)}
       />
 
       <BulkGameImportModal

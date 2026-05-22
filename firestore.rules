@@ -1,17 +1,42 @@
 rules_version = '2';
 
+// ============================================================
+// MyGameON Hub — Firestore Security Rules
+// 
+// Updated: 26 April 2026 — Phase 0 (Detail Page Foundation)
+// 
+// Changes from previous version:
+// - Added: gamesPrivate/ (admin-only, separated from games/)
+// - Added: metadata/{type}/entries/{id} (public read, admin write)
+// - Updated: games/ read rule (filter isProblematic + availabilityStatus)
+// - Removed: genres/ (migrated to metadata/genres/entries/)
+// - Cleaned: isAdmin() now uses single 'role' custom claim
+// ============================================================
+
 service cloud.firestore {
   match /databases/{database}/documents {
+
+    // ========================================================
+    // HELPER FUNCTIONS
+    // ========================================================
 
     function isSignedIn() {
       return request.auth != null;
     }
 
+    // Single source of truth: role-based check
     function isAdmin() {
-      return isSignedIn() && (
-        request.auth.token.admin == true ||
-        request.auth.token.role == 'admin'
-      );
+      return isSignedIn() && request.auth.token.role == 'admin';
+    }
+
+    function isMember() {
+      return isSignedIn() && request.auth.token.role == 'member';
+    }
+
+    // For public Detail Page access — filter out problematic/unavailable games
+    function isPubliclyVisibleGame() {
+      return resource.data.isProblematic == false 
+             && resource.data.availabilityStatus != 'unavailable';
     }
 
     function isValidTrackingCode() {
@@ -69,7 +94,7 @@ service cloud.firestore {
         isValidTrackingCode();
     }
 
-    // Optional helper: update publik hanya untuk vote duplicate request dari landing
+    // Public update for vote increment only
     function isPublicVoteUpdate() {
       return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['votes', 'updatedAt']) &&
         request.resource.data.votes is number &&
@@ -78,22 +103,22 @@ service cloud.firestore {
         request.resource.data.updatedAt is timestamp;
     }
 
-    // =========================
-    // PUBLIC COLLECTIONS
-    // =========================
+    // ========================================================
+    // PUBLIC COLLECTIONS — games & requests
+    // ========================================================
 
-    // Games: publik boleh baca (landing/search), write hanya admin login
+    // Games:
+    // - Public: read kalau not problematic and available
+    // - Admin: read all (preview), write all
     match /games/{gameId} {
-      allow read: if true;
+      allow read: if isAdmin() || isPubliclyVisibleGame();
       allow write: if isAdmin();
     }
 
-    // Requests:
-    // - create: publik boleh submit request dari landing tanpa login (dibatasi field/shape)
-    // - read: publik boleh baca untuk cek duplikat di landing
-    // - update:
-    //   - admin: full update
-    //   - publik: hanya vote increment (duplicate request flow)
+    // Requests: existing logic preserved
+    // - create: public submission allowed (tight validation)
+    // - read: public can check duplicates
+    // - update: admin full / public vote increment only
     // - delete: admin only
     match /requests/{reqId} {
       allow create: if isAdmin() || isPublicRequestCreate();
@@ -102,13 +127,30 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    // =========================
-    // ADMIN / PRIVATE COLLECTIONS
-    // =========================
+    // ========================================================
+    // ADMIN-ONLY: gamesPrivate (NEW — Phase 0)
+    // ========================================================
 
-    match /genres/{genreId} {
+    match /gamesPrivate/{gameId} {
       allow read, write: if isAdmin();
     }
+
+    // ========================================================
+    // METADATA: genres, tags, playModes, platforms (NEW — Phase 0)
+    // ========================================================
+    // Public can read for displaying labels in UI
+    // Only admin can write to maintain consistency
+
+    match /metadata/{type}/entries/{entryId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // ========================================================
+    // ADMIN / OPERATIONAL COLLECTIONS (preserved from existing)
+    // ========================================================
+
+    // NOTE: genres/ removed — migrated to metadata/genres/entries/
 
     match /emailLocations/{locId} {
       allow read, write: if isAdmin();
@@ -122,7 +164,7 @@ service cloud.firestore {
       allow read, write: if isAdmin();
     }
 
-    // Operational collections (pakai yang sekarang dipakai app + legacy yang sempat ada)
+    // Operational tracking — current names
     match /adminShifts/{shiftId} {
       allow read, write: if isAdmin();
     }
@@ -135,7 +177,7 @@ service cloud.firestore {
       allow read, write: if isAdmin();
     }
 
-    // Legacy names (aman dipertahankan agar tidak putus jika masih ada pemakaian lama)
+    // Legacy names — preserved for backward compatibility
     match /shifts/{shiftId} {
       allow read, write: if isAdmin();
     }
@@ -144,12 +186,33 @@ service cloud.firestore {
       allow read, write: if isAdmin();
     }
 
-    // User-scoped docs
+    // ========================================================
+    // CONFIG (NEW — for future Google login flow)
+    // ========================================================
+    // Stores admin email whitelist — referenced by auth Cloud Function
+
+    match /config/{configId} {
+      allow read, write: if isAdmin();
+    }
+
+    // ========================================================
+    // USER-SCOPED DATA
+    // ========================================================
+
     match /users/{userId}/{document=**} {
       allow read, write: if isSignedIn() && request.auth.uid == userId;
     }
 
-    // Default deny
+    // User activity log (for future audit trail)
+    match /userActivityLog/{logId} {
+      allow read: if isAdmin();
+      allow write: if false; // Only Cloud Functions can write
+    }
+
+    // ========================================================
+    // DEFAULT DENY
+    // ========================================================
+
     match /{document=**} {
       allow read, write: if false;
     }

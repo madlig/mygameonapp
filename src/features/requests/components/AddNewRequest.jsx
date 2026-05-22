@@ -3,6 +3,7 @@ import { useForm } from 'react-hook-form';
 import { X, Loader2, StickyNote, Gamepad2 } from 'lucide-react';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../../config/firebaseConfig';
+import { useAuth } from '../../../contexts/AuthContext';
 import { REQUEST_STATUS } from '../../../shared/requestStatus';
 
 const AddNewRequest = ({ onClose, onSuccess }) => {
@@ -11,6 +12,10 @@ const AddNewRequest = ({ onClose, onSuccess }) => {
     handleSubmit,
     formState: { errors, isSubmitting },
   } = useForm();
+
+  // JALAN TENGAH: ambil currentUser untuk mengisi userId
+  // Ini diperlukan agar schema data konsisten dengan request publik
+  const { currentUser } = useAuth() || {};
 
   const createTrackingCode = () => {
     const seed = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
@@ -21,16 +26,31 @@ const AddNewRequest = ({ onClose, onSuccess }) => {
     try {
       const cleanTitle = data.title.trim();
 
+      // JALAN TENGAH: Tambahkan field yang wajib ada di schema (userId, shopeeUsername,
+      // contactWhatsApp, contactEmail) dengan nilai default yang masuk akal untuk
+      // request yang dibuat manual oleh admin.
+      //
+      // Kenapa ini penting:
+      // - Firestore rule isPublicRequestCreate() memang tidak berlaku untuk admin
+      //   (isAdmin() sudah membypass-nya), tapi schema data yang konsisten
+      //   mencegah bug di komponen lain yang mungkin mengakses field ini.
+      // - Kalau suatu saat rule berubah, data ini sudah aman.
       const requestData = {
         title: cleanTitle,
-        title_lower: cleanTitle.toLowerCase(), // TAMBAHAN PENTING
+        title_lower: cleanTitle.toLowerCase(),
         trackingCode: createTrackingCode(),
 
         platform: 'PC',
         notes: data.notes || '',
 
         requesterName: 'Admin',
-        source: 'admin',
+        source: 'admin_manual',
+
+        // FIX: Tambahkan field yang hilang — pakai nilai default untuk entri admin
+        userId: currentUser?.uid || 'admin',
+        shopeeUsername: '',     // Kosong karena admin yang input, bukan pembeli
+        contactWhatsApp: '',    // Kosong karena admin yang input
+        contactEmail: '',       // Kosong karena admin yang input
 
         status: REQUEST_STATUS.QUEUED,
         isUrgent: data.isUrgent || false,
@@ -52,7 +72,6 @@ const AddNewRequest = ({ onClose, onSuccess }) => {
     }
   };
 
-  // ... (Sisa kode return render sama persis seperti sebelumnya)
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in">
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden">
@@ -101,7 +120,7 @@ const AddNewRequest = ({ onClose, onSuccess }) => {
                 placeholder="Catatan untuk diri sendiri..."
                 rows="3"
                 className="w-full pl-10 pr-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none resize-none"
-              ></textarea>
+              />
             </div>
           </div>
           <div className="flex items-center gap-2 bg-slate-50 p-3 rounded-lg border border-slate-100">

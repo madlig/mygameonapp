@@ -47,44 +47,76 @@ const ApproveGameModal = ({ request, onClose, onSuccess }) => {
 
   const onSubmit = async (data) => {
     try {
-      const now = serverTimestamp();
-      const gameData = {
-        title: data.title,
-        version: data.version || null,
-        size: Number(data.size),
-        sizeUnit: data.sizeUnit,
-        numberOfParts: Number(data.numberOfParts),
-        genre: data.genre
-          .split(',')
-          .map((g) => g.trim())
-          .filter((g) => g !== ''),
-        location: data.location,
-        description: data.description,
-        status: data.status,
-        platform: request.platform || 'PC',
-        coverArtUrl: data.coverArtUrl || '',
-        installerType: data.installerType,
-        shopeeLink: data.shopeeLink || '',
-        createdAt: now,
-        lastVersionDate: now,
-        originRequestId: request.id,
-        finalizedAt: now,
-        addedBy: 'Admin Approval',
-      };
+      const fileSizeBytes = (() => {
+  const n = parseFloat(data.size) || 0;
+  const multipliers = { KB: 1024, MB: 1024 ** 2, GB: 1024 ** 3, TB: 1024 ** 4 };
+  return Math.round(n * (multipliers[data.sizeUnit] || multipliers.GB));
+})();
 
-      const batch = writeBatch(db);
-      const gameRef = doc(collection(db, 'games'));
-      const requestRef = doc(db, 'requests', request.id);
+const slug = (data.title || '')
+  .toLowerCase()
+  .replace(/['']/g, '')
+  .replace(/[^a-z0-9]+/g, '-')
+  .replace(/^-+|-+$/g, '');
 
-      batch.set(gameRef, gameData);
-      batch.update(requestRef, {
-        status: REQUEST_STATUS.AVAILABLE,
-        approvedAt: now,
-        availableAt: now,
-        finalGameTitle: data.title,
-      });
+const genreNormalized = (data.genre || []).map((g) => g.toLowerCase().trim());
+const autoShortDesc = `${data.title} — game ${genreNormalized.slice(0, 2).join(' & ') || 'menarik'} berukuran ${data.size} ${data.sizeUnit || 'GB'}. Tersedia paket instalasi siap main.`;
 
-      await batch.commit();
+const now = serverTimestamp();
+
+const publicData = {
+  title: data.title,
+  slug,
+  platform: data.platform || 'PC',
+  genres: genreNormalized,
+  tags: data.tags || [],
+  fileVersion: data.version || '',
+  fileEdition: null,
+  fileSizeBytes,
+  partsCount: Number(data.numberOfParts) || 1,
+  packageType: data.installerType || 'PRE-INSTALLED',
+  playModes: ['singleplayer'],
+  coverImageUrl: data.coverArtUrl || '',
+  screenshots: [],
+  videoUrl: null,
+  description: data.description || '',
+  shortDescription: autoShortDesc,
+  shopee: {
+    isAvailable: Boolean(data.shopeeLink),
+    url: data.shopeeLink || '',
+    packagePrice: null,
+  },
+  officialPlatforms: [],
+  steamAppId: null,
+  relatedGameIds: [],
+  relatedGamesMode: 'auto',
+  availabilityStatus: 'available',
+  isProblematic: false,
+  lastFileUpdatedAt: now,
+  lastVersionCheckAt: null,
+  steamLastUpdatedAt: null,
+  versionStatus: 'unchecked',
+  createdAt: now,
+  updatedAt: now,
+};
+
+const privateData = {
+  storageLocations: data.location
+    ? [{ email: data.location, role: 'PRIMARY', version: data.version || '', uploadedAt: null, shopeeListed: Boolean(data.shopeeLink), tipe: data.installerType || '', notes: '' }]
+    : [],
+  adminNotes: `Approved from request: ${requestId || ''}`,
+  verificationStatus: 'needs_check',
+  lastVerifiedAt: null,
+  addedBy: 'Approved Request',
+  coverSourceCredit: '',
+};
+
+// Write ke 2 collections sekaligus
+const newDocRef = doc(collection(db, 'games'));
+const batch = writeBatch(db);
+batch.set(newDocRef, publicData);
+batch.set(doc(db, 'gamesPrivate', newDocRef.id), privateData);
+await batch.commit();
 
       Swal.fire({
         title: 'Sukses!',

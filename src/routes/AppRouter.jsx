@@ -26,6 +26,8 @@ const RequestGamePage = lazy(
 const RequestStatusPage = lazy(
   () => import('../features/landing/RequestStatusPage')
 );
+const FaqPage = lazy(() => import('../features/landing/FaqPage'));
+const VideosPage = lazy(() => import('../features/landing/VideosPage'));
 // Import Halaman Umum
 const LoginPage = lazy(() => import('../pages/LoginPage'));
 const FeedbackPage = lazy(() => import('../pages/FeedbackPage'));
@@ -46,6 +48,8 @@ const AppRouter = () => {
         <Route path="/" element={<LandingPage />} />
         <Route path="/request-game" element={<RequestGamePage />} />
         <Route path="/request-status" element={<RequestStatusPage />} />
+        <Route path="/faq" element={<FaqPage />} />
+        <Route path="/videos" element={<VideosPage />} />
         <Route path="/login" element={<LoginPage />} />
 
         {/* Rute Privat yang dilindungi dan menggunakan Layout */}

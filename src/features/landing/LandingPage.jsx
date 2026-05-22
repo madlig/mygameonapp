@@ -1,340 +1,815 @@
-import React, { Suspense, lazy } from 'react';
-import { algoliasearch } from 'algoliasearch';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { Link } from 'react-router-dom';
+import Fuse from 'fuse.js';
+import { LazyLoadImage } from 'react-lazy-load-image-component';
+import 'react-lazy-load-image-component/src/effects/blur.css';
 import {
-  InstantSearch,
-  SearchBox,
-  Hits,
-  Pagination,
-  Configure,
-  useInstantSearch,
-} from 'react-instantsearch';
-import 'instantsearch.css/themes/satellite.css';
+  Disclosure,
+  DisclosureButton,
+  DisclosurePanel,
+} from '@headlessui/react';
+import {
+  Search,
+  ArrowDownToLine,
+  PlayCircle,
+  Wrench,
+  HelpCircle,
+  MessageCircle,
+  FileQuestion,
+  ClipboardCheck,
+  ChevronUp,
+  ChevronDown,
+  ArrowRight,
+  Gamepad2,
+  Play,
+  Video,
+  ExternalLink,
+  Monitor,
+  Cpu,
+  Archive,
+} from 'lucide-react';
+import {
+  db,
+  collection,
+  query,
+  where,
+  getDocs,
+} from '../../config/firebaseConfig';
+import { formatFileSize } from '../games/utils/formatters';
+import DownloadsSection from './components/DownloadsSection';
+import WhatsAppContactSection from './components/WhatsAppContactSection';
+import { tutorials } from './data/tutorials';
+import { faqItems } from './data/faq';
+import { prerequisites } from './data/prerequisites';
 
-const GameList = lazy(() => import('./components/GameList'));
+// ─── Env ─────────────────────────────────────────────────────
+const STORE_URL =
+  import.meta.env.VITE_SHOPEE_STORE_URL || 'https://shopee.co.id/mygameon';
+const WA_NUMBER = import.meta.env.VITE_WHATSAPP_NUMBER || '6285121309829';
 
-const searchClient = algoliasearch(
-  import.meta.env.VITE_ALGOLIA_APP_ID,
-  import.meta.env.VITE_ALGOLIA_SEARCH_ONLY_API_KEY
-);
+// ─── Icon maps ───────────────────────────────────────────────
+const prereqIconMap = { monitor: Monitor, cpu: Cpu, archive: Archive };
 
-const GameCardPlaceholder = () => (
-  <div className="flex flex-col rounded-xl overflow-hidden border border-neutral-800 bg-neutral-900">
-    <div className="w-full aspect-[4/3] bg-neutral-800" />
-    <div className="px-4 py-4">
-      <div className="h-5 w-3/4 bg-neutral-700 rounded mb-2" />
-      <div className="h-4 w-1/2 bg-neutral-700 rounded" />
-    </div>
-  </div>
-);
-
-const EmptyState = ({ query }) => (
-  <div className="text-center py-12">
-    <h3 className="text-xl font-semibold text-neutral-100">
-      Tidak ada hasil untuk &quot;{query}&quot;.
-    </h3>
-    <p className="text-neutral-400 mt-2">
-      Mau kami tambahkan game ini ke daftar?
-    </p>
-    <div className="mt-4 flex gap-3 justify-center">
-      <a
-        href="/request-game"
-        className="inline-block bg-[#ffd100] text-neutral-900 px-5 py-2.5 rounded-lg hover:brightness-95 transition-all font-semibold"
-      >
-        Ajukan Request Game
+// ═══════════════════════════════════════════════════════════════
+// STICKY NAV
+// ═══════════════════════════════════════════════════════════════
+const StickyNav = ({ visible }) => (
+  <nav
+    className={`fixed top-0 inset-x-0 z-50 border-b border-[#2A2F39] bg-[#111317]/90 backdrop-blur-md transition-all duration-300 ${visible ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0 pointer-events-none'}`}
+  >
+    <div className="max-w-7xl mx-auto px-6 h-14 flex items-center justify-between">
+      <a href="#" className="flex items-center gap-2">
+        <Gamepad2 className="w-5 h-5 text-[#FFD100]" />
+        <span className="font-bold text-sm text-[#F3F4F6]">MyGameON</span>
       </a>
-      <a
-        href="/"
-        className="inline-block border border-neutral-600 text-neutral-100 px-5 py-2.5 rounded-lg hover:bg-neutral-800 transition-all font-semibold"
-      >
-        Reset Pencarian
-      </a>
-    </div>
-  </div>
-);
-
-const CustomHits = () => {
-  const { results, status } = useInstantSearch();
-  const isLoading = status === 'loading' || status === 'stalled';
-
-  if (results?.query && results.nbHits === 0 && !isLoading) {
-    return (
-      <>
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl md:text-3xl font-bold text-neutral-100">
-            Hasil Pencarian untuk &quot;{results.query}&quot;
-          </h2>
-          <a href="/" className="text-yellow-400 hover:underline font-semibold">
-            Reset Pencarian
-          </a>
-        </div>
-        <EmptyState query={results.query} />
-      </>
-    );
-  }
-
-  return (
-    <>
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl md:text-3xl font-bold text-neutral-100">
-          {results?.query
-            ? `Hasil Pencarian untuk "${results.query}"`
-            : 'Koleksi Terbaru'}
-        </h2>
-        {results?.query && (
-          <a href="/" className="text-yellow-400 hover:underline font-semibold">
-            Reset Pencarian
-          </a>
+      <div className="hidden sm:flex items-center gap-1">
+        {[
+          { label: 'Download', href: '#downloads' },
+          { label: 'Game', href: '#catalog' },
+          { label: 'Tutorial', to: '/videos' },
+          { label: 'FAQ', to: '/faq' },
+          { label: 'Kontak', href: '#contact' },
+        ].map((item) =>
+          item.to ? (
+            <Link
+              key={item.label}
+              to={item.to}
+              className="px-3 py-1.5 text-xs font-medium text-[#9CA3AF] hover:text-[#F3F4F6] transition-colors rounded-md hover:bg-[#1A1F27]"
+            >
+              {item.label}
+            </Link>
+          ) : (
+            <a
+              key={item.label}
+              href={item.href}
+              className="px-3 py-1.5 text-xs font-medium text-[#9CA3AF] hover:text-[#F3F4F6] transition-colors rounded-md hover:bg-[#1A1F27]"
+            >
+              {item.label}
+            </a>
+          )
         )}
       </div>
-      <Suspense
-        fallback={
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 sm:gap-6">
-            {Array.from({ length: 8 }).map((_, index) => (
-              <GameCardPlaceholder key={index} />
-            ))}
-          </div>
-        }
+      <a
+        href={`https://wa.me/${WA_NUMBER}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="rounded-lg bg-[#FFD100] px-4 py-1.5 text-xs font-bold text-[#111317] hover:brightness-90 transition"
       >
-        <Hits
-          hitComponent={GameList}
-          classNames={{
-            list: 'grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 sm:gap-6',
-            item: 'list-none h-full',
-          }}
+        Hubungi Admin
+      </a>
+    </div>
+  </nav>
+);
+
+// ═══════════════════════════════════════════════════════════════
+// SECTION DIVIDER
+// ═══════════════════════════════════════════════════════════════
+const SectionDivider = () => (
+  <div className="relative h-16 md:h-20 overflow-hidden">
+    <div
+      className="absolute inset-0 opacity-30"
+      style={{
+        backgroundImage: `linear-gradient(135deg, rgba(255,209,0,0.04) 25%, transparent 25%),
+          linear-gradient(225deg, rgba(255,209,0,0.04) 25%, transparent 25%),
+          linear-gradient(315deg, rgba(255,209,0,0.04) 25%, transparent 25%),
+          linear-gradient(45deg, rgba(255,209,0,0.04) 25%, transparent 25%)`,
+        backgroundSize: '32px 32px',
+        backgroundAttachment: 'fixed',
+      }}
+    />
+    <div className="absolute inset-0 bg-gradient-to-b from-[#111317] via-transparent to-[#111317]" />
+  </div>
+);
+
+// ═══════════════════════════════════════════════════════════════
+// GAME CATALOG (Firestore + Fuse.js)
+// ═══════════════════════════════════════════════════════════════
+const FUSE_OPTIONS = {
+  keys: ['title', 'tags'],
+  threshold: 0.35,
+  ignoreLocation: true,
+};
+
+const GameCardSkeleton = () => (
+  <div className="rounded-xl border border-[#2A2F39] bg-[#1A1F27] overflow-hidden animate-pulse">
+    <div className="aspect-[4/3] bg-[#2A2F39]" />
+    <div className="p-4 space-y-2">
+      <div className="h-4 w-3/4 bg-[#2A2F39] rounded" />
+      <div className="h-3 w-1/2 bg-[#2A2F39] rounded" />
+      <div className="h-9 w-full bg-[#2A2F39] rounded-lg mt-3" />
+    </div>
+  </div>
+);
+
+const DarkGameCard = ({ game }) => {
+  const title = game.title || 'Untitled';
+  const coverSrc =
+    game.coverImageUrl ||
+    'https://via.placeholder.com/600x450/1a1f27/FFD100?text=MyGameON';
+  const shopeeUrl = game.shopee?.url || STORE_URL;
+  const sizeDisplay = game.fileSizeBytes
+    ? formatFileSize(game.fileSizeBytes)
+    : null;
+  const genre =
+    Array.isArray(game.genres) && game.genres[0]
+      ? game.genres[0].charAt(0).toUpperCase() + game.genres[0].slice(1)
+      : null;
+
+  const waMsg = encodeURIComponent(
+    `Halo, saya tertarik dengan game "${title}". Apakah masih tersedia?`
+  );
+
+  return (
+    <div className="group flex flex-col rounded-xl border border-[#2A2F39] bg-[#1A1F27] overflow-hidden hover:border-[#FFD100]/30 transition-all duration-200">
+      <div className="relative aspect-[4/3] bg-[#0D1117] overflow-hidden">
+        <LazyLoadImage
+          src={coverSrc}
+          alt={title}
+          effect="blur"
+          className="w-full h-full object-cover opacity-80 group-hover:opacity-100 group-hover:scale-105 transition-all duration-300"
         />
-      </Suspense>
-    </>
+        {genre && (
+          <span className="absolute top-2.5 left-2.5 px-2.5 py-0.5 rounded-md text-[10px] font-semibold bg-[#111317]/80 text-[#C8CFDA] backdrop-blur-sm border border-[#2A2F39]">
+            {genre}
+          </span>
+        )}
+      </div>
+      <div className="flex flex-col flex-1 p-4">
+        <h4
+          className="font-bold text-sm text-[#F3F4F6] leading-snug truncate"
+          title={title}
+        >
+          {title}
+        </h4>
+        {sizeDisplay && (
+          <span className="text-[11px] text-[#7E8796] mt-1">{sizeDisplay}</span>
+        )}
+        <div className="mt-auto pt-3 flex gap-1.5">
+          <a
+            href={shopeeUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex-1 flex items-center justify-center rounded-lg bg-orange-500 py-2 text-xs font-semibold text-white hover:bg-orange-600 transition-colors"
+          >
+            Shopee
+          </a>
+          <a
+            href={`https://wa.me/${WA_NUMBER}?text=${waMsg}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-center w-10 rounded-lg bg-green-500 text-white hover:bg-green-600 transition-colors"
+            title="Chat WhatsApp"
+          >
+            <MessageCircle className="w-4 h-4" />
+          </a>
+        </div>
+      </div>
+    </div>
   );
 };
 
-const LandingPage = () => {
+const GameCatalogSection = () => {
+  const [games, setGames] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [page, setPage] = useState(0);
+  const fuseRef = useRef(null);
+  const PER_PAGE = 8;
+
+  useEffect(() => {
+    const fetchGames = async () => {
+      try {
+        const q = query(
+          collection(db, 'games'),
+          where('availabilityStatus', '==', 'available'),
+          where('isProblematic', '==', false)
+        );
+        const snapshot = await getDocs(q);
+        const data = snapshot.docs
+          .map((d) => ({ id: d.id, ...d.data() }))
+          .sort((a, b) => (a.title || '').localeCompare(b.title || ''));
+        setGames(data);
+        fuseRef.current = new Fuse(data, FUSE_OPTIONS);
+      } catch (err) {
+        console.error('Failed to fetch games:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchGames();
+  }, []);
+
+  const filtered = searchTerm.trim()
+    ? (fuseRef.current?.search(searchTerm) || []).map((r) => r.item)
+    : games;
+
+  const totalPages = Math.ceil(filtered.length / PER_PAGE);
+  const paged = filtered.slice(page * PER_PAGE, (page + 1) * PER_PAGE);
+
+  const handleSearch = useCallback((e) => {
+    setSearchTerm(e.target.value);
+    setPage(0);
+  }, []);
+
   return (
-    <div className="min-h-screen bg-[#111317] text-[#F3F4F6]">
-      <section className="relative overflow-hidden border-b border-[#2A2F39]">
-        <div className="pointer-events-none absolute inset-0 opacity-30 [background-image:linear-gradient(rgba(255,209,0,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(255,209,0,0.08)_1px,transparent_1px)] [background-size:20px_20px]" />
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_15%_15%,rgba(255,209,0,0.14),transparent_40%),radial-gradient(circle_at_90%_20%,rgba(255,255,255,0.06),transparent_28%)]" />
-
-        <div className="relative max-w-7xl mx-auto px-6 py-20 md:py-24">
-          <div className="max-w-4xl">
-            <p className="inline-flex items-center rounded-md border border-[#FFD100]/30 bg-[#FFD100]/10 px-3 py-1 text-xs font-semibold tracking-widest text-[#FFD100] mb-6">
-              GAMER STREET | MYGAMEON
-            </p>
-
-            <h1 className="text-4xl md:text-6xl font-extrabold leading-tight tracking-tight">
-              Cari Game Favoritmu Sekarang, Request Jika Belum Tersedia.
-            </h1>
-
-            <p className="mt-5 text-lg md:text-xl text-[#C8CFDA] max-w-3xl">
-              Katalog terus diperbarui. Game yang belum tersedia bisa direquest,
-              lalu diproses jika file tersedia.
-            </p>
-
-            <div className="mt-8 flex flex-wrap gap-3">
-              <a
-                href="#game-search"
-                className="inline-flex items-center justify-center rounded-lg bg-[#FFD100] px-6 py-3 font-bold text-[#111317] hover:brightness-95 transition"
-              >
-                Cari Game Sekarang
-              </a>
-              <a
-                href="/request-game"
-                className="inline-flex items-center justify-center rounded-lg border border-[#F3F4F6]/70 px-6 py-3 font-semibold text-[#F3F4F6] hover:bg-[#F3F4F6] hover:text-[#111317] transition"
-              >
-                Request Game
-              </a>
-              <a
-                href="/request-status"
-                className="inline-flex items-center justify-center rounded-lg border border-[#2F3643] bg-[#1A1F27] px-6 py-3 font-semibold text-[#C8CFDA] hover:border-[#FFD100]/40 hover:text-[#F3F4F6] transition"
-              >
-                Cek Status Request
-              </a>
-            </div>
-
-            <p className="mt-3 text-xs text-[#9CA3AF]">
-              Request diproses sesuai ketersediaan file.
-            </p>
-
-            <div className="mt-8 flex flex-wrap gap-2 text-xs">
-              <span className="rounded-sm border border-[#2F3643] bg-[#1A1F27] px-2.5 py-1 text-[#C8CFDA]">
-                Katalog terus update
-              </span>
-              <span className="rounded-sm border border-[#2F3643] bg-[#1A1F27] px-2.5 py-1 text-[#C8CFDA]">
-                Request tanpa login
-              </span>
-              <span className="rounded-sm border border-[#2F3643] bg-[#1A1F27] px-2.5 py-1 text-[#C8CFDA]">
-                Support jika terkendala
-              </span>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="max-w-7xl mx-auto px-6 py-14 md:py-16">
-        <div className="mb-8">
-          <h2 className="text-2xl md:text-3xl font-bold">
-            Kenapa Pilih MyGameON?
+    <section id="catalog" className="max-w-7xl mx-auto px-6 py-12 md:py-16">
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8">
+        <div>
+          <h2 className="text-2xl md:text-3xl font-extrabold text-[#F3F4F6]">
+            Katalog Game
           </h2>
-          <p className="text-[#9CA3AF] mt-2">
-            Dibuat untuk gamer yang mau proses cepat dan jelas.
+          <p className="text-[#9CA3AF] mt-1 text-sm">
+            {games.length > 0
+              ? `${games.length} game tersedia.`
+              : 'Memuat katalog...'}{' '}
+            Belum ada?{' '}
+            <Link
+              to="/request-game"
+              className="text-[#FFD100] hover:underline font-medium"
+            >
+              Kirim request
+            </Link>
           </p>
         </div>
+      </div>
 
-        <div className="grid gap-4 md:grid-cols-3">
-          <article className="rounded-xl border border-[#2A2F39] bg-[#1A1F27] p-6">
-            <div className="w-11 h-11 rounded-md border border-[#FFD100]/35 bg-[#FFD100]/10 text-[#FFD100] grid place-items-center mb-4">
-              <span className="text-sm font-bold" aria-hidden="true">
-                01
-              </span>
-            </div>
-            <h3 className="text-lg font-bold text-[#F3F4F6]">
-              Cari Cepat, Ketemu Lebih Mudah
-            </h3>
-            <p className="text-[#9CA3AF] mt-2">
-              Gunakan pencarian untuk menemukan game favoritmu dalam hitungan
-              detik.
-            </p>
-          </article>
+      {/* Search */}
+      <div className="relative mb-8">
+        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#7E8796]" />
+        <input
+          type="text"
+          value={searchTerm}
+          onChange={handleSearch}
+          placeholder="Cari judul game..."
+          className="w-full rounded-xl border border-[#2F3643] bg-[#1A1F27] text-[#F3F4F6] pl-12 pr-4 py-3.5 text-sm placeholder:text-[#7E8796] focus:outline-none focus:ring-2 focus:ring-[#FFD100]/50 focus:border-[#FFD100]/40 transition-all"
+        />
+        {searchTerm && (
+          <button
+            onClick={() => {
+              setSearchTerm('');
+              setPage(0);
+            }}
+            className="absolute right-4 top-1/2 -translate-y-1/2 text-[#7E8796] hover:text-[#F3F4F6] text-xs font-medium"
+          >
+            Reset
+          </button>
+        )}
+      </div>
 
-          <article className="rounded-xl border border-[#2A2F39] bg-[#1A1F27] p-6">
-            <div className="w-11 h-11 rounded-md border border-[#FFD100]/35 bg-[#FFD100]/10 text-[#FFD100] grid place-items-center mb-4">
-              <span className="text-sm font-bold" aria-hidden="true">
-                02
-              </span>
-            </div>
-            <h3 className="text-lg font-bold text-[#F3F4F6]">
-              Belum Ada? Tetap Bisa Request
-            </h3>
-            <p className="text-[#9CA3AF] mt-2">
-              Kalau game belum tersedia, kirim request dan tim kami akan cek
-              ketersediaannya.
-            </p>
-          </article>
-
-          <article className="rounded-xl border border-[#2A2F39] bg-[#1A1F27] p-6">
-            <div className="w-11 h-11 rounded-md border border-[#FFD100]/35 bg-[#FFD100]/10 text-[#FFD100] grid place-items-center mb-4">
-              <span className="text-sm font-bold" aria-hidden="true">
-                03
-              </span>
-            </div>
-            <h3 className="text-lg font-bold text-[#F3F4F6]">
-              Proses Jelas, Tidak Bikin Bingung
-            </h3>
-            <p className="text-[#9CA3AF] mt-2">
-              Setiap request diproses bertahap supaya kamu tahu progresnya.
-            </p>
-          </article>
+      {/* Grid */}
+      {loading ? (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <GameCardSkeleton key={i} />
+          ))}
         </div>
-      </section>
+      ) : paged.length > 0 ? (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+          {paged.map((game) => (
+            <DarkGameCard key={game.id} game={game} />
+          ))}
+        </div>
+      ) : (
+        <div className="text-center py-16">
+          <Search className="w-10 h-10 mx-auto mb-3 text-[#7E8796] opacity-40" />
+          <p className="text-[#9CA3AF] font-medium">
+            {searchTerm
+              ? `Tidak ada hasil untuk "${searchTerm}".`
+              : 'Belum ada game di katalog.'}
+          </p>
+          {searchTerm && (
+            <div className="mt-4 flex gap-3 justify-center">
+              <Link
+                to="/request-game"
+                className="inline-block bg-[#FFD100] text-[#111317] px-5 py-2.5 rounded-lg hover:brightness-95 transition-all font-semibold text-sm"
+              >
+                Request Game Ini
+              </Link>
+              <button
+                onClick={() => {
+                  setSearchTerm('');
+                  setPage(0);
+                }}
+                className="inline-block border border-[#2F3643] text-[#C8CFDA] px-5 py-2.5 rounded-lg hover:bg-[#1A1F27] transition-all font-semibold text-sm"
+              >
+                Reset Pencarian
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
-      <section className="max-w-7xl mx-auto px-6 pb-6">
-        <div className="rounded-xl border border-[#2A2F39] bg-[#1A1F27] p-6 md:p-7">
-          <h3 className="text-2xl font-bold text-[#F3F4F6]">
-            Mulai Dalam 3 Langkah
-          </h3>
-          <div className="mt-4 grid gap-3 md:grid-cols-3 text-sm">
-            <div className="rounded-lg bg-[#111317] border border-[#2A2F39] p-3 text-[#C8CFDA]">
-              1. Cari game di katalog
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex justify-center items-center gap-1.5 mt-8">
+          {/* Prev */}
+          <button
+            onClick={() => setPage((p) => Math.max(0, p - 1))}
+            disabled={page === 0}
+            className="w-9 h-9 rounded-lg border border-[#2F3643] text-[#C8CFDA] hover:bg-[#1A1F27] transition-colors disabled:opacity-30 disabled:pointer-events-none grid place-items-center"
+            aria-label="Halaman sebelumnya"
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 16 16"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M10 4L6 8l4 4" />
+            </svg>
+          </button>
+
+          {/* Page numbers with ellipsis */}
+          {(() => {
+            const items = [];
+            const show = new Set([0, totalPages - 1]);
+            for (
+              let i = Math.max(0, page - 1);
+              i <= Math.min(totalPages - 1, page + 1);
+              i++
+            )
+              show.add(i);
+            let prev = -1;
+            for (const i of [...show].sort((a, b) => a - b)) {
+              if (prev !== -1 && i - prev > 1) {
+                items.push(
+                  <span
+                    key={`e${i}`}
+                    className="w-9 h-9 grid place-items-center text-xs text-[#7E8796] select-none"
+                  >
+                    &hellip;
+                  </span>
+                );
+              }
+              items.push(
+                <button
+                  key={i}
+                  onClick={() => setPage(i)}
+                  className={`w-9 h-9 rounded-lg text-sm font-medium transition-colors ${
+                    page === i
+                      ? 'bg-[#FFD100] text-[#111317]'
+                      : 'border border-[#2F3643] text-[#C8CFDA] hover:bg-[#1A1F27]'
+                  }`}
+                >
+                  {i + 1}
+                </button>
+              );
+              prev = i;
+            }
+            return items;
+          })()}
+
+          {/* Next */}
+          <button
+            onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+            disabled={page === totalPages - 1}
+            className="w-9 h-9 rounded-lg border border-[#2F3643] text-[#C8CFDA] hover:bg-[#1A1F27] transition-colors disabled:opacity-30 disabled:pointer-events-none grid place-items-center"
+            aria-label="Halaman berikutnya"
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 16 16"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M6 4l4 4-4 4" />
+            </svg>
+          </button>
+        </div>
+      )}
+    </section>
+  );
+};
+
+// ═══════════════════════════════════════════════════════════════
+// VIDEO PREVIEW (2 featured → /videos)
+// ═══════════════════════════════════════════════════════════════
+const VideoPreview = () => {
+  const featured = tutorials.slice(0, 2);
+  return (
+    <section className="max-w-7xl mx-auto px-6 py-12 md:py-16">
+      <div className="flex items-end justify-between mb-8">
+        <div>
+          <h2 className="text-2xl md:text-3xl font-extrabold text-[#F3F4F6]">
+            Video Tutorial
+          </h2>
+          <p className="text-[#9CA3AF] mt-1 text-sm">
+            Panduan langkah demi langkah untuk install game.
+          </p>
+        </div>
+        <Link
+          to="/videos"
+          className="hidden sm:inline-flex items-center gap-1.5 text-sm font-semibold text-[#FFD100] hover:underline"
+        >
+          Lihat Semua
+          <ArrowRight className="w-4 h-4" />
+        </Link>
+      </div>
+      <div className="grid gap-5 sm:grid-cols-2">
+        {featured.map((t) => (
+          <div
+            key={t.id}
+            className="rounded-xl border border-[#2A2F39] bg-[#1A1F27] overflow-hidden hover:border-[#FFD100]/20 transition-colors"
+          >
+            <div className="relative aspect-video bg-[#0D1117] grid place-items-center">
+              {t.youtubeId ? (
+                <>
+                  <img
+                    src={`https://img.youtube.com/vi/${t.youtubeId}/mqdefault.jpg`}
+                    alt={t.title}
+                    className="absolute inset-0 w-full h-full object-cover opacity-50"
+                    loading="lazy"
+                  />
+                  <div className="relative z-10 w-14 h-14 rounded-full bg-[#FFD100] grid place-items-center shadow-lg shadow-[#FFD100]/20">
+                    <Play className="w-6 h-6 text-[#111317] ml-0.5" />
+                  </div>
+                </>
+              ) : (
+                <div className="flex flex-col items-center gap-2 text-[#7E8796]">
+                  <Video className="w-10 h-10 opacity-40" />
+                  <span className="text-xs font-medium">
+                    Video segera hadir
+                  </span>
+                </div>
+              )}
             </div>
-            <div className="rounded-lg bg-[#111317] border border-[#2A2F39] p-3 text-[#C8CFDA]">
-              2. Jika belum ada, kirim request
-            </div>
-            <div className="rounded-lg bg-[#111317] border border-[#2A2F39] p-3 text-[#C8CFDA]">
-              3. Tunggu konfirmasi ketersediaan
+            <div className="p-5">
+              <h4 className="font-bold text-[#F3F4F6]">{t.title}</h4>
+              <p className="mt-1 text-sm text-[#9CA3AF]">{t.description}</p>
             </div>
           </div>
-          <p className="mt-4 text-sm text-[#9CA3AF]">
-            Simple, cepat, dan transparan dari awal.
+        ))}
+      </div>
+      <div className="mt-6 text-center sm:hidden">
+        <Link
+          to="/videos"
+          className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#FFD100] hover:underline"
+        >
+          Lihat Semua Video
+          <ArrowRight className="w-4 h-4" />
+        </Link>
+      </div>
+    </section>
+  );
+};
+
+// ═══════════════════════════════════════════════════════════════
+// PREREQUISITES (3 items)
+// ═══════════════════════════════════════════════════════════════
+const PrereqSection = () => (
+  <section id="software" className="max-w-7xl mx-auto px-6 py-12 md:py-16">
+    <div className="mb-8">
+      <h2 className="text-2xl md:text-3xl font-extrabold text-[#F3F4F6]">
+        Software Pendukung
+      </h2>
+      <p className="text-[#9CA3AF] mt-1 text-sm">
+        Install software ini sebelum menjalankan game.
+      </p>
+    </div>
+    <div className="grid gap-3 sm:grid-cols-3">
+      {prerequisites.map((item) => {
+        const Icon = prereqIconMap[item.icon] || Wrench;
+        return (
+          <a
+            key={item.id}
+            href={item.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="group flex items-center gap-4 rounded-xl border border-[#2A2F39] bg-[#1A1F27] p-5 hover:border-[#FFD100]/30 transition-colors"
+          >
+            <div className="w-11 h-11 rounded-lg border border-[#2F3643] bg-[#111317] grid place-items-center flex-shrink-0">
+              <Icon className="w-5 h-5 text-[#C8CFDA]" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h4 className="font-bold text-sm text-[#F3F4F6]">{item.name}</h4>
+              <p className="text-xs text-[#9CA3AF] mt-0.5 truncate">
+                {item.description}
+              </p>
+            </div>
+            <ExternalLink className="w-4 h-4 text-[#7E8796] opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
+          </a>
+        );
+      })}
+    </div>
+  </section>
+);
+
+// ═══════════════════════════════════════════════════════════════
+// FAQ PREVIEW (3 items → /faq)
+// ═══════════════════════════════════════════════════════════════
+const FaqPreview = () => {
+  const topFaq = faqItems.slice(0, 3);
+  return (
+    <section className="max-w-7xl mx-auto px-6 py-12 md:py-16">
+      <div className="flex items-end justify-between mb-8">
+        <div>
+          <h2 className="text-2xl md:text-3xl font-extrabold text-[#F3F4F6]">
+            Pertanyaan Umum
+          </h2>
+          <p className="text-[#9CA3AF] mt-1 text-sm">
+            Jawaban cepat untuk pertanyaan yang sering ditanyakan.
           </p>
         </div>
-      </section>
+        <Link
+          to="/faq"
+          className="hidden sm:inline-flex items-center gap-1.5 text-sm font-semibold text-[#FFD100] hover:underline"
+        >
+          Lihat Semua FAQ
+          <ArrowRight className="w-4 h-4" />
+        </Link>
+      </div>
+      <div className="max-w-3xl mx-auto space-y-3">
+        {topFaq.map((item, index) => (
+          <Disclosure key={index}>
+            {({ open }) => (
+              <div
+                className={`rounded-xl border transition-colors ${
+                  open
+                    ? 'border-[#FFD100]/30 bg-[#1A1F27]'
+                    : 'border-[#2A2F39] bg-[#1A1F27]/60 hover:bg-[#1A1F27]'
+                }`}
+              >
+                <DisclosureButton className="flex w-full items-center justify-between px-5 py-4 text-left">
+                  <span className="font-semibold text-[#F3F4F6] pr-4">
+                    {item.question}
+                  </span>
+                  <ChevronDown
+                    className={`w-5 h-5 text-[#9CA3AF] flex-shrink-0 transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
+                  />
+                </DisclosureButton>
+                <DisclosurePanel className="px-5 pb-4 text-sm text-[#C8CFDA] leading-relaxed">
+                  {item.answer}
+                </DisclosurePanel>
+              </div>
+            )}
+          </Disclosure>
+        ))}
+      </div>
+      <div className="mt-6 text-center sm:hidden">
+        <Link
+          to="/faq"
+          className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#FFD100] hover:underline"
+        >
+          Lihat Semua FAQ
+          <ArrowRight className="w-4 h-4" />
+        </Link>
+      </div>
+    </section>
+  );
+};
 
+// ═══════════════════════════════════════════════════════════════
+// SCROLL TO TOP
+// ═══════════════════════════════════════════════════════════════
+const ScrollToTopButton = () => {
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    const onScroll = () => setVisible(window.scrollY > window.innerHeight);
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+  if (!visible) return null;
+  return (
+    <button
+      onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+      className="fixed bottom-6 right-6 z-50 w-11 h-11 rounded-full bg-[#FFD100] text-[#111317] grid place-items-center shadow-lg hover:brightness-90 transition-all hover:scale-105"
+      aria-label="Scroll ke atas"
+    >
+      <ChevronUp className="w-5 h-5" />
+    </button>
+  );
+};
+
+// ═══════════════════════════════════════════════════════════════
+// QUICK NAV DATA
+// ═══════════════════════════════════════════════════════════════
+const quickNavItems = [
+  { icon: Search, label: 'Cari Game', href: '#catalog', color: '#FFD100' },
+  {
+    icon: ArrowDownToLine,
+    label: 'Download App',
+    href: '#downloads',
+    color: '#3B82F6',
+  },
+  {
+    icon: PlayCircle,
+    label: 'Video Tutorial',
+    href: '/videos',
+    color: '#A855F7',
+    isRoute: true,
+  },
+  { icon: Wrench, label: 'Software', href: '#software', color: '#F97316' },
+  {
+    icon: HelpCircle,
+    label: 'FAQ',
+    href: '/faq',
+    color: '#14B8A6',
+    isRoute: true,
+  },
+  {
+    icon: MessageCircle,
+    label: 'Hubungi Admin',
+    href: '#contact',
+    color: '#22C55E',
+  },
+];
+
+// ═══════════════════════════════════════════════════════════════
+// MAIN PAGE
+// ═══════════════════════════════════════════════════════════════
+const LandingPage = () => {
+  const [navVisible, setNavVisible] = useState(false);
+  const heroRef = useRef(null);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => setNavVisible(!entry.isIntersecting),
+      { threshold: 0.05 }
+    );
+    if (heroRef.current) observer.observe(heroRef.current);
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <div className="min-h-screen bg-[#111317] text-[#F3F4F6] scroll-smooth">
+      <StickyNav visible={navVisible} />
+
+      {/* ── HERO ── */}
       <section
-        id="game-search"
-        className="max-w-7xl mx-auto px-6 py-12 md:py-14"
+        ref={heroRef}
+        className="relative min-h-[100dvh] flex flex-col justify-center overflow-hidden border-b border-[#2A2F39]"
       >
-        <div className="rounded-2xl border border-[#2A2F39] bg-[#1A1F27] p-6 md:p-8 shadow-2xl">
-          <div className="mb-8">
-            <h2 className="text-3xl md:text-4xl font-extrabold text-[#F3F4F6]">
-              Katalog Game Kami
-            </h2>
-            <p className="text-[#9CA3AF] mt-2">
-              Cari dulu di katalog. Kalau belum ada, kamu bisa lanjut request.
+        <div
+          className="pointer-events-none absolute inset-0 opacity-25"
+          style={{
+            backgroundImage: `linear-gradient(rgba(255,209,0,0.07) 1px, transparent 1px), linear-gradient(90deg, rgba(255,209,0,0.07) 1px, transparent 1px)`,
+            backgroundSize: '24px 24px',
+            backgroundAttachment: 'fixed',
+          }}
+        />
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(255,209,0,0.12),transparent_45%),radial-gradient(circle_at_85%_15%,rgba(255,255,255,0.04),transparent_30%)]" />
+
+        <div className="relative max-w-7xl mx-auto px-6 py-16 md:py-20 w-full">
+          <div className="text-center max-w-3xl mx-auto mb-12 md:mb-14">
+            <p className="inline-flex items-center rounded-full border border-[#FFD100]/25 bg-[#FFD100]/[0.08] px-4 py-1.5 text-[11px] font-semibold tracking-widest text-[#FFD100] mb-6 uppercase">
+              Gamer Street &bull; MyGameON
+            </p>
+            <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold leading-[1.1] tracking-tight">
+              Semua yang Kamu Butuhkan,{' '}
+              <span className="text-[#FFD100]">Satu Tempat.</span>
+            </h1>
+            <p className="mt-5 text-base md:text-lg text-[#C8CFDA] max-w-2xl mx-auto leading-relaxed">
+              Cari game, download launcher, tonton tutorial, atau langsung
+              hubungi admin. Semuanya ada di sini.
             </p>
           </div>
 
-          <InstantSearch searchClient={searchClient} indexName="games">
-            <Configure hitsPerPage={8} />
-
-            <div className="mb-8" role="search" aria-label="Pencarian game">
-              <SearchBox
-                placeholder="Ketik judul game..."
-                classNames={{
-                  root: 'w-full',
-                  form: 'relative flex w-full',
-                  input:
-                    'w-full rounded-xl border border-[#2F3643] bg-[#111317] text-[#F3F4F6] p-4 pl-12 focus:outline-none focus:ring-2 focus:ring-[#FFD100]/60 focus:border-[#FFD100]/50',
-                  submit:
-                    'absolute left-4 top-1/2 -translate-y-1/2 text-[#9CA3AF]',
-                  submitIcon: 'w-5 h-5',
-                  reset:
-                    'absolute right-4 top-1/2 -translate-y-1/2 text-[#9CA3AF] hover:text-[#F3F4F6]',
-                  resetIcon: 'w-5 h-5',
-                }}
-              />
-            </div>
-
-            <CustomHits />
-
-            <div className="text-center mt-10">
-              <Pagination
-                classNames={{
-                  root: 'flex justify-center items-center',
-                  list: 'flex flex-wrap gap-2',
-                  item: 'list-none',
-                  link: 'px-4 py-2 border border-[#2F3643] rounded-md text-[#C8CFDA] hover:bg-[#111317]',
-                  selectedItem: 'bg-[#FFD100] text-[#111317] border-[#FFD100]',
-                  disabledItem: 'opacity-50 cursor-not-allowed',
-                }}
-              />
-            </div>
-          </InstantSearch>
-        </div>
-      </section>
-
-      <section className="max-w-7xl mx-auto px-6 pb-14">
-        <div className="rounded-xl border border-[#2A2F39] bg-[#1A1F27] p-6 md:p-8">
-          <h3 className="text-2xl font-bold text-[#F3F4F6]">
-            Game yang Kamu Cari Belum Ada?
-          </h3>
-          <p className="mt-2 text-[#9CA3AF]">
-            Kirim request sekarang. Kami review satu per satu dan memproses
-            request jika file tersedia.
-          </p>
-          <div className="mt-5 flex flex-wrap gap-3">
-            <a
-              href="/request-game"
-              className="inline-flex items-center justify-center rounded-lg bg-[#FFD100] px-5 py-3 font-bold text-[#111317] hover:brightness-95 transition"
-            >
-              Kirim Request Sekarang
-            </a>
-            <a
-              href="/request-status"
-              className="inline-flex items-center justify-center rounded-lg border border-[#2F3643] px-5 py-3 font-semibold text-[#C8CFDA] hover:bg-[#111317] transition"
-            >
-              Cek Status Request
-            </a>
+          {/* Quick Nav */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 max-w-4xl mx-auto">
+            {quickNavItems.map(
+              ({ icon: Icon, label, href, color, isRoute }) => {
+                const cls =
+                  'group flex flex-col items-center gap-2.5 rounded-xl border border-[#2A2F39] bg-[#1A1F27]/70 backdrop-blur-sm px-3 py-4 hover:border-[#FFD100]/40 hover:bg-[#1A1F27] transition-all duration-200';
+                const inner = (
+                  <>
+                    <div
+                      className="w-10 h-10 rounded-lg grid place-items-center transition-transform group-hover:scale-110"
+                      style={{
+                        backgroundColor: `${color}12`,
+                        border: `1px solid ${color}35`,
+                      }}
+                    >
+                      <Icon className="w-5 h-5" style={{ color }} />
+                    </div>
+                    <span className="text-xs font-semibold text-[#C8CFDA] group-hover:text-[#F3F4F6] text-center transition-colors">
+                      {label}
+                    </span>
+                  </>
+                );
+                return isRoute ? (
+                  <Link key={href} to={href} className={cls}>
+                    {inner}
+                  </Link>
+                ) : (
+                  <a key={href} href={href} className={cls}>
+                    {inner}
+                  </a>
+                );
+              }
+            )}
           </div>
-          <p className="mt-3 text-xs text-[#9CA3AF]">
-            Request yang masuk lebih dulu akan diproses lebih dulu.
-          </p>
+
+          {/* Secondary actions */}
+          <div className="mt-6 flex flex-wrap justify-center gap-3">
+            <Link
+              to="/request-game"
+              className="inline-flex items-center gap-2 rounded-lg border border-[#2F3643] bg-[#1A1F27] px-4 py-2 text-sm font-semibold text-[#C8CFDA] hover:border-[#FFD100]/40 hover:text-[#F3F4F6] transition"
+            >
+              <FileQuestion className="w-4 h-4" />
+              Request Game
+            </Link>
+            <Link
+              to="/request-status"
+              className="inline-flex items-center gap-2 rounded-lg border border-[#2F3643] bg-[#1A1F27] px-4 py-2 text-sm font-semibold text-[#C8CFDA] hover:border-[#FFD100]/40 hover:text-[#F3F4F6] transition"
+            >
+              <ClipboardCheck className="w-4 h-4" />
+              Cek Status Request
+            </Link>
+          </div>
+        </div>
+
+        {/* Scroll indicator */}
+        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 text-[#7E8796] animate-bounce">
+          <span className="text-[10px] tracking-widest uppercase">Scroll</span>
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path
+              d="M4 6L8 10L12 6"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
         </div>
       </section>
 
-      <footer className="border-t border-[#2A2F39] text-[#7E8796] py-8 px-6 text-center">
+      {/* ── DOWNLOADS ── */}
+      <DownloadsSection />
+      <SectionDivider />
+
+      {/* ── GAME CATALOG ── */}
+      <GameCatalogSection />
+      <SectionDivider />
+
+      {/* ── VIDEO PREVIEW ── */}
+      <VideoPreview />
+
+      {/* ── SOFTWARE ── */}
+      <PrereqSection />
+      <SectionDivider />
+
+      {/* ── FAQ PREVIEW ── */}
+      <FaqPreview />
+
+      {/* ── CONTACT ── */}
+      <WhatsAppContactSection />
+
+      {/* ── FOOTER ── */}
+      <footer className="border-t border-[#2A2F39] text-[#7E8796] py-8 px-6 text-center text-sm">
         <p>
           &copy; {new Date().getFullYear()} MyGameON Hub. All rights reserved.
         </p>
       </footer>
+
+      <ScrollToTopButton />
     </div>
   );
 };

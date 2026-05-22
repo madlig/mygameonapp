@@ -1,5 +1,7 @@
 {
   "firestore": {
+    "database": "(default)",
+    "location": "asia-southeast2",
     "rules": "firestore.rules",
     "indexes": "firestore.indexes.json"
   },
@@ -26,5 +28,3 @@
     "singleProjectMode": true
   }
 }
-
-

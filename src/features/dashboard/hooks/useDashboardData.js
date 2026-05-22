@@ -18,7 +18,6 @@ export const useDashboardData = () => {
     totalTasks: 0,
     totalRequests: 0,
     totalFeedback: 0,
-    // Field Baru untuk Operational
     monthlyRevenue: 0,
     monthlyNetRevenue: 0,
     monthlyAdSpend: 0,
@@ -26,6 +25,11 @@ export const useDashboardData = () => {
   });
 
   const [recentActivities, setRecentActivities] = useState([]);
+
+  // FIX: state baru yang sebelumnya tidak ada di hook tapi dipakai di DashboardPage
+  const [priorityTasks, setPriorityTasks] = useState([]);
+  const [importantRequests, setImportantRequests] = useState([]);
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -35,20 +39,60 @@ export const useDashboardData = () => {
     const fetchDashboardData = async () => {
       setLoading(true);
       try {
+        // ============================================================
         // 1. Basic Stats (Games, Tasks, Requests)
-        // Optimasi: Gunakan count() dari firestore di masa depan untuk hemat read
-        // Saat ini kita pakai cara manual dulu sesuai kode lama
+        // ============================================================
         const gamesSnapshot = await getDocs(collection(db, 'games'));
         const requestsSnapshot = await getDocs(collection(db, 'requests'));
 
-        // Task user saat ini
-        const tasksQuery = query(
-          collection(db, 'users', currentUser.uid, 'tasks')
-        );
-        const tasksSnapshot = await getDocs(tasksQuery);
+        // FIX: Pakai global 'tasks' collection (sesuai TaskPage.jsx)
+        // bukan user-scoped 'users/{uid}/tasks' yang ada di versi lama
+        const tasksSnapshot = await getDocs(collection(db, 'tasks'));
 
-        // 2. Operational Stats (Bulan Ini)
-        // Kita ambil data dari 'operational_daily_recap' untuk bulan berjalan
+        // ============================================================
+        // 2. Priority Tasks — task yang belum 'Done', maksimal 5
+        // ============================================================
+        const activeTasks = tasksSnapshot.docs
+          .map((doc) => ({ id: doc.id, ...doc.data() }))
+          .filter((task) => task.status !== 'Done')
+          .sort((a, b) => {
+            // Urutkan: Urgent > High > Medium > Low
+            const priorityOrder = { Urgent: 0, High: 1, Medium: 2, Low: 3 };
+            return (
+              (priorityOrder[a.priority] ?? 9) -
+              (priorityOrder[b.priority] ?? 9)
+            );
+          })
+          .slice(0, 5);
+
+        setPriorityTasks(activeTasks);
+
+        // ============================================================
+        // 3. Important Requests — urutkan by votes terbanyak, maks 5
+        // ============================================================
+        const allRequests = requestsSnapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+
+        const topRequests = allRequests
+          .filter(
+            (req) =>
+              req.status !== 'available' && req.status !== 'not_available'
+          )
+          .sort((a, b) => (b.votes || 1) - (a.votes || 1))
+          .slice(0, 5)
+          .map((req) => ({
+            id: req.id,
+            game: req.title || 'Tanpa Judul',
+            requestCount: req.votes || 1,
+          }));
+
+        setImportantRequests(topRequests);
+
+        // ============================================================
+        // 4. Operational Stats (Bulan Ini)
+        // ============================================================
         const now = new Date();
         const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
           .toISOString()
@@ -57,19 +101,17 @@ export const useDashboardData = () => {
           .toISOString()
           .split('T')[0];
 
-        // Query ke koleksi agregasi
         const opsQuery = query(
-          collection(db, 'operational_daily_recap'), // Pastikan nama koleksi sesuai
+          collection(db, 'operational_daily_recap'),
           where('date', '>=', startOfMonth),
           where('date', '<=', endOfMonth)
         );
-
         const opsSnapshot = await getDocs(opsQuery);
 
-        let revenue = 0;
-        let netRevenue = 0;
-        let adSpend = 0;
-        let shifts = 0;
+        let revenue = 0,
+          netRevenue = 0,
+          adSpend = 0,
+          shifts = 0;
 
         opsSnapshot.docs.forEach((doc) => {
           const data = doc.data();
@@ -79,30 +121,45 @@ export const useDashboardData = () => {
           shifts += data.totalShifts || 0;
         });
 
-        // 3. Recent Activities (Gabungan)
-        // Simulasi penggabungan data terbaru
-        const latestGames = await getDocs(
-          query(collection(db, 'games'), orderBy('dateAdded', 'desc'), limit(3))
-        );
+        // ============================================================
+        // 5. Recent Activities — 3 game terbaru ditambahkan
+        // FIX: Pakai field 'createdAt' (setelah cleanup script rename dateAdded → createdAt)
+        // ============================================================
+        let activities = [];
+        try {
+          const latestGames = await getDocs(
+            query(
+              collection(db, 'games'),
+              orderBy('createdAt', 'desc'),
+              limit(3)
+            )
+          );
 
-        const activities = [];
-        latestGames.forEach((doc) => {
-          activities.push({
-            id: doc.id,
-            type: 'GAME_ADDED',
-            date: doc.data().dateAdded?.toDate() || new Date(),
-            data: { name: doc.data().title },
+          latestGames.forEach((doc) => {
+            const data = doc.data();
+            const rawDate = data.createdAt?.toDate?.() || data.dateAdded?.toDate?.() || new Date();
+            activities.push({
+              id: doc.id,
+              type: 'GAME_ADDED',
+              date: rawDate,
+              data: { name: data.title || data.name || 'Tanpa Judul' },
+            });
           });
-        });
+        } catch {
+          // Jika index belum ada, skip recent activities
+          activities = [];
+        }
 
-        // Sort activities by date
         activities.sort((a, b) => b.date - a.date);
 
+        // ============================================================
+        // 6. Set semua state
+        // ============================================================
         setSummaryStats({
           totalGames: gamesSnapshot.size,
           totalRequests: requestsSnapshot.size,
           totalTasks: tasksSnapshot.size,
-          totalFeedback: 0, // Placeholder
+          totalFeedback: 0,
           monthlyRevenue: revenue,
           monthlyNetRevenue: netRevenue,
           monthlyAdSpend: adSpend,
@@ -121,5 +178,13 @@ export const useDashboardData = () => {
     fetchDashboardData();
   }, [currentUser]);
 
-  return { summaryStats, recentActivities, loading, error };
+  // FIX: Tambahkan priorityTasks & importantRequests ke return value
+  return {
+    summaryStats,
+    recentActivities,
+    priorityTasks,
+    importantRequests,
+    loading,
+    error,
+  };
 };

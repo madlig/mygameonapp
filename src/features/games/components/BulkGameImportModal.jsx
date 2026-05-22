@@ -125,34 +125,61 @@ const BulkGameImportModal = ({ isOpen, onClose, onSuccess }) => {
     else if (upperType.includes('PRE')) installerType = 'PRE INSTALLED';
 
     // F. Jumlah Part
-    const rawParts =
-      row.parts || row.part || row['jumlah part'] || row['total part'] || '1';
-    const numberOfParts = parseInt(rawParts) || 1;
+    const fileSizeBytes = (() => {
+      const multipliers = { KB: 1024, MB: 1024 ** 2, GB: 1024 ** 3, TB: 1024 ** 4 };
+      return Math.round(sizeValue * (multipliers[sizeUnit] || multipliers.GB));
+    })();
 
-    return {
-      title: title,
-      title_lower: title.toLowerCase(),
+    const genreNormalized = genreArray.map((g) => g.toLowerCase().trim());
+    const autoShortDesc = `${title} — game ${genreNormalized.slice(0, 2).join(' & ') || 'menarik'} berukuran ${sizeValue} ${sizeUnit}. Tersedia paket instalasi siap main.`;
+    const slug = title.toLowerCase().replace(/['']/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+
+    // Public doc
+    const publicDoc = {
+      title,
+      slug,
       platform: 'PC',
-
-      version: version,
-      installerType: installerType,
-      numberOfParts: numberOfParts,
-
-      size: sizeValue,
-      sizeUnit: sizeUnit,
-      sortableSize: sizeInMB, // Sorting logic
-
-      genre: genreArray,
+      fileVersion: version,
+      fileEdition: null,
+      fileSizeBytes,
+      partsCount: numberOfParts,
+      packageType: installerType,
+      genres: genreNormalized,
       tags: tagsArray,
-      location: location,
-
-      status: 'Available',
-
-      lastVersionDate: Timestamp.now(),
+      playModes: ['singleplayer'],
+      coverImageUrl: '',
+      screenshots: [],
+      videoUrl: null,
+      description: '',
+      shortDescription: autoShortDesc,
+      shopee: { isAvailable: false, url: '', packagePrice: null },
+      officialPlatforms: [],
+      steamAppId: null,
+      relatedGameIds: [],
+      relatedGamesMode: 'auto',
+      availabilityStatus: 'available',
+      isProblematic: false,
+      lastFileUpdatedAt: Timestamp.now(),
+      lastVersionCheckAt: null,
+      steamLastUpdatedAt: null,
+      versionStatus: 'unchecked',
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
-      addedBy: 'Bulk CSV Import',
     };
+
+    // Private doc (akan di-set setelah kita dapat doc ID)
+    const privateDoc = {
+      storageLocations: location
+        ? [{ email: location, role: 'PRIMARY', version, uploadedAt: null, shopeeListed: false, tipe: installerType, notes: '' }]
+        : [],
+      adminNotes: '',
+      verificationStatus: 'needs_check',
+      lastVerifiedAt: null,
+      addedBy: 'Bulk CSV Import',
+      coverSourceCredit: '',
+    };
+
+return { publicDoc, privateDoc };
   };
 
   const handleUpload = async () => {
@@ -170,24 +197,26 @@ const BulkGameImportModal = ({ isOpen, onClose, onSuccess }) => {
         .map((h) => h.trim().toLowerCase().replace(/^"|"$/g, ''));
 
       const allData = dataLines.map((line) => {
-        const values = line
-          .split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/)
-          .map((v) => v.trim().replace(/^"|"$/g, ''));
-        const row = {};
-        headers.forEach((h, i) => (row[h] = values[i] || ''));
-        return mapRowToFirestore(row);
-      });
+      const values = line
+        .split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/)
+        .map((v) => v.trim().replace(/^"|"$/g, ''));
+      const row = {};
+      headers.forEach((h, i) => (row[h] = values[i] || ''));
+      return mapRowToFirestore(row);
+    });
 
-      const BATCH_SIZE = 400;
+    // Batch size 200 (bukan 400) karena setiap game = 2 writes (games + gamesPrivate)
+      const BATCH_SIZE = 200;
       const totalBatches = Math.ceil(allData.length / BATCH_SIZE);
 
       try {
         for (let i = 0; i < totalBatches; i++) {
           const batch = writeBatch(db);
           const chunk = allData.slice(i * BATCH_SIZE, (i + 1) * BATCH_SIZE);
-          chunk.forEach((gameData) => {
+          chunk.forEach(({ publicDoc, privateDoc }) => {
             const newRef = doc(collection(db, 'games'));
-            batch.set(newRef, gameData);
+            batch.set(newRef, publicDoc);
+            batch.set(doc(db, 'gamesPrivate', newRef.id), privateDoc);
           });
           await batch.commit();
           setUploadProgress(Math.round(((i + 1) / totalBatches) * 100));

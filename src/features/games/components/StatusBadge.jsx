@@ -3,6 +3,7 @@
 // Status badge untuk tampilkan availability game.
 // Available (hijau) - non-clickable
 // Unavailable (kuning/merah) - clickable, popup alasan dari adminNotes
+// Dark theme variant
 
 import React from 'react';
 import { Info } from 'lucide-react';
@@ -23,30 +24,32 @@ const StatusBadge = ({ game }) => {
       title: 'Game Tidak Tersedia',
       html: `
         <div style="text-align: left;">
-          <p style="margin-bottom: 12px; color: #475569;">
+          <p style="margin-bottom: 12px; color: #C8CFDA;">
             <b>${game.title}</b>
           </p>
-          <div style="background: #fef3c7; padding: 12px; border-radius: 8px; border: 1px solid #fde68a;">
-            <p style="margin: 0; color: #78350f; font-size: 13px; line-height: 1.5;">
+          <div style="background: #2A2F39; padding: 12px; border-radius: 8px; border: 1px solid #fbbf2433;">
+            <p style="margin: 0; color: #fbbf24; font-size: 13px; line-height: 1.5;">
               ${reason.replace(/\n/g, '<br/>')}
             </p>
           </div>
           ${
             game.isProblematic
-              ? '<p style="margin-top: 12px; color: #dc2626; font-size: 12px;"><b>Ditandai bermasalah</b></p>'
+              ? '<p style="margin-top: 12px; color: #f87171; font-size: 12px;"><b>Ditandai bermasalah</b></p>'
               : ''
           }
         </div>
       `,
       icon: 'info',
       confirmButtonText: 'Tutup',
-      confirmButtonColor: '#0f172a',
+      confirmButtonColor: '#FFD100',
+      color: '#F3F4F6',
+      background: '#1A1F27',
     });
   };
 
   if (status === 'available') {
     return (
-      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase border bg-emerald-50 text-emerald-700 border-emerald-200">
+      <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold uppercase bg-emerald-500/15 text-emerald-400 border border-emerald-500/25">
         Available
       </span>
     );
@@ -57,7 +60,7 @@ const StatusBadge = ({ game }) => {
     <button
       type="button"
       onClick={handleClick}
-      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase border bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100 transition-colors cursor-pointer"
+      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase bg-amber-500/15 text-amber-400 border border-amber-500/25 hover:bg-amber-500/25 transition-colors cursor-pointer"
       title="Klik untuk lihat alasan"
     >
       Unavailable

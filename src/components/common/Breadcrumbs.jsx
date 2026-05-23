@@ -12,10 +12,10 @@ const Breadcrumbs = () => {
 
 
   return (
-    <nav className="bg-white px-4 py-2 rounded shadow mb-4">
-      <ol className="flex items-center space-x-2 text-gray-700 text-sm">
+    <nav className="bg-[#1A1F27] border border-[#2A2F39] px-4 py-2 rounded-lg mb-4">
+      <ol className="flex items-center space-x-2 text-[#C8CFDA] text-sm">
         <li>
-          <Link to="/dashboard" className="text-blue-600 font-medium hover:underline">
+          <Link to="/dashboard" className="text-[#FFD100] font-medium hover:underline">
             Dashboard
           </Link>
         </li>
@@ -25,11 +25,11 @@ const Breadcrumbs = () => {
 
           return (
             <li key={index} className="flex items-center">
-              <ChevronRightIcon className="h-4 w-4 mx-2 text-gray-400" />
+              <ChevronRightIcon className="h-4 w-4 mx-2 text-[#7E8796]" />
               {isLast ? (
-                <span className="font-semibold capitalize">{segment}</span>
+                <span className="font-semibold text-[#F3F4F6] capitalize">{segment}</span>
               ) : (
-                <Link to={path} className="text-blue-600 hover:underline capitalize">
+                <Link to={path} className="text-[#FFD100] hover:underline capitalize">
                   {segment}
                 </Link>
               )}

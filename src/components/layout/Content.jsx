@@ -20,7 +20,7 @@ const Content = ({ children }) => {
   return (
     // gunakan safe-area-inset-bottom supaya konten tidak tertutup FAB/footer
     <div
-      className="relative flex-1 bg-gray-100 p-4 sm:p-6"
+      className="relative flex-1 bg-[#0D1117] p-4 sm:p-6"
       style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 4rem)' }}
     >
       <Breadcrumbs />

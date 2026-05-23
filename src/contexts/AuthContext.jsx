@@ -1,43 +1,37 @@
 /* eslint-disable react-refresh/only-export-components */
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { auth } from '../config/firebaseConfig'; // Impor 'auth' dari konfigurasi Firebase Anda
+import { auth } from '../config/firebaseConfig';
 import {
-  createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   signOut,
   onAuthStateChanged,
 } from 'firebase/auth';
 
-// Buat Context
+// ── Context ──────────────────────────────────────────────────
 const AuthContext = createContext();
 
-// Hook kustom untuk mengakses konteks autentikasi
 export function useAuth() {
   return useContext(AuthContext);
 }
 
-// Provider untuk membungkus aplikasi dan menyediakan nilai konteks
+// ── Provider ─────────────────────────────────────────────────
 export function AuthProvider({ children }) {
   const [currentUser, setCurrentUser] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [loading, setLoading] = useState(true); // State untuk menunjukkan loading autentikasi awal
+  const [loading, setLoading] = useState(true);
 
-  // Fungsi untuk mendaftar pengguna baru
-  async function signup(email, password) {
-    return createUserWithEmailAndPassword(auth, email, password);
-  }
-
-  // Fungsi untuk login pengguna
+  // Login — hanya sign-in, TIDAK ada signup dari client
   async function login(email, password) {
     return signInWithEmailAndPassword(auth, email, password);
   }
 
-  // Fungsi untuk logout pengguna
+  // Logout
   async function logout() {
+    setIsAdmin(false);
     return signOut(auth);
   }
 
-  // Efek samping untuk memantau perubahan status autentikasi
+  // Pantau auth state + baca custom claims
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setCurrentUser(user);
@@ -49,35 +43,48 @@ export function AuthProvider({ children }) {
       }
 
       try {
-        const tokenResult = await user.getIdTokenResult();
+        // Force-refresh token supaya claims selalu fresh
+        const tokenResult = await user.getIdTokenResult(true);
         const claims = tokenResult?.claims || {};
         const hasAdminClaim = claims.admin === true || claims.role === 'admin';
         setIsAdmin(hasAdminClaim);
+
+        // Jika user login tapi bukan admin → auto sign-out
+        // Ini mencegah non-admin session bertahan di browser
+        if (!hasAdminClaim) {
+          await signOut(auth);
+          setCurrentUser(null);
+          setIsAdmin(false);
+        }
       } catch (error) {
-        console.error('Failed to read auth claims:', error);
+        console.error('Failed to verify auth claims:', error);
         setIsAdmin(false);
+        // Token gagal di-refresh → sign out for safety
+        try {
+          await signOut(auth);
+        } catch {
+          // ignore
+        }
+        setCurrentUser(null);
       } finally {
-        setLoading(false); // Setelah status diketahui, set loading menjadi false
+        setLoading(false);
       }
     });
 
-    return unsubscribe; // Cleanup function
+    return unsubscribe;
   }, []);
 
-  // Nilai yang akan disediakan oleh AuthContext
   const value = {
     currentUser,
     isAdmin,
     loading,
-    signup,
     login,
     logout,
   };
 
   return (
     <AuthContext.Provider value={value}>
-      {!loading && children}{' '}
-      {/* Hanya render children jika status loading sudah selesai */}
+      {!loading && children}
     </AuthContext.Provider>
   );
 }

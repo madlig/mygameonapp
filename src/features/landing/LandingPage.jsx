@@ -803,10 +803,18 @@ const LandingPage = () => {
       <WhatsAppContactSection />
 
       {/* ── FOOTER ── */}
-      <footer className="border-t border-[#2A2F39] text-[#7E8796] py-8 px-6 text-center text-sm">
-        <p>
-          &copy; {new Date().getFullYear()} MyGameON Hub. All rights reserved.
-        </p>
+      <footer className="border-t border-[#2A2F39] text-[#7E8796] py-8 px-6 text-sm">
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
+          <p>
+            &copy; {new Date().getFullYear()} MyGameON Hub. All rights reserved.
+          </p>
+          <Link
+            to="/login"
+            className="text-[#7E8796]/60 hover:text-[#9CA3AF] transition-colors text-xs"
+          >
+            Admin
+          </Link>
+        </div>
       </footer>
 
       <ScrollToTopButton />

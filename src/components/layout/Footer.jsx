@@ -4,7 +4,7 @@ import FooterCopyright from "./FooterCopyright";
 
 const Footer = () => {
   return (
-    <div className="relative bg-gray-900 text-gray-400">
+    <div className="relative bg-[#111317] text-[#7E8796]">
       <div className="group relative">
         {/* Copyright Section */}
         <FooterCopyright />

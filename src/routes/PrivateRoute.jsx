@@ -10,11 +10,7 @@ const PrivateRoute = () => {
     return (
       <div className="min-h-screen bg-[#111317] grid place-items-center">
         <div className="flex flex-col items-center gap-3 text-[#7E8796]">
-          <svg
-            className="animate-spin w-6 h-6"
-            viewBox="0 0 24 24"
-            fill="none"
-          >
+          <svg className="animate-spin w-6 h-6" viewBox="0 0 24 24" fill="none">
             <circle
               cx="12"
               cy="12"

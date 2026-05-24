@@ -508,7 +508,9 @@ const GamesPage = () => {
             </h1>
             <p className="text-[#7E8796] text-sm">
               Total{' '}
-              <span className="text-[#FFD100] font-semibold">{games.length}</span>{' '}
+              <span className="text-[#FFD100] font-semibold">
+                {games.length}
+              </span>{' '}
               game dalam inventaris.
             </p>
           </div>
@@ -681,7 +683,9 @@ const GamesPage = () => {
                       <tr
                         key={game.id}
                         className={`group hover:bg-[#FFD100]/[0.03] transition-colors cursor-pointer ${
-                          selectedIds.includes(game.id) ? 'bg-[#FFD100]/[0.06]' : ''
+                          selectedIds.includes(game.id)
+                            ? 'bg-[#FFD100]/[0.06]'
+                            : ''
                         }`}
                         onClick={() => handleOpenEdit(game)}
                       >
@@ -771,10 +775,7 @@ const GamesPage = () => {
                           <div>
                             {game.packageType && (
                               <div className="flex items-center mb-1 text-violet-400 font-medium">
-                                <Disc
-                                  size={12}
-                                  className="mr-1"
-                                />
+                                <Disc size={12} className="mr-1" />
                                 {formatPackageType(game.packageType)}
                               </div>
                             )}
@@ -847,8 +848,7 @@ const GamesPage = () => {
                   <ChevronLeft size={16} />
                 </button>
                 <span className="text-sm font-medium text-[#C8CFDA] whitespace-nowrap">
-                  Hal{' '}
-                  <span className="text-[#FFD100]">{currentPage}</span> /{' '}
+                  Hal <span className="text-[#FFD100]">{currentPage}</span> /{' '}
                   {totalPages}
                 </span>
                 <button

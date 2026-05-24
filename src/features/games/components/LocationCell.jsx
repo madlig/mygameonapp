@@ -71,8 +71,7 @@ const LocationCell = ({ game }) => {
   if (display.count === 0) {
     return (
       <span className="inline-flex items-center text-[#4A5568] text-xs">
-        <MapPin size={12} className="mr-1" />
-        -
+        <MapPin size={12} className="mr-1" />-
       </span>
     );
   }

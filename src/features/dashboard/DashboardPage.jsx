@@ -43,20 +43,60 @@ const timeAgo = (date) => {
 };
 
 const priorityConfig = {
-  Urgent: { dot: 'bg-red-400', text: 'text-red-400', bg: 'bg-red-400/10', hex: '#f87171' },
-  High: { dot: 'bg-orange-400', text: 'text-orange-400', bg: 'bg-orange-400/10', hex: '#fb923c' },
-  Medium: { dot: 'bg-amber-400', text: 'text-amber-400', bg: 'bg-amber-400/10', hex: '#fbbf24' },
-  Low: { dot: 'bg-emerald-400', text: 'text-emerald-400', bg: 'bg-emerald-400/10', hex: '#34d399' },
+  Urgent: {
+    dot: 'bg-red-400',
+    text: 'text-red-400',
+    bg: 'bg-red-400/10',
+    hex: '#f87171',
+  },
+  High: {
+    dot: 'bg-orange-400',
+    text: 'text-orange-400',
+    bg: 'bg-orange-400/10',
+    hex: '#fb923c',
+  },
+  Medium: {
+    dot: 'bg-amber-400',
+    text: 'text-amber-400',
+    bg: 'bg-amber-400/10',
+    hex: '#fbbf24',
+  },
+  Low: {
+    dot: 'bg-emerald-400',
+    text: 'text-emerald-400',
+    bg: 'bg-emerald-400/10',
+    hex: '#34d399',
+  },
 };
 
 const requestPriorityConfig = (count) => {
   if (count > 10)
-    return { label: 'Critical', color: 'text-red-400', bar: 'bg-red-400', hex: '#f87171' };
+    return {
+      label: 'Critical',
+      color: 'text-red-400',
+      bar: 'bg-red-400',
+      hex: '#f87171',
+    };
   if (count > 5)
-    return { label: 'High', color: 'text-orange-400', bar: 'bg-orange-400', hex: '#fb923c' };
+    return {
+      label: 'High',
+      color: 'text-orange-400',
+      bar: 'bg-orange-400',
+      hex: '#fb923c',
+    };
   if (count > 3)
-    return { label: 'Medium', color: 'text-amber-400', bar: 'bg-amber-400', hex: '#fbbf24' };
-  return { label: 'Low', color: 'text-emerald-400', bar: 'bg-emerald-400', hex: '#34d399' };
+    return {
+      label: 'Medium',
+      color: 'text-amber-400',
+      bar: 'bg-amber-400',
+      hex: '#fbbf24',
+    };
+  return {
+    label: 'Low',
+    color: 'text-emerald-400',
+    bar: 'bg-emerald-400',
+    hex: '#34d399',
+  };
 };
 
 // ─── Activity Item ───────────────────────────────────────────
@@ -89,10 +129,7 @@ const ActivityItem = ({ activity }) => {
   if (!cfg) return null;
   const Icon = cfg.icon;
   const name =
-    activity.data?.name ||
-    activity.data?.title ||
-    activity.data?.game ||
-    '';
+    activity.data?.name || activity.data?.title || activity.data?.game || '';
 
   return (
     <div className="flex items-start gap-3 py-3 border-b border-[#2A2F39]/60 last:border-b-0">
@@ -240,8 +277,8 @@ const DashboardPage = () => {
       <div className="rounded-xl border border-[#FFD100]/20 bg-[#FFD100]/[0.06] px-4 py-3 flex items-start gap-3">
         <MegaphoneIcon className="w-5 h-5 text-[#FFD100] flex-shrink-0 mt-0.5" />
         <p className="text-sm text-[#C8CFDA]">
-          <span className="font-semibold text-[#FFD100]">Reminder:</span>{' '}
-          Pantau task aktif dan request yang menunggu review.
+          <span className="font-semibold text-[#FFD100]">Reminder:</span> Pantau
+          task aktif dan request yang menunggu review.
         </p>
       </div>
 
@@ -405,7 +442,10 @@ const DashboardPage = () => {
                       >
                         {item.game}
                       </p>
-                      <span className="text-xs font-bold tabular-nums flex-shrink-0" style={{ color: rCfg.hex }}>
+                      <span
+                        className="text-xs font-bold tabular-nums flex-shrink-0"
+                        style={{ color: rCfg.hex }}
+                      >
                         {item.requestCount}
                         <span className="font-normal text-[#7E8796]">
                           {' '}
@@ -420,9 +460,7 @@ const DashboardPage = () => {
                         style={{ width: `${barWidth}%` }}
                       />
                     </div>
-                    <span
-                      className={`text-[10px] font-semibold ${rCfg.color}`}
-                    >
+                    <span className={`text-[10px] font-semibold ${rCfg.color}`}>
                       {rCfg.label}
                     </span>
                   </div>

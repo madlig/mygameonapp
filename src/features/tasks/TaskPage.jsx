@@ -15,15 +15,40 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
-  Plus, CheckCircle, Circle, Clock, Pencil,
-  Trash2, ArrowRight, ArrowLeft, Zap, Calendar,
-  Loader2, AlertTriangle, Briefcase, Coffee,
-  Sun, Moon, Sunrise, Sunset, Timer, MessageSquare,
+  Plus,
+  CheckCircle,
+  Circle,
+  Clock,
+  Pencil,
+  Trash2,
+  ArrowRight,
+  ArrowLeft,
+  Zap,
+  Calendar,
+  Loader2,
+  AlertTriangle,
+  Briefcase,
+  Coffee,
+  Sun,
+  Moon,
+  Sunrise,
+  Sunset,
+  Timer,
+  MessageSquare,
 } from 'lucide-react';
 import {
-  collection, query, orderBy, onSnapshot, updateDoc,
-  doc, deleteDoc, writeBatch, serverTimestamp, Timestamp,
-  addDoc, increment,
+  collection,
+  query,
+  orderBy,
+  onSnapshot,
+  updateDoc,
+  doc,
+  deleteDoc,
+  writeBatch,
+  serverTimestamp,
+  Timestamp,
+  addDoc,
+  increment,
 } from 'firebase/firestore';
 import { db } from '../../config/firebaseConfig';
 import Swal from 'sweetalert2';
@@ -49,10 +74,26 @@ const swalToast = Swal.mixin({
 
 // ── Priority color map ──────────────────────────────────────
 const priorityColors = {
-  Urgent: { border: 'border-l-red-500', text: 'text-red-400', bg: 'bg-red-500/15' },
-  High:   { border: 'border-l-orange-500', text: 'text-orange-400', bg: 'bg-orange-500/15' },
-  Medium: { border: 'border-l-sky-400', text: 'text-sky-400', bg: 'bg-sky-500/15' },
-  Low:    { border: 'border-l-emerald-500', text: 'text-emerald-400', bg: 'bg-emerald-500/15' },
+  Urgent: {
+    border: 'border-l-red-500',
+    text: 'text-red-400',
+    bg: 'bg-red-500/15',
+  },
+  High: {
+    border: 'border-l-orange-500',
+    text: 'text-orange-400',
+    bg: 'bg-orange-500/15',
+  },
+  Medium: {
+    border: 'border-l-sky-400',
+    text: 'text-sky-400',
+    bg: 'bg-sky-500/15',
+  },
+  Low: {
+    border: 'border-l-emerald-500',
+    text: 'text-emerald-400',
+    bg: 'bg-emerald-500/15',
+  },
 };
 
 // ═════════════════════════════════════════════════════════════
@@ -107,12 +148,22 @@ const TaskPage = () => {
     const progress = total === 0 ? 0 : Math.round((done / total) * 100);
 
     const hour = new Date().getHours();
-    let greet = { text: 'Selamat Pagi', icon: Sunrise, color: 'text-orange-400' };
-    if (hour >= 11 && hour < 15) greet = { text: 'Selamat Siang', icon: Sun, color: 'text-amber-400' };
-    else if (hour >= 15 && hour < 19) greet = { text: 'Selamat Sore', icon: Sunset, color: 'text-orange-400' };
-    else if (hour >= 19 || hour < 4) greet = { text: 'Selamat Malam', icon: Moon, color: 'text-indigo-400' };
+    let greet = {
+      text: 'Selamat Pagi',
+      icon: Sunrise,
+      color: 'text-orange-400',
+    };
+    if (hour >= 11 && hour < 15)
+      greet = { text: 'Selamat Siang', icon: Sun, color: 'text-amber-400' };
+    else if (hour >= 15 && hour < 19)
+      greet = { text: 'Selamat Sore', icon: Sunset, color: 'text-orange-400' };
+    else if (hour >= 19 || hour < 4)
+      greet = { text: 'Selamat Malam', icon: Moon, color: 'text-indigo-400' };
 
-    return { stats: { total, done, inProgress, overdue, progress }, greeting: greet };
+    return {
+      stats: { total, done, inProgress, overdue, progress },
+      greeting: greet,
+    };
   }, [tasks]);
 
   // ═════════════════════════════════════════════════════════════
@@ -129,7 +180,11 @@ const TaskPage = () => {
       }
 
       // AUTOMATION CHECK
-      if (newStatus === 'Done' && task.isAutomation && task.automationTargetId) {
+      if (
+        newStatus === 'Done' &&
+        task.isAutomation &&
+        task.automationTargetId
+      ) {
         const result = await Swal.fire({
           ...swalDark,
           title: 'Selesaikan & Update Game?',
@@ -145,7 +200,10 @@ const TaskPage = () => {
         if (!result.isConfirmed) return;
 
         const batch = writeBatch(db);
-        batch.update(taskRef, { status: newStatus, updatedAt: serverTimestamp() });
+        batch.update(taskRef, {
+          status: newStatus,
+          updatedAt: serverTimestamp(),
+        });
         const gameRef = doc(db, 'games', task.automationTargetId);
         batch.update(gameRef, {
           version: task.automationPayload.newVersion,
@@ -154,9 +212,15 @@ const TaskPage = () => {
         });
         await batch.commit();
 
-        swalToast.fire({ icon: 'success', title: `Game ${task.automationTargetTitle} berhasil diupdate!` });
+        swalToast.fire({
+          icon: 'success',
+          title: `Game ${task.automationTargetTitle} berhasil diupdate!`,
+        });
       } else {
-        await updateDoc(taskRef, { status: newStatus, updatedAt: serverTimestamp() });
+        await updateDoc(taskRef, {
+          status: newStatus,
+          updatedAt: serverTimestamp(),
+        });
       }
     } catch (error) {
       console.error('Error moving task:', error);
@@ -226,21 +290,24 @@ const TaskPage = () => {
   }, []);
 
   // ── Subtask toggle (directly in card) ──
-  const handleToggleSubtask = useCallback(async (taskId, subtaskIndex) => {
-    const task = tasks.find((t) => t.id === taskId);
-    if (!task?.subtasks) return;
-    const updated = task.subtasks.map((st, i) =>
-      i === subtaskIndex ? { ...st, completed: !st.completed } : st
-    );
-    try {
-      await updateDoc(doc(db, 'tasks', taskId), {
-        subtasks: updated,
-        updatedAt: serverTimestamp(),
-      });
-    } catch (err) {
-      console.error('Error toggling subtask:', err);
-    }
-  }, [tasks]);
+  const handleToggleSubtask = useCallback(
+    async (taskId, subtaskIndex) => {
+      const task = tasks.find((t) => t.id === taskId);
+      if (!task?.subtasks) return;
+      const updated = task.subtasks.map((st, i) =>
+        i === subtaskIndex ? { ...st, completed: !st.completed } : st
+      );
+      try {
+        await updateDoc(doc(db, 'tasks', taskId), {
+          subtasks: updated,
+          updatedAt: serverTimestamp(),
+        });
+      } catch (err) {
+        console.error('Error toggling subtask:', err);
+      }
+    },
+    [tasks]
+  );
 
   // ═════════════════════════════════════════════════════════════
   // SUB-COMPONENTS
@@ -252,9 +319,15 @@ const TaskPage = () => {
     let text = format(date, 'd MMM', { locale: localeId });
     let colorClass = 'text-[#7E8796]';
 
-    if (isToday(date)) { text = 'Hari Ini'; colorClass = 'text-emerald-400 font-bold'; }
-    else if (isTomorrow(date)) { text = 'Besok'; colorClass = 'text-sky-400 font-medium'; }
-    else if (isPast(date)) { colorClass = 'text-red-400 font-bold'; }
+    if (isToday(date)) {
+      text = 'Hari Ini';
+      colorClass = 'text-emerald-400 font-bold';
+    } else if (isTomorrow(date)) {
+      text = 'Besok';
+      colorClass = 'text-sky-400 font-medium';
+    } else if (isPast(date)) {
+      colorClass = 'text-red-400 font-bold';
+    }
 
     return (
       <span className={`flex items-center text-[10px] ${colorClass}`}>
@@ -280,7 +353,10 @@ const TaskPage = () => {
         {/* Hover Actions */}
         <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1.5">
           <button
-            onClick={() => { setEditingTask(task); setIsModalOpen(true); }}
+            onClick={() => {
+              setEditingTask(task);
+              setIsModalOpen(true);
+            }}
             className="p-1.5 rounded-lg text-[#7E8796] hover:text-sky-400 hover:bg-sky-500/10 transition-colors"
           >
             <Pencil size={14} />
@@ -298,7 +374,9 @@ const TaskPage = () => {
           <span className="text-[10px] px-2 py-0.5 bg-[#111317] text-[#7E8796] rounded-full border border-[#2A2F39] font-medium tracking-wide uppercase">
             {task.category}
           </span>
-          <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${pColor.bg} ${pColor.text}`}>
+          <span
+            className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${pColor.bg} ${pColor.text}`}
+          >
             {task.priority}
           </span>
           {task.isAutomation && (
@@ -311,12 +389,17 @@ const TaskPage = () => {
         {/* Title & Description */}
         <h4
           className="text-sm font-bold text-[#F3F4F6] mb-1 leading-snug cursor-pointer hover:text-[#FFD100] transition-colors pr-16"
-          onClick={() => { setEditingTask(task); setIsModalOpen(true); }}
+          onClick={() => {
+            setEditingTask(task);
+            setIsModalOpen(true);
+          }}
         >
           {task.title}
         </h4>
         {task.description && (
-          <p className="text-xs text-[#7E8796] mb-2 line-clamp-2">{task.description}</p>
+          <p className="text-xs text-[#7E8796] mb-2 line-clamp-2">
+            {task.description}
+          </p>
         )}
 
         {/* Automation Target */}
@@ -361,7 +444,9 @@ const TaskPage = () => {
               <div className="flex-1 bg-[#2A2F39] rounded-full h-1">
                 <div
                   className="bg-emerald-400 h-1 rounded-full transition-all"
-                  style={{ width: `${subtasks.length ? (completedSubs / subtasks.length) * 100 : 0}%` }}
+                  style={{
+                    width: `${subtasks.length ? (completedSubs / subtasks.length) * 100 : 0}%`,
+                  }}
                 />
               </div>
               <span className="text-[10px] text-[#7E8796] tabular-nums">
@@ -405,7 +490,12 @@ const TaskPage = () => {
             )}
             {task.status !== 'Todo' && (
               <button
-                onClick={() => handleMoveTask(task, task.status === 'Done' ? 'In Progress' : 'Todo')}
+                onClick={() =>
+                  handleMoveTask(
+                    task,
+                    task.status === 'Done' ? 'In Progress' : 'Todo'
+                  )
+                }
                 className="p-1.5 rounded-lg hover:bg-[#2A2F39] text-[#7E8796] hover:text-[#C8CFDA] transition-colors"
                 title="Mundur"
               >
@@ -414,9 +504,16 @@ const TaskPage = () => {
             )}
             {task.status !== 'Done' && (
               <button
-                onClick={() => handleMoveTask(task, task.status === 'Todo' ? 'In Progress' : 'Done')}
+                onClick={() =>
+                  handleMoveTask(
+                    task,
+                    task.status === 'Todo' ? 'In Progress' : 'Done'
+                  )
+                }
                 className="p-1.5 rounded-lg hover:bg-emerald-500/15 text-emerald-400 font-bold hover:scale-110 transition-all"
-                title={task.isAutomation ? 'Selesaikan & Update Game' : 'Majukan'}
+                title={
+                  task.isAutomation ? 'Selesaikan & Update Game' : 'Majukan'
+                }
               >
                 <ArrowRight size={14} />
               </button>
@@ -427,7 +524,14 @@ const TaskPage = () => {
     );
   };
 
-  const Column = ({ title, status, icon: Icon, iconColor, iconBg, emptyMsg }) => {
+  const Column = ({
+    title,
+    status,
+    icon: Icon,
+    iconColor,
+    iconBg,
+    emptyMsg,
+  }) => {
     const columnTasks = tasks.filter((t) => t.status === status);
     return (
       <div className="flex-1 min-w-[320px] max-w-[400px] flex flex-col h-full bg-[#0D1117] rounded-2xl p-2 border border-[#2A2F39]">
@@ -470,7 +574,6 @@ const TaskPage = () => {
   return (
     <div className="min-h-screen pb-10 flex flex-col font-sans">
       <div className="max-w-[1400px] mx-auto px-6 py-8 w-full flex-1 flex flex-col">
-
         {/* ── HEADER: GREETING & STATS ── */}
         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end mb-8 gap-6">
           <div>
@@ -490,10 +593,16 @@ const TaskPage = () => {
             {/* Productivity */}
             <div className="bg-[#1A1F27] p-3 rounded-xl border border-[#2A2F39] flex items-center gap-4 flex-1 lg:flex-none min-w-[200px]">
               <div className="text-right">
-                <p className="text-[10px] text-[#7E8796] font-bold uppercase mb-0.5">Selesai</p>
+                <p className="text-[10px] text-[#7E8796] font-bold uppercase mb-0.5">
+                  Selesai
+                </p>
                 <div className="flex items-baseline gap-1 justify-end">
-                  <span className="text-2xl font-black text-[#FFD100]">{stats.done}</span>
-                  <span className="text-sm text-[#7E8796] font-medium">/ {stats.total}</span>
+                  <span className="text-2xl font-black text-[#FFD100]">
+                    {stats.done}
+                  </span>
+                  <span className="text-sm text-[#7E8796] font-medium">
+                    / {stats.total}
+                  </span>
                 </div>
               </div>
               <div className="h-8 w-px bg-[#2A2F39]"></div>
@@ -516,8 +625,12 @@ const TaskPage = () => {
               <div className="bg-red-500/10 px-4 py-3 rounded-xl border border-red-500/20 flex items-center gap-2">
                 <AlertTriangle size={16} className="text-red-400" />
                 <div>
-                  <p className="text-[10px] text-red-400 font-bold uppercase">Overdue</p>
-                  <span className="text-lg font-black text-red-400">{stats.overdue}</span>
+                  <p className="text-[10px] text-red-400 font-bold uppercase">
+                    Overdue
+                  </p>
+                  <span className="text-lg font-black text-red-400">
+                    {stats.overdue}
+                  </span>
                 </div>
               </div>
             )}
@@ -526,8 +639,12 @@ const TaskPage = () => {
             <div className="bg-amber-500/10 px-4 py-3 rounded-xl border border-amber-500/20 flex items-center gap-2">
               <Clock size={16} className="text-amber-400" />
               <div>
-                <p className="text-[10px] text-amber-400 font-bold uppercase">Aktif</p>
-                <span className="text-lg font-black text-amber-400">{stats.inProgress}</span>
+                <p className="text-[10px] text-amber-400 font-bold uppercase">
+                  Aktif
+                </p>
+                <span className="text-lg font-black text-amber-400">
+                  {stats.inProgress}
+                </span>
               </div>
             </div>
           </div>
@@ -608,7 +725,10 @@ const TaskPage = () => {
 
       {/* MOBILE FAB */}
       <button
-        onClick={() => { setEditingTask(null); setIsModalOpen(true); }}
+        onClick={() => {
+          setEditingTask(null);
+          setIsModalOpen(true);
+        }}
         className="fixed bottom-6 right-6 md:hidden bg-[#FFD100] text-[#111317] p-4 rounded-full shadow-xl shadow-[#FFD100]/20 hover:brightness-110 active:scale-95 transition-all z-40"
       >
         <Plus size={24} />

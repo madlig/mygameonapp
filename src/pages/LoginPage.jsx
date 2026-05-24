@@ -1,7 +1,14 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { Gamepad2, LogIn, ArrowLeft, Eye, EyeOff, ShieldCheck } from 'lucide-react';
+import {
+  Gamepad2,
+  LogIn,
+  ArrowLeft,
+  Eye,
+  EyeOff,
+  ShieldCheck,
+} from 'lucide-react';
 
 // ─── Client-side brute-force protection ──────────────────────
 const MAX_ATTEMPTS = 5;
@@ -37,7 +44,10 @@ function clearLockState() {
 // ─── Input sanitiser ─────────────────────────────────────────
 function sanitizeEmail(value) {
   // Strip control chars, trim, lowercase
-  return value.replace(/[\x00-\x1F\x7F]/g, '').trim().toLowerCase();
+  return value
+    .replace(/[\x00-\x1F\x7F]/g, '')
+    .trim()
+    .toLowerCase();
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -123,8 +133,7 @@ const LoginPage = () => {
       // 2) Force-refresh token to get latest custom claims
       const tokenResult = await userCredential.user.getIdTokenResult(true);
       const claims = tokenResult.claims || {};
-      const hasAdminClaim =
-        claims.admin === true || claims.role === 'admin';
+      const hasAdminClaim = claims.admin === true || claims.role === 'admin';
 
       // 3) Verify admin privilege
       if (!hasAdminClaim) {
@@ -179,11 +188,7 @@ const LoginPage = () => {
     return (
       <div className="min-h-screen bg-[#111317] grid place-items-center">
         <div className="flex flex-col items-center gap-3 text-[#7E8796]">
-          <svg
-            className="animate-spin w-6 h-6"
-            viewBox="0 0 24 24"
-            fill="none"
-          >
+          <svg className="animate-spin w-6 h-6" viewBox="0 0 24 24" fill="none">
             <circle
               cx="12"
               cy="12"

@@ -9,12 +9,28 @@
 import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import {
-  X, Loader2, Calendar, Flag, Tag, Zap, AlertCircle,
-  Plus, Trash2, ListChecks, MessageSquare,
+  X,
+  Loader2,
+  Calendar,
+  Flag,
+  Tag,
+  Zap,
+  AlertCircle,
+  Plus,
+  Trash2,
+  ListChecks,
+  MessageSquare,
 } from 'lucide-react';
 import {
-  collection, addDoc, updateDoc, doc, serverTimestamp,
-  getDocs, query, orderBy, Timestamp,
+  collection,
+  addDoc,
+  updateDoc,
+  doc,
+  serverTimestamp,
+  getDocs,
+  query,
+  orderBy,
+  Timestamp,
 } from 'firebase/firestore';
 import { db } from '../../../config/firebaseConfig';
 import Swal from 'sweetalert2';
@@ -28,17 +44,33 @@ const swalDark = {
 };
 
 // Simple unique ID generator
-const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+const uid = () =>
+  Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 
-const TaskFormModal = ({ isOpen, onClose, initialData, prefillData, onSuccess }) => {
+const TaskFormModal = ({
+  isOpen,
+  onClose,
+  initialData,
+  prefillData,
+  onSuccess,
+}) => {
   const {
-    register, handleSubmit, watch, setValue, reset,
+    register,
+    handleSubmit,
+    watch,
+    setValue,
+    reset,
     formState: { isSubmitting },
   } = useForm({
     defaultValues: {
-      title: '', description: '', priority: 'Medium',
-      category: 'General', dueDate: '', isAutomation: false,
-      automationTargetId: '', newVersion: '',
+      title: '',
+      description: '',
+      priority: 'Medium',
+      category: 'General',
+      dueDate: '',
+      isAutomation: false,
+      automationTargetId: '',
+      newVersion: '',
     },
   });
 
@@ -90,9 +122,14 @@ const TaskFormModal = ({ isOpen, onClose, initialData, prefillData, onSuccess })
       } else {
         // MODE CREATE BIASA
         reset({
-          title: '', description: '', priority: 'Medium',
-          category: 'General', dueDate: '', isAutomation: false,
-          automationTargetId: '', newVersion: '',
+          title: '',
+          description: '',
+          priority: 'Medium',
+          category: 'General',
+          dueDate: '',
+          isAutomation: false,
+          automationTargetId: '',
+          newVersion: '',
         });
         setSubtasks([]);
         setNotes([]);
@@ -106,7 +143,9 @@ const TaskFormModal = ({ isOpen, onClose, initialData, prefillData, onSuccess })
         try {
           const q = query(collection(db, 'games'), orderBy('title'));
           const snap = await getDocs(q);
-          setGamesList(snap.docs.map((d) => ({ id: d.id, title: d.data().title })));
+          setGamesList(
+            snap.docs.map((d) => ({ id: d.id, title: d.data().title }))
+          );
         } catch (e) {
           console.error('Error fetching games', e);
         } finally {
@@ -157,7 +196,9 @@ const TaskFormModal = ({ isOpen, onClose, initialData, prefillData, onSuccess })
         description: data.description,
         priority: data.priority,
         category: data.category,
-        dueDate: data.dueDate ? Timestamp.fromDate(new Date(data.dueDate)) : null,
+        dueDate: data.dueDate
+          ? Timestamp.fromDate(new Date(data.dueDate))
+          : null,
         status: initialData?.status || 'Todo',
         updatedAt: serverTimestamp(),
         isAutomation: data.isAutomation,
@@ -171,8 +212,11 @@ const TaskFormModal = ({ isOpen, onClose, initialData, prefillData, onSuccess })
       }
 
       if (data.isAutomation && data.automationTargetId) {
-        const selectedGame = gamesList.find((g) => g.id === data.automationTargetId);
-        const targetTitle = selectedGame?.title || prefillData?.gameTitle || 'Unknown Game';
+        const selectedGame = gamesList.find(
+          (g) => g.id === data.automationTargetId
+        );
+        const targetTitle =
+          selectedGame?.title || prefillData?.gameTitle || 'Unknown Game';
         taskData.automationTargetId = data.automationTargetId;
         taskData.automationTargetTitle = targetTitle;
         taskData.automationPayload = {
@@ -183,17 +227,34 @@ const TaskFormModal = ({ isOpen, onClose, initialData, prefillData, onSuccess })
 
       if (initialData) {
         await updateDoc(doc(db, 'tasks', initialData.id), taskData);
-        Swal.fire({ ...swalDark, icon: 'success', title: 'Task Diupdate', timer: 1000, showConfirmButton: false });
+        Swal.fire({
+          ...swalDark,
+          icon: 'success',
+          title: 'Task Diupdate',
+          timer: 1000,
+          showConfirmButton: false,
+        });
       } else {
         await addDoc(collection(db, 'tasks'), taskData);
-        Swal.fire({ ...swalDark, icon: 'success', title: 'Task Dibuat', timer: 1000, showConfirmButton: false });
+        Swal.fire({
+          ...swalDark,
+          icon: 'success',
+          title: 'Task Dibuat',
+          timer: 1000,
+          showConfirmButton: false,
+        });
       }
 
       onSuccess();
       onClose();
     } catch (error) {
       console.error(error);
-      Swal.fire({ ...swalDark, title: 'Error', text: 'Gagal menyimpan task', icon: 'error' });
+      Swal.fire({
+        ...swalDark,
+        title: 'Error',
+        text: 'Gagal menyimpan task',
+        icon: 'error',
+      });
     }
   };
 
@@ -207,12 +268,18 @@ const TaskFormModal = ({ isOpen, onClose, initialData, prefillData, onSuccess })
           <h3 className="font-bold text-[#F3F4F6] text-lg">
             {initialData ? 'Edit Task' : 'Task Baru'}
           </h3>
-          <button onClick={onClose} className="p-1 rounded-lg hover:bg-[#2A2F39] transition-colors">
+          <button
+            onClick={onClose}
+            className="p-1 rounded-lg hover:bg-[#2A2F39] transition-colors"
+          >
             <X size={20} className="text-[#7E8796]" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-4 overflow-y-auto">
+        <form
+          onSubmit={handleSubmit(onSubmit)}
+          className="p-6 space-y-4 overflow-y-auto"
+        >
           {/* Title & Description */}
           <div>
             <input
@@ -296,7 +363,9 @@ const TaskFormModal = ({ isOpen, onClose, initialData, prefillData, onSuccess })
                     />
                     <span
                       className={`flex-1 text-sm ${
-                        st.completed ? 'line-through text-[#4A5568]' : 'text-[#C8CFDA]'
+                        st.completed
+                          ? 'line-through text-[#4A5568]'
+                          : 'text-[#C8CFDA]'
                       }`}
                     >
                       {st.text}
@@ -335,7 +404,9 @@ const TaskFormModal = ({ isOpen, onClose, initialData, prefillData, onSuccess })
             <label className="text-xs font-bold text-[#7E8796] mb-2 flex items-center gap-1">
               <MessageSquare size={12} /> Catatan / Log
               {notes.length > 0 && (
-                <span className="ml-auto text-[#4A5568] text-[10px]">{notes.length}</span>
+                <span className="ml-auto text-[#4A5568] text-[10px]">
+                  {notes.length}
+                </span>
               )}
             </label>
 
@@ -346,11 +417,15 @@ const TaskFormModal = ({ isOpen, onClose, initialData, prefillData, onSuccess })
                     key={note.id}
                     className="bg-[#1A1F27] border border-[#2A2F39] rounded-lg p-3 group/note"
                   >
-                    <p className="text-xs text-[#C8CFDA] whitespace-pre-wrap">{note.text}</p>
+                    <p className="text-xs text-[#C8CFDA] whitespace-pre-wrap">
+                      {note.text}
+                    </p>
                     <div className="flex items-center justify-between mt-1.5">
                       <span className="text-[10px] text-[#4A5568]">
                         {note.createdAt
-                          ? format(new Date(note.createdAt), 'd MMM, HH:mm', { locale: localeId })
+                          ? format(new Date(note.createdAt), 'd MMM, HH:mm', {
+                              locale: localeId,
+                            })
                           : '-'}
                       </span>
                       <button
@@ -404,7 +479,8 @@ const TaskFormModal = ({ isOpen, onClose, initialData, prefillData, onSuccess })
                 <div className="space-y-3">
                   <div className="text-xs text-violet-400 mb-2">
                     <AlertCircle size={12} className="inline mr-1" />
-                    Saat task ini <b>&quot;Done&quot;</b>, game otomatis terupdate.
+                    Saat task ini <b>&quot;Done&quot;</b>, game otomatis
+                    terupdate.
                   </div>
 
                   <div>
@@ -420,7 +496,9 @@ const TaskFormModal = ({ isOpen, onClose, initialData, prefillData, onSuccess })
                       >
                         <option value="">-- Pilih Game --</option>
                         {gamesList.map((g) => (
-                          <option key={g.id} value={g.id}>{g.title}</option>
+                          <option key={g.id} value={g.id}>
+                            {g.title}
+                          </option>
                         ))}
                       </select>
                     )}

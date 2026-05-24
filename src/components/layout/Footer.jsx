@@ -1,5 +1,5 @@
-import React from "react";
-import FooterCopyright from "./FooterCopyright";
+import React from 'react';
+import FooterCopyright from './FooterCopyright';
 // import FooterContent from "./FooterContent";
 
 const Footer = () => {

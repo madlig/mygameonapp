@@ -274,57 +274,8 @@ const OperationalDashboard = ({
       />
       <DataOperationsPanel
         editedCount={editedRowIds.size}
-        onImportSales={() => salesFileInputRef.current?.click()}
-        onImportVoucher={() => voucherFileInputRef.current?.click()}
-        onOpenAdsDistribution={() => setIsAdsModalOpen(true)}
         onOpenBulkEdit={() => setIsBulkPreviewOpen(true)}
         onSaveInlineEdits={saveInlineEdits}
-      />
-
-      <input
-        ref={salesFileInputRef}
-        type="file"
-        accept=".xlsx,.xls"
-        className="hidden"
-        onChange={handleSalesFileSelected}
-      />
-      <input
-        ref={voucherFileInputRef}
-        type="file"
-        accept=".xlsx,.xls"
-        className="hidden"
-        onChange={handleVoucherFileSelected}
-      />
-
-      <BulkImportModal
-        isOpen={isSalesModalOpen}
-        onClose={() => {
-          if (isSalesImporting) return;
-          setIsSalesModalOpen(false);
-        }}
-        reports={salesPreviewRows}
-        onConfirmImport={handleConfirmSalesImport}
-        isImporting={isSalesImporting}
-      />
-
-      <VoucherImportModal
-        isOpen={isVoucherModalOpen}
-        onClose={() => {
-          if (isVoucherImporting) return;
-          setIsVoucherModalOpen(false);
-        }}
-        reports={voucherPreviewRows}
-        onConfirmImport={handleConfirmVoucherImport}
-        isImporting={isVoucherImporting}
-      />
-
-      <AdSpendDistributionModal
-        isOpen={isAdsModalOpen}
-        onClose={() => setIsAdsModalOpen(false)}
-        onApplied={() => {
-          setIsAdsModalOpen(false);
-          onRefreshRequest();
-        }}
       />
 
       <AllocationPreviewModal

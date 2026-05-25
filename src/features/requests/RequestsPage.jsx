@@ -86,7 +86,11 @@ const RequestsPage = () => {
     const done = requests.filter((r) =>
       REQUEST_FINAL_STATUSES.includes(r.status)
     ).length;
-    return { active, done };
+    // Pending = "menunggu review" — newly submitted, needs admin attention
+    const pendingReview = requests.filter(
+      (r) => r.status === REQUEST_STATUS.PENDING
+    ).length;
+    return { active, done, pendingReview };
   }, [requests]);
 
   // ── Filtered list ──
@@ -99,9 +103,15 @@ const RequestsPage = () => {
       // Sub-filter for active tab
       if (mainTab === 'active' && activeFilter !== 'all') {
         if (activeFilter === 'rdp') {
-          if (!req.needsRdp && req.status !== REQUEST_STATUS.QUEUED) return false;
+          if (!req.needsRdp && req.status !== REQUEST_STATUS.QUEUED)
+            return false;
         } else if (activeFilter === 'reviewing') {
-          if (req.status !== REQUEST_STATUS.REVIEWING) return false;
+          // Include both "menunggu review" (pending) and "sedang direview" (reviewing)
+          if (
+            req.status !== REQUEST_STATUS.PENDING &&
+            req.status !== REQUEST_STATUS.REVIEWING
+          )
+            return false;
         } else if (activeFilter === 'processing') {
           if (req.status !== REQUEST_STATUS.PROCESSING) return false;
         } else if (activeFilter === 'queued') {
@@ -200,7 +210,12 @@ const RequestsPage = () => {
               <div className="flex items-center gap-1.5 mb-1">
                 {[
                   { key: 'all', label: 'Semua', color: 'yellow' },
-                  { key: 'reviewing', label: 'Review', color: 'indigo' },
+                  {
+                    key: 'reviewing',
+                    label: 'Review',
+                    color: 'indigo',
+                    badge: counts.pendingReview,
+                  },
                   { key: 'queued', label: 'Antrian', color: 'violet' },
                   { key: 'processing', label: 'Upload', color: 'blue' },
                   { key: 'rdp', label: 'RDP', color: 'violet', icon: true },
@@ -236,6 +251,11 @@ const RequestsPage = () => {
                     >
                       {chip.icon && <Server size={11} />}
                       {chip.label}
+                      {chip.badge > 0 && (
+                        <span className="ml-0.5 min-w-[18px] h-[18px] flex items-center justify-center text-[10px] font-bold rounded-full bg-yellow-500 text-[#111317] animate-pulse">
+                          {chip.badge}
+                        </span>
+                      )}
                     </button>
                   );
                 })}

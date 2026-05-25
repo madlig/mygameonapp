@@ -33,8 +33,8 @@ const ChartCard = ({ title, rows, lines }) => {
   );
 
   return (
-    <article className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-      <h3 className="text-sm font-semibold text-gray-700">{title}</h3>
+    <article className="rounded-xl border border-[#2A2F39] bg-[#1A1F27] p-4">
+      <h3 className="text-sm font-semibold text-[#C8CFDA]">{title}</h3>
       <div className="mt-3 overflow-x-auto">
         <svg width={chartWidth} height={chartHeight} className="min-w-full">
           <rect
@@ -42,7 +42,7 @@ const ChartCard = ({ title, rows, lines }) => {
             y="0"
             width={chartWidth}
             height={chartHeight}
-            fill="#f8fafc"
+            fill="#111317"
             rx="12"
           />
           {lines.map((line) => {
@@ -64,7 +64,7 @@ const ChartCard = ({ title, rows, lines }) => {
         {lines.map((line) => (
           <span
             key={line.key}
-            className="inline-flex items-center gap-2 text-gray-600"
+            className="inline-flex items-center gap-2 text-[#7E8796]"
           >
             <span
               className="h-2.5 w-2.5 rounded-full"
@@ -87,7 +87,7 @@ const FinancialCharts = ({ revenueReport }) => {
 
   if (!rows.length) {
     return (
-      <section className="rounded-xl border border-dashed border-gray-300 bg-white p-6 text-sm text-gray-500">
+      <section className="rounded-xl border border-dashed border-[#2A2F39] bg-[#1A1F27] p-6 text-sm text-[#7E8796]">
         Tidak ada data untuk menampilkan Financial Timeline.
       </section>
     );

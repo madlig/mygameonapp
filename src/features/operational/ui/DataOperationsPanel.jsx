@@ -2,54 +2,37 @@ import React from 'react';
 
 const DataOperationsPanel = ({
   editedCount,
-  onImportSales,
-  onImportVoucher,
-  onOpenAdsDistribution,
   onOpenBulkEdit,
   onSaveInlineEdits,
 }) => (
-  <section className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm space-y-4">
+  <section className="rounded-xl border border-[#2A2F39] bg-[#1A1F27] p-4 space-y-4">
     <div>
-      <h3 className="text-sm font-semibold text-gray-700">Data Operations</h3>
-      <p className="mt-1 text-xs text-gray-500">
-        Gunakan operasi berikut untuk mengelola data finansial harian.
+      <h3 className="text-sm font-semibold text-[#C8CFDA]">Data Operations</h3>
+      <p className="mt-1 text-xs text-[#7E8796]">
+        Kelola dan edit data finansial harian.
       </p>
     </div>
-    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
-      <button
-        onClick={onImportSales}
-        className="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700"
-      >
-        Import Shopee Sales
-      </button>
-      <button
-        onClick={onImportVoucher}
-        className="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700"
-      >
-        Import Voucher XLSX
-      </button>
-      <button
-        onClick={onOpenAdsDistribution}
-        className="rounded-lg bg-rose-600 px-3 py-2 text-sm font-medium text-white hover:bg-rose-700"
-      >
-        Ads Distribution
-      </button>
+    <div className="flex gap-2">
       <button
         onClick={onOpenBulkEdit}
-        className="rounded-lg bg-amber-600 px-3 py-2 text-sm font-medium text-white hover:bg-amber-700"
+        className="rounded-lg bg-yellow-500/15 border border-yellow-500/25 px-3 py-2 text-xs font-bold text-yellow-400 hover:bg-yellow-500/25 transition-colors"
       >
         Bulk Edit
       </button>
     </div>
-    <div className="flex flex-wrap items-center gap-3">
-      <button
-        onClick={onSaveInlineEdits}
-        className="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-      >
-        Simpan Perubahan Tabel
-      </button>
-      <span className="text-xs text-gray-500">Edited rows: {editedCount}</span>
-    </div>
+    {editedCount > 0 && (
+      <div className="flex items-center gap-3 pt-2 border-t border-[#2A2F39]">
+        <button
+          onClick={onSaveInlineEdits}
+          className="rounded-lg bg-[#FFD100] px-4 py-2 text-xs font-bold text-[#111317] hover:brightness-95 transition-all"
+        >
+          Simpan Perubahan
+        </button>
+        <span className="text-xs text-[#7E8796]">
+          {editedCount} baris diubah
+        </span>
+      </div>
+    )}
   </section>
 );
 

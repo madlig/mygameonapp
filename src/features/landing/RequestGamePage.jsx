@@ -1,10 +1,4 @@
 // src/features/landing/RequestGamePage.jsx
-//
-// Public form — customer requests a game they want.
-// Simplified: just title + WhatsApp contact. No Shopee checkout flow.
-// Duplicate detection: if same title already in active requests, adds +1 vote.
-// Anti-bot: honeypot + rate limiting (1 req per 2 min).
-
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import {
@@ -111,14 +105,14 @@ const RequestGamePage = () => {
         }
         setSubmitStatus('voted');
       } else {
-        // New request
+        // New request dengan Shopee Username
         const code = createTrackingCode();
         const requestData = {
           title: cleanTitle,
           title_lower: titleLower,
           platform: 'PC',
           notes: data.notes?.trim() || '',
-          requesterName: data.contactName?.trim() || 'Anonymous',
+          shopeeUsername: data.shopeeUsername.trim(),
           contactWhatsApp: data.contactWhatsApp.trim(),
           status: REQUEST_STATUS.PENDING,
           trackingCode: code,
@@ -190,7 +184,7 @@ const RequestGamePage = () => {
               </div>
             </div>
 
-            {/* Success notification */}
+            {/* Notifications */}
             {submitStatus === 'success' && (
               <div className="mb-6 p-4 bg-emerald-500/10 border border-emerald-500/25 text-emerald-300 rounded-xl flex items-start gap-3 animate-in fade-in slide-in-from-top-4">
                 <CheckCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
@@ -225,7 +219,6 @@ const RequestGamePage = () => {
               </div>
             )}
 
-            {/* Voted notification */}
             {submitStatus === 'voted' && (
               <div className="mb-6 p-4 bg-sky-500/10 border border-sky-500/25 text-sky-300 rounded-xl flex items-start gap-3 animate-in fade-in slide-in-from-top-4">
                 <ThumbsUp className="w-5 h-5 flex-shrink-0 mt-0.5" />
@@ -247,7 +240,6 @@ const RequestGamePage = () => {
               </div>
             )}
 
-            {/* Rate limit notification */}
             {submitStatus === 'rate_limit' && (
               <div className="mb-6 p-4 bg-amber-500/10 border border-amber-500/25 text-amber-300 rounded-xl flex items-center gap-3">
                 <Clock className="w-5 h-5 flex-shrink-0" />
@@ -257,7 +249,6 @@ const RequestGamePage = () => {
               </div>
             )}
 
-            {/* Error notification */}
             {submitStatus === 'error' && (
               <div className="mb-6 p-4 bg-red-500/10 border border-red-500/25 text-red-300 rounded-xl flex items-center gap-3">
                 <AlertCircle className="w-5 h-5 flex-shrink-0" />
@@ -315,23 +306,23 @@ const RequestGamePage = () => {
                 )}
               </div>
 
-              {/* Contact name */}
+              {/* Shopee Username */}
               <div>
                 <label className="block text-sm font-semibold text-[#C8CFDA] mb-1.5">
-                  Nama Panggilan *
+                  Username Shopee *
                 </label>
                 <input
                   type="text"
-                  {...register('contactName', {
-                    required: 'Nama wajib diisi',
-                    maxLength: { value: 30, message: 'Nama terlalu panjang' },
+                  {...register('shopeeUsername', {
+                    required: 'Username Shopee wajib diisi',
+                    maxLength: { value: 30, message: 'Username terlalu panjang' },
                   })}
                   className="w-full px-4 py-3 rounded-lg border border-[#2A2F39] bg-[#111317] text-[#F3F4F6] focus:ring-2 focus:ring-[#FFD100]/40 focus:border-[#FFD100]/50 transition-all outline-none text-sm"
-                  placeholder="Nama kamu"
+                  placeholder="Username Shopee kamu"
                 />
-                {errors.contactName && (
+                {errors.shopeeUsername && (
                   <span className="text-red-400 text-xs mt-1 block">
-                    {errors.contactName.message}
+                    {errors.shopeeUsername.message}
                   </span>
                 )}
               </div>

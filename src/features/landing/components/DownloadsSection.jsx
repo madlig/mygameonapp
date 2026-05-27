@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Gamepad2, Download, ArrowDownToLine, Clock } from 'lucide-react';
-import { downloads } from '../data/downloads';
+import { downloads as staticDownloads } from '../data/downloads';
+import { downloadsCRUD } from '../../content/services/contentFirestore';
 
 const iconMap = {
   'gamepad-2': Gamepad2,
@@ -65,22 +66,35 @@ const DownloadCard = ({ app }) => {
   );
 };
 
-const DownloadsSection = () => (
-  <section id="downloads" className="max-w-7xl mx-auto px-6 py-10 md:py-12">
-    <div className="mb-8">
-      <h2 className="text-2xl md:text-3xl font-bold text-[#F3F4F6]">
-        Download Aplikasi
-      </h2>
-      <p className="text-[#9CA3AF] mt-2">
-        Download aplikasi resmi MyGameON untuk pengalaman terbaik.
-      </p>
-    </div>
-    <div className="grid gap-4 md:grid-cols-2">
-      {downloads.map((app) => (
-        <DownloadCard key={app.id} app={app} />
-      ))}
-    </div>
-  </section>
-);
+const DownloadsSection = () => {
+  const [downloads, setDownloads] = useState(staticDownloads);
+
+  useEffect(() => {
+    downloadsCRUD
+      .loadActive()
+      .then((items) => {
+        if (items.length > 0) setDownloads(items);
+      })
+      .catch(() => {});
+  }, []);
+
+  return (
+    <section id="downloads" className="max-w-7xl mx-auto px-6 py-10 md:py-12">
+      <div className="mb-8">
+        <h2 className="text-2xl md:text-3xl font-bold text-[#F3F4F6]">
+          Download Aplikasi
+        </h2>
+        <p className="text-[#9CA3AF] mt-2">
+          Download aplikasi resmi MyGameON untuk pengalaman terbaik.
+        </p>
+      </div>
+      <div className="grid gap-4 md:grid-cols-2">
+        {downloads.map((app) => (
+          <DownloadCard key={app.id} app={app} />
+        ))}
+      </div>
+    </section>
+  );
+};
 
 export default DownloadsSection;

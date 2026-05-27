@@ -38,9 +38,14 @@ import {
 import { formatFileSize } from '../games/utils/formatters';
 import DownloadsSection from './components/DownloadsSection';
 import WhatsAppContactSection from './components/WhatsAppContactSection';
-import { tutorials } from './data/tutorials';
-import { faqItems } from './data/faq';
-import { prerequisites } from './data/prerequisites';
+import { tutorials as staticTutorials } from './data/tutorials';
+import { faqItems as staticFaqItems } from './data/faq';
+import { loadActiveFaqs } from '../feedback/services/feedbackFirestore';
+import { prerequisites as staticPrerequisites } from './data/prerequisites';
+import {
+  tutorialsCRUD,
+  prerequisitesCRUD,
+} from '../content/services/contentFirestore';
 
 // ─── Env ─────────────────────────────────────────────────────
 const STORE_URL =
@@ -433,6 +438,15 @@ const GameCatalogSection = () => {
 // VIDEO PREVIEW (2 featured → /videos)
 // ═══════════════════════════════════════════════════════════════
 const VideoPreview = () => {
+  const [tutorials, setTutorials] = useState(staticTutorials);
+  useEffect(() => {
+    tutorialsCRUD
+      .loadActive()
+      .then((items) => {
+        if (items.length > 0) setTutorials(items);
+      })
+      .catch(() => {});
+  }, []);
   const featured = tutorials.slice(0, 2);
   return (
     <section className="max-w-7xl mx-auto px-6 py-12 md:py-16">
@@ -504,48 +518,69 @@ const VideoPreview = () => {
 // ═══════════════════════════════════════════════════════════════
 // PREREQUISITES (3 items)
 // ═══════════════════════════════════════════════════════════════
-const PrereqSection = () => (
-  <section id="software" className="max-w-7xl mx-auto px-6 py-12 md:py-16">
-    <div className="mb-8">
-      <h2 className="text-2xl md:text-3xl font-extrabold text-[#F3F4F6]">
-        Software Pendukung
-      </h2>
-      <p className="text-[#9CA3AF] mt-1 text-sm">
-        Install software ini sebelum menjalankan game.
-      </p>
-    </div>
-    <div className="grid gap-3 sm:grid-cols-3">
-      {prerequisites.map((item) => {
-        const Icon = prereqIconMap[item.icon] || Wrench;
-        return (
-          <a
-            key={item.id}
-            href={item.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="group flex items-center gap-4 rounded-xl border border-[#2A2F39] bg-[#1A1F27] p-5 hover:border-[#FFD100]/30 transition-colors"
-          >
-            <div className="w-11 h-11 rounded-lg border border-[#2F3643] bg-[#111317] grid place-items-center flex-shrink-0">
-              <Icon className="w-5 h-5 text-[#C8CFDA]" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <h4 className="font-bold text-sm text-[#F3F4F6]">{item.name}</h4>
-              <p className="text-xs text-[#9CA3AF] mt-0.5 truncate">
-                {item.description}
-              </p>
-            </div>
-            <ExternalLink className="w-4 h-4 text-[#7E8796] opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
-          </a>
-        );
-      })}
-    </div>
-  </section>
-);
+const PrereqSection = () => {
+  const [prerequisites, setPrerequisites] = useState(staticPrerequisites);
+  useEffect(() => {
+    prerequisitesCRUD
+      .loadActive()
+      .then((items) => {
+        if (items.length > 0) setPrerequisites(items);
+      })
+      .catch(() => {});
+  }, []);
+  return (
+    <section id="software" className="max-w-7xl mx-auto px-6 py-12 md:py-16">
+      <div className="mb-8">
+        <h2 className="text-2xl md:text-3xl font-extrabold text-[#F3F4F6]">
+          Software Pendukung
+        </h2>
+        <p className="text-[#9CA3AF] mt-1 text-sm">
+          Install software ini sebelum menjalankan game.
+        </p>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-3">
+        {prerequisites.map((item) => {
+          const Icon = prereqIconMap[item.icon] || Wrench;
+          return (
+            <a
+              key={item.id}
+              href={item.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="group flex items-center gap-4 rounded-xl border border-[#2A2F39] bg-[#1A1F27] p-5 hover:border-[#FFD100]/30 transition-colors"
+            >
+              <div className="w-11 h-11 rounded-lg border border-[#2F3643] bg-[#111317] grid place-items-center flex-shrink-0">
+                <Icon className="w-5 h-5 text-[#C8CFDA]" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h4 className="font-bold text-sm text-[#F3F4F6]">
+                  {item.name}
+                </h4>
+                <p className="text-xs text-[#9CA3AF] mt-0.5 truncate">
+                  {item.description}
+                </p>
+              </div>
+              <ExternalLink className="w-4 h-4 text-[#7E8796] opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
+            </a>
+          );
+        })}
+      </div>
+    </section>
+  );
+};
 
 // ═══════════════════════════════════════════════════════════════
 // FAQ PREVIEW (3 items → /faq)
 // ═══════════════════════════════════════════════════════════════
 const FaqPreview = () => {
+  const [faqItems, setFaqItems] = useState(staticFaqItems);
+  useEffect(() => {
+    loadActiveFaqs()
+      .then((items) => {
+        if (items.length > 0) setFaqItems(items);
+      })
+      .catch(() => {});
+  }, []);
   const topFaq = faqItems.slice(0, 3);
   return (
     <section className="max-w-7xl mx-auto px-6 py-12 md:py-16">

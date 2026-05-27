@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, Play, Video, Filter } from 'lucide-react';
-import { tutorials } from './data/tutorials';
+import { tutorials as staticTutorials } from './data/tutorials';
+import { tutorialsCRUD } from '../content/services/contentFirestore';
 
 const categories = [
   { key: 'all', label: 'Semua' },
@@ -71,7 +72,17 @@ const VideoCard = ({ tutorial }) => {
 };
 
 const VideosPage = () => {
+  const [tutorials, setTutorials] = useState(staticTutorials);
   const [activeCategory, setActiveCategory] = useState('all');
+
+  useEffect(() => {
+    tutorialsCRUD
+      .loadActive()
+      .then((items) => {
+        if (items.length > 0) setTutorials(items);
+      })
+      .catch(() => {});
+  }, []);
 
   const filtered =
     activeCategory === 'all'

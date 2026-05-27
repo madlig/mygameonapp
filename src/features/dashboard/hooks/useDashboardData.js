@@ -21,7 +21,6 @@ export const useDashboardData = () => {
     monthlyRevenue: 0,
     monthlyNetRevenue: 0,
     monthlyAdSpend: 0,
-    monthlyShifts: 0,
   });
 
   const [recentActivities, setRecentActivities] = useState([]);
@@ -91,18 +90,16 @@ export const useDashboardData = () => {
         setImportantRequests(topRequests);
 
         // ============================================================
-        // 4. Operational Stats (Bulan Ini)
+        // 4. Operational Stats (Bulan Ini) — from dailyRevenues
         // ============================================================
         const now = new Date();
-        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
-          .toISOString()
-          .split('T')[0];
-        const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0)
-          .toISOString()
-          .split('T')[0];
+        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        startOfMonth.setHours(0, 0, 0, 0);
+        const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+        endOfMonth.setHours(23, 59, 59, 999);
 
         const opsQuery = query(
-          collection(db, 'operational_daily_recap'),
+          collection(db, 'dailyRevenues'),
           where('date', '>=', startOfMonth),
           where('date', '<=', endOfMonth)
         );
@@ -110,15 +107,13 @@ export const useDashboardData = () => {
 
         let revenue = 0,
           netRevenue = 0,
-          adSpend = 0,
-          shifts = 0;
+          adSpendTotal = 0;
 
-        opsSnapshot.docs.forEach((doc) => {
-          const data = doc.data();
-          revenue += data.totalRevenue || 0;
-          netRevenue += data.totalNetRevenue || 0;
-          adSpend += data.adSpend || 0;
-          shifts += data.totalShifts || 0;
+        opsSnapshot.docs.forEach((d) => {
+          const data = d.data();
+          revenue += data.grossIncome || 0;
+          netRevenue += data.calculatedNetRevenue || 0;
+          adSpendTotal += data.adSpend || 0;
         });
 
         // ============================================================
@@ -162,8 +157,7 @@ export const useDashboardData = () => {
           totalFeedback: 0,
           monthlyRevenue: revenue,
           monthlyNetRevenue: netRevenue,
-          monthlyAdSpend: adSpend,
-          monthlyShifts: shifts,
+          monthlyAdSpend: adSpendTotal,
         });
 
         setRecentActivities(activities);

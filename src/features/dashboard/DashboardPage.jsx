@@ -315,7 +315,7 @@ const DashboardPage = () => {
       </div>
 
       {/* ── Operational Mini Stats ── */}
-      <div className="grid grid-cols-3 gap-3 sm:gap-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4">
         <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/[0.07] px-4 py-3">
           <div className="flex items-center gap-2 mb-1">
             <ArrowTrendingUpIcon className="w-4 h-4 text-emerald-400" />
@@ -336,17 +336,6 @@ const DashboardPage = () => {
           </div>
           <p className="text-base font-bold text-orange-400 tabular-nums">
             {formatCurrency(summaryStats.monthlyAdSpend)}
-          </p>
-        </div>
-        <div className="rounded-xl border border-blue-500/20 bg-blue-500/[0.07] px-4 py-3">
-          <div className="flex items-center gap-2 mb-1">
-            <CalendarDaysIcon className="w-4 h-4 text-blue-400" />
-            <span className="text-[10px] font-semibold text-blue-400/70 uppercase tracking-wider">
-              Shifts
-            </span>
-          </div>
-          <p className="text-base font-bold text-blue-400 tabular-nums">
-            {summaryStats.monthlyShifts}
           </p>
         </div>
       </div>

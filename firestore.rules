@@ -159,6 +159,12 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // Winning Product: single-doc spotlight on landing page
+    match /winningProduct/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
     // ========================================================
     // FAQ & USER QUESTIONS
     // ========================================================

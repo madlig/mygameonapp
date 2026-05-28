@@ -18,6 +18,12 @@ service firebase.storage {
       allow write: if isSignedIn();
     }
 
+    // Aturan untuk folder 'winning_product'
+    match /winning_product/{fileName} {
+      allow read: if true;
+      allow write: if isSignedIn();
+    }
+
     // Default deny untuk folder lain
     match /{allPaths=**} {
       allow read, write: if false;

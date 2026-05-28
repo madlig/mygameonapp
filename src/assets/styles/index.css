@@ -2,22 +2,155 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Design System: Global Animations ──────────────────── */
+
+@keyframes marqueeScroll {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-33.333%); }
+}
+
+@keyframes glowFloat {
+  0%, 100% { opacity: 0.5; transform: scale(1) translateY(0); }
+  50% { opacity: 0.8; transform: scale(1.06) translateY(-12px); }
+}
+
+@keyframes heroIn {
+  from { opacity: 0; transform: translateY(30px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Utility Classes ───────────────────────────────────── */
+
 @layer utilities {
-  /* utility kecil untuk transition max-height (dipakai untuk accordion) */
   .transition-max-h {
     transition: max-height 0.32s ease;
   }
 }
 
-/* existing rules (keep rest of file as-is) */
-@media (min-width: 1024px) {
-  .lg\\:hidden {
+/* Nav blur backdrop */
+.nav-blur {
+  -webkit-backdrop-filter: blur(24px) saturate(200%);
+  backdrop-filter: blur(24px) saturate(200%);
+}
+
+/* Yellow CTA button base */
+.btn-yellow {
+  transition: filter 0.15s ease, transform 0.15s ease;
+}
+.btn-yellow:hover {
+  filter: brightness(0.92);
+}
+.btn-yellow:active {
+  transform: scale(0.97);
+}
+
+/* Dot grid background pattern */
+.dot-grid {
+  background-image: radial-gradient(circle, rgba(255,209,0,0.08) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+/* Marquee animation track */
+.marquee-track {
+  display: flex;
+  animation: marqueeScroll 30s linear infinite;
+  white-space: nowrap;
+}
+
+/* Noise texture overlay */
+.noise-overlay {
+  position: absolute;
+  inset: 0;
+  opacity: 0.025;
+  background: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 128px;
+  pointer-events: none;
+}
+
+/* Bento grid responsive */
+@media (max-width: 900px) {
+  .bento-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+  .bento-grid > *:first-child {
+    grid-column: span 2;
+  }
+}
+@media (max-width: 600px) {
+  .bento-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .bento-grid > *:first-child,
+  .bento-grid > *:nth-child(2) {
+    grid-column: span 1;
+    grid-row: span 1;
+  }
+}
+
+/* Winning product card responsive */
+@media (max-width: 768px) {
+  .winning-card {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* Nav links hide on small screens */
+@media (max-width: 900px) {
+  .nav-links {
+    display: none !important;
+  }
+}
+
+/* Hero stagger delays */
+.hero-stagger-1 { animation: heroIn 0.8s cubic-bezier(0.22, 1, 0.36, 1) 0s forwards; opacity: 0; }
+.hero-stagger-2 { animation: heroIn 0.8s cubic-bezier(0.22, 1, 0.36, 1) 0.15s forwards; opacity: 0; }
+.hero-stagger-3 { animation: heroIn 0.8s cubic-bezier(0.22, 1, 0.36, 1) 0.3s forwards; opacity: 0; }
+.hero-stagger-4 { animation: heroIn 0.8s cubic-bezier(0.22, 1, 0.36, 1) 0.45s forwards; opacity: 0; }
+.hero-stagger-5 { animation: heroIn 0.8s cubic-bezier(0.22, 1, 0.36, 1) 0.6s forwards; opacity: 0; }
+
+/* Slide-in stagger for subpages */
+.slide-stagger-1 { animation: slideIn 0.5s ease 0s forwards; opacity: 0; }
+.slide-stagger-2 { animation: slideIn 0.5s ease 0.08s forwards; opacity: 0; }
+.slide-stagger-3 { animation: slideIn 0.5s ease 0.16s forwards; opacity: 0; }
+.slide-stagger-4 { animation: slideIn 0.5s ease 0.24s forwards; opacity: 0; }
+
+/* Blog layout responsive */
+@media (max-width: 900px) {
+  .blog-layout {
+    grid-template-columns: 1fr !important;
+  }
+  .hero-article {
+    grid-template-columns: 1fr !important;
+    min-height: auto !important;
+  }
+  .blog-sidebar {
+    display: none !important;
+  }
+}
+@media (max-width: 600px) {
+  .cat-bar {
+    overflow-x: auto;
+    flex-wrap: nowrap !important;
+  }
+  .cat-bar::-webkit-scrollbar {
     display: none;
   }
-  .lg\\:relative {
+}
+
+/* existing rules (keep rest of file as-is) */
+@media (min-width: 1024px) {
+  .lg\:hidden {
+    display: none;
+  }
+  .lg\:relative {
     position: relative;
   }
-  .lg\\:translate-x-0 {
+  .lg\:translate-x-0 {
     transform: translateX(0);
     -webkit-transform: translateX(0);
     -moz-transform: translateX(0);

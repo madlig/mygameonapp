@@ -1,7 +1,7 @@
 // src/features/content/ContentPage.jsx
 //
 // Admin Content page — manage landing page content.
-// 3 tabs: Video Tutorial, Download Apps, Software Pendukung
+// 4 tabs: Video Tutorial, Download Apps, Software Pendukung, Blog
 
 import React, { useState, useEffect } from 'react';
 import {
@@ -19,6 +19,7 @@ import {
   Wrench,
   ExternalLink,
   Play,
+  FileText,
 } from 'lucide-react';
 import Swal from 'sweetalert2';
 import {
@@ -28,10 +29,27 @@ import {
   seedDownloads,
   prerequisitesCRUD,
   seedPrerequisites,
+  blogsCRUD,
+  seedBlogs,
 } from './services/contentFirestore';
 import { tutorials as staticTutorials } from '../landing/data/tutorials';
 import { downloads as staticDownloads } from '../landing/data/downloads';
 import { prerequisites as staticPrereqs } from '../landing/data/prerequisites';
+import { BLOG_ARTICLES as staticBlogs } from '../landing/data/blogArticles';
+
+const BLOG_CATEGORIES = [
+  { value: 'Update', label: 'Update' },
+  { value: 'News', label: 'News' },
+  { value: 'Tips', label: 'Tips' },
+  { value: 'Tutorial', label: 'Tutorial' },
+];
+
+const BLOG_CAT_COLORS = {
+  Update: '#EF4444',
+  News: '#F97316',
+  Tips: '#8B5CF6',
+  Tutorial: '#22D3EE',
+};
 
 const swalDark = {
   color: '#F3F4F6',
@@ -172,9 +190,11 @@ const ContentPage = () => {
   const [tutorials, setTutorials] = useState([]);
   const [downloads, setDownloads] = useState([]);
   const [prereqs, setPrereqs] = useState([]);
+  const [blogs, setBlogs] = useState([]);
   const [loadingVideos, setLoadingVideos] = useState(true);
   const [loadingDownloads, setLoadingDownloads] = useState(true);
   const [loadingPrereqs, setLoadingPrereqs] = useState(true);
+  const [loadingBlogs, setLoadingBlogs] = useState(true);
 
   // Form state
   const [showForm, setShowForm] = useState(false);
@@ -196,10 +216,15 @@ const ContentPage = () => {
       setPrereqs(items);
       setLoadingPrereqs(false);
     });
+    const u4 = blogsCRUD.subscribe((items) => {
+      setBlogs(items);
+      setLoadingBlogs(false);
+    });
     return () => {
       u1();
       u2();
       u3();
+      u4();
     };
   }, []);
 
@@ -216,21 +241,27 @@ const ContentPage = () => {
     if (!loadingPrereqs && prereqs.length === 0)
       seedPrerequisites(staticPrereqs);
   }, [loadingPrereqs, prereqs.length]);
+  useEffect(() => {
+    if (!loadingBlogs && blogs.length === 0) seedBlogs(staticBlogs);
+  }, [loadingBlogs, blogs.length]);
 
   // Active CRUD based on tab
   const getCRUD = () => {
     if (activeTab === 'videos') return tutorialsCRUD;
     if (activeTab === 'downloads') return downloadsCRUD;
+    if (activeTab === 'blogs') return blogsCRUD;
     return prerequisitesCRUD;
   };
   const getItems = () => {
     if (activeTab === 'videos') return tutorials;
     if (activeTab === 'downloads') return downloads;
+    if (activeTab === 'blogs') return blogs;
     return prereqs;
   };
   const isLoading = () => {
     if (activeTab === 'videos') return loadingVideos;
     if (activeTab === 'downloads') return loadingDownloads;
+    if (activeTab === 'blogs') return loadingBlogs;
     return loadingPrereqs;
   };
 
@@ -256,6 +287,19 @@ const ContentPage = () => {
         isAvailable: true,
         comingSoonNote: '',
       });
+    else if (activeTab === 'blogs')
+      setForm({
+        title: '',
+        slug: '',
+        category: 'News',
+        excerpt: '',
+        date: '',
+        readTime: '3 min',
+        author: 'Admin MyGameON',
+        featured: false,
+        trending: false,
+        body: '',
+      });
     else setForm({ name: '', description: '', url: '', icon: 'monitor' });
     setShowForm(true);
   };
@@ -280,6 +324,19 @@ const ContentPage = () => {
         requirements: item.requirements || '',
         isAvailable: item.isAvailable ?? true,
         comingSoonNote: item.comingSoonNote || '',
+      });
+    else if (activeTab === 'blogs')
+      setForm({
+        title: item.title,
+        slug: item.slug || '',
+        category: item.category || 'News',
+        excerpt: item.excerpt || '',
+        date: item.date || '',
+        readTime: item.readTime || '3 min',
+        author: item.author || 'Admin MyGameON',
+        featured: item.featured ?? false,
+        trending: item.trending ?? false,
+        body: item.body || '',
       });
     else
       setForm({
@@ -317,6 +374,29 @@ const ContentPage = () => {
           comingSoonNote: form.isAvailable
             ? null
             : form.comingSoonNote.trim() || 'Segera hadir',
+        };
+        if (editing) await crud.update(editing.id, data);
+        else await crud.add({ ...data, order: getItems().length });
+      } else if (activeTab === 'blogs') {
+        const data = {
+          title: form.title.trim(),
+          slug:
+            form.slug.trim() ||
+            form.title
+              .trim()
+              .toLowerCase()
+              .replace(/[^a-z0-9]+/g, '-')
+              .replace(/(^-|-$)/g, ''),
+          category: form.category,
+          categoryColor: BLOG_CAT_COLORS[form.category] || '#F97316',
+          excerpt: form.excerpt.trim(),
+          date: form.date.trim(),
+          readTime: form.readTime.trim() || '3 min',
+          author: form.author.trim() || 'Admin MyGameON',
+          featured: form.featured,
+          trending: form.trending,
+          coverGradient: ['#0d0f14', '#1e3a5f', '#2563eb'],
+          body: form.body.trim(),
         };
         if (editing) await crud.update(editing.id, data);
         else await crud.add({ ...data, order: getItems().length });
@@ -371,6 +451,8 @@ const ContentPage = () => {
       return form.title?.trim() && form.description?.trim();
     if (activeTab === 'downloads')
       return form.name?.trim() && form.description?.trim();
+    if (activeTab === 'blogs')
+      return form.title?.trim() && form.body?.trim() && form.date?.trim();
     return form.name?.trim() && form.description?.trim();
   };
 
@@ -379,7 +461,9 @@ const ContentPage = () => {
       ? 'Video Tutorial'
       : activeTab === 'downloads'
         ? 'Download App'
-        : 'Software Pendukung';
+        : activeTab === 'blogs'
+          ? 'Blog'
+          : 'Software Pendukung';
 
   // ════════════════════════════════════════════
   // Render
@@ -392,8 +476,8 @@ const ContentPage = () => {
             Kelola Konten
           </h1>
           <p className="text-[#7E8796] text-sm">
-            Video tutorial, download apps, dan software pendukung di landing
-            page.
+            Video tutorial, download apps, software pendukung, dan blog di
+            landing page.
           </p>
         </div>
 
@@ -417,6 +501,12 @@ const ContentPage = () => {
               label: 'Software',
               icon: Wrench,
               count: prereqs.length,
+            },
+            {
+              key: 'blogs',
+              label: 'Blog',
+              icon: FileText,
+              count: blogs.length,
             },
           ].map((tab) => {
             const Icon = tab.icon;
@@ -614,6 +704,128 @@ const ContentPage = () => {
                 </Field>
               </>
             )}
+            {activeTab === 'blogs' && (
+              <>
+                <Field label="Judul Artikel">
+                  <input
+                    type="text"
+                    value={form.title}
+                    onChange={(e) =>
+                      setForm({ ...form, title: e.target.value })
+                    }
+                    className={inputCls}
+                    placeholder="Cyberpunk 2077 Patch 2.2..."
+                  />
+                </Field>
+                <Field label="Slug (otomatis jika kosong)">
+                  <input
+                    type="text"
+                    value={form.slug}
+                    onChange={(e) => setForm({ ...form, slug: e.target.value })}
+                    className={inputCls}
+                    placeholder="cyberpunk-2077-patch-2-2"
+                  />
+                </Field>
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label="Kategori">
+                    <select
+                      value={form.category}
+                      onChange={(e) =>
+                        setForm({ ...form, category: e.target.value })
+                      }
+                      className={inputCls}
+                    >
+                      {BLOG_CATEGORIES.map((c) => (
+                        <option key={c.value} value={c.value}>
+                          {c.label}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                  <Field label="Tanggal (teks)">
+                    <input
+                      type="text"
+                      value={form.date}
+                      onChange={(e) =>
+                        setForm({ ...form, date: e.target.value })
+                      }
+                      className={inputCls}
+                      placeholder="28 Mei 2026"
+                    />
+                  </Field>
+                </div>
+                <Field label="Excerpt / Ringkasan">
+                  <textarea
+                    value={form.excerpt}
+                    onChange={(e) =>
+                      setForm({ ...form, excerpt: e.target.value })
+                    }
+                    rows={2}
+                    className={`${inputCls} resize-none`}
+                    placeholder="Ringkasan singkat untuk card..."
+                  />
+                </Field>
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label="Waktu Baca">
+                    <input
+                      type="text"
+                      value={form.readTime}
+                      onChange={(e) =>
+                        setForm({ ...form, readTime: e.target.value })
+                      }
+                      className={inputCls}
+                      placeholder="5 min"
+                    />
+                  </Field>
+                  <Field label="Penulis">
+                    <input
+                      type="text"
+                      value={form.author}
+                      onChange={(e) =>
+                        setForm({ ...form, author: e.target.value })
+                      }
+                      className={inputCls}
+                      placeholder="Admin MyGameON"
+                    />
+                  </Field>
+                </div>
+                <Field label="Opsi">
+                  <div className="flex items-center gap-4">
+                    <label className="flex items-center gap-2 text-xs text-[#C8CFDA] cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={form.featured}
+                        onChange={(e) =>
+                          setForm({ ...form, featured: e.target.checked })
+                        }
+                        className="accent-[#FFD100]"
+                      />
+                      Featured
+                    </label>
+                    <label className="flex items-center gap-2 text-xs text-[#C8CFDA] cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={form.trending}
+                        onChange={(e) =>
+                          setForm({ ...form, trending: e.target.checked })
+                        }
+                        className="accent-[#FFD100]"
+                      />
+                      Trending
+                    </label>
+                  </div>
+                </Field>
+                <Field label="Body (Markdown-lite: ## heading, **bold**, - list)">
+                  <textarea
+                    value={form.body}
+                    onChange={(e) => setForm({ ...form, body: e.target.value })}
+                    rows={10}
+                    className={`${inputCls} resize-y font-mono text-xs`}
+                    placeholder="Konten artikel lengkap..."
+                  />
+                </Field>
+              </>
+            )}
             {activeTab === 'prereqs' && (
               <>
                 <Field label="Nama Software">
@@ -764,6 +976,46 @@ const ContentPage = () => {
                         {item.url.replace(/^https?:\/\//, '').split('/')[0]}
                       </a>
                     )}
+                  </>
+                )}
+                {activeTab === 'blogs' && (
+                  <>
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <p className="text-sm font-semibold text-[#F3F4F6]">
+                        {item.title}
+                      </p>
+                      <span
+                        className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded"
+                        style={{
+                          color: item.categoryColor || '#F97316',
+                          backgroundColor: `${item.categoryColor || '#F97316'}22`,
+                        }}
+                      >
+                        {item.category}
+                      </span>
+                    </div>
+                    <p className="text-xs text-[#7E8796] leading-relaxed line-clamp-2">
+                      {item.excerpt}
+                    </p>
+                    <div className="flex flex-wrap items-center gap-2 mt-1">
+                      <span className="text-[10px] text-[#7E8796]">
+                        {item.date}
+                      </span>
+                      <span className="text-[10px] text-[#4A5568]">·</span>
+                      <span className="text-[10px] text-[#7E8796]">
+                        {item.readTime}
+                      </span>
+                      {item.featured && (
+                        <span className="text-[10px] font-bold text-[#FFD100] bg-[#FFD100]/15 px-1.5 py-0.5 rounded">
+                          Featured
+                        </span>
+                      )}
+                      {item.trending && (
+                        <span className="text-[10px] font-bold text-[#F97316] bg-[#F97316]/15 px-1.5 py-0.5 rounded">
+                          Trending
+                        </span>
+                      )}
+                    </div>
                   </>
                 )}
               </ContentItem>

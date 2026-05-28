@@ -126,10 +126,7 @@ export const useNotifications = () => {
         };
       });
 
-      if (
-        !isInitialLoad.current.questions &&
-        questionsRef.current.length > 0
-      ) {
+      if (!isInitialLoad.current.questions && questionsRef.current.length > 0) {
         const existingIds = new Set(questionsRef.current.map((i) => i.id));
         const brandNew = newItems.filter((i) => !existingIds.has(i.id));
         if (brandNew.length > 0) {

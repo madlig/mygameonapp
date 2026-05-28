@@ -150,3 +150,26 @@ export const seedPrerequisites = (staticItems) =>
     icon: item.icon || 'monitor',
     order: i,
   }));
+
+// ════════════════════════════════════════════
+// BLOGS (Articles)
+// ════════════════════════════════════════════
+
+export const blogsCRUD = createCRUD('blogs');
+
+export const seedBlogs = (staticItems) =>
+  blogsCRUD.seed(staticItems, (item, i) => ({
+    slug: item.slug,
+    category: item.category,
+    categoryColor: item.categoryColor || '#F97316',
+    title: item.title,
+    excerpt: item.excerpt || '',
+    date: item.date,
+    readTime: item.readTime || '3 min',
+    author: item.author || 'Admin MyGameON',
+    featured: item.featured ?? false,
+    trending: item.trending ?? false,
+    coverGradient: item.coverGradient || ['#0d0f14', '#1e3a5f', '#2563eb'],
+    body: item.body || '',
+    order: i,
+  }));

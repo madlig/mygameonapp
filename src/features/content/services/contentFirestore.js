@@ -7,6 +7,8 @@ import {
   collection,
   doc,
   getDocs,
+  getDoc,
+  setDoc,
   addDoc,
   updateDoc,
   deleteDoc,
@@ -17,7 +19,13 @@ import {
   serverTimestamp,
   writeBatch,
 } from 'firebase/firestore';
-import { db } from '../../../config/firebaseConfig';
+import { db, storage } from '../../../config/firebaseConfig';
+import {
+  ref,
+  uploadBytes,
+  getDownloadURL,
+  deleteObject,
+} from 'firebase/storage';
 
 // ════════════════════════════════════════════
 // GENERIC HELPERS
@@ -173,3 +181,94 @@ export const seedBlogs = (staticItems) =>
     body: item.body || '',
     order: i,
   }));
+
+// ════════════════════════════════════════════
+// WINNING PRODUCT (single document)
+// ════════════════════════════════════════════
+
+const wpDocRef = () => doc(db, 'winningProduct', 'current');
+
+/** Recommended cover: 800×500 (8:5). Max 2 MB. Auto-resized on client. */
+const WP_IMG = { w: 800, h: 500, maxBytes: 2 * 1024 * 1024 };
+
+/**
+ * Resize an image File to target dimensions via OffscreenCanvas / Canvas.
+ * Returns a JPEG Blob that fits within maxW × maxH while covering the area
+ * (center-crop if aspect ratio differs).
+ */
+const resizeImage = (file, maxW = WP_IMG.w, maxH = WP_IMG.h) =>
+  new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = maxW;
+      canvas.height = maxH;
+      const ctx = canvas.getContext('2d');
+
+      // Cover-crop: scale to fill, then center
+      const srcRatio = img.width / img.height;
+      const dstRatio = maxW / maxH;
+      let sx = 0,
+        sy = 0,
+        sw = img.width,
+        sh = img.height;
+      if (srcRatio > dstRatio) {
+        sw = img.height * dstRatio;
+        sx = (img.width - sw) / 2;
+      } else {
+        sh = img.width / dstRatio;
+        sy = (img.height - sh) / 2;
+      }
+
+      ctx.drawImage(img, sx, sy, sw, sh, 0, 0, maxW, maxH);
+      canvas.toBlob(
+        (blob) => (blob ? resolve(blob) : reject(new Error('Canvas toBlob failed'))),
+        'image/jpeg',
+        0.88
+      );
+    };
+    img.onerror = () => reject(new Error('Image load failed'));
+    img.src = URL.createObjectURL(file);
+  });
+
+export const winningProductService = {
+  IMG_SPEC: WP_IMG,
+
+  /** Load current winning product (public landing page). */
+  load: async () => {
+    const snap = await getDoc(wpDocRef());
+    return snap.exists() ? snap.data() : null;
+  },
+
+  /** Real-time listener (admin). */
+  subscribe: (callback) =>
+    onSnapshot(wpDocRef(), (snap) =>
+      callback(snap.exists() ? snap.data() : null)
+    ),
+
+  /** Save / overwrite the winning product. */
+  save: async (data) =>
+    setDoc(wpDocRef(), { ...data, updatedAt: serverTimestamp() }),
+
+  /**
+   * Upload cover image → Firebase Storage → return download URL.
+   * Auto-resizes to 800×500 JPEG.
+   */
+  uploadCover: async (file) => {
+    const blob = await resizeImage(file);
+    const storageRef = ref(storage, `winning_product/cover_${Date.now()}.jpg`);
+    await uploadBytes(storageRef, blob, { contentType: 'image/jpeg' });
+    return getDownloadURL(storageRef);
+  },
+
+  /** Delete old cover from Storage (best-effort). */
+  deleteCover: async (url) => {
+    if (!url) return;
+    try {
+      const storageRef = ref(storage, url);
+      await deleteObject(storageRef);
+    } catch {
+      // ignore — file may already be gone
+    }
+  },
+};

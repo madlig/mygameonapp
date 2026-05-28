@@ -20,6 +20,7 @@ import {
   getDocs,
 } from '../../config/firebaseConfig';
 import { formatFileSize } from '../games/utils/formatters';
+import { winningProductService } from '../content/services/contentFirestore';
 
 // ─── Env ─────────────────────────────────────────────────────
 const STORE_URL =
@@ -246,7 +247,7 @@ const Hero = () => {
 // ═══════════════════════════════════════════════════════════════
 // WINNING PRODUCT SPOTLIGHT
 // ═══════════════════════════════════════════════════════════════
-const WINNING = {
+const WINNING_DEFAULT = {
   title: 'Cyberpunk 2077',
   sub: 'Ultimate Edition — Update 2.2',
   genre: 'RPG · Open World · AAA',
@@ -260,6 +261,16 @@ const WINNING = {
 
 const WinningProduct = () => {
   const [hov, setHov] = useState(false);
+  const [WINNING, setWinning] = useState(WINNING_DEFAULT);
+
+  useEffect(() => {
+    winningProductService
+      .load()
+      .then((data) => {
+        if (data) setWinning(data);
+      })
+      .catch(() => {});
+  }, []);
   return (
     <section className="mx-auto max-w-[1200px] px-6 pb-20">
       <div className="mb-7 flex items-center gap-2.5">
@@ -285,29 +296,24 @@ const WinningProduct = () => {
         <div
           className="relative flex min-h-[300px] items-center justify-center overflow-hidden"
           style={{
-            background: `linear-gradient(155deg, ${WINNING.colors[0]}, ${WINNING.colors[1]}, ${WINNING.colors[2]})`,
+            background: WINNING.coverUrl
+              ? `url(${WINNING.coverUrl}) center/cover no-repeat`
+              : `linear-gradient(155deg, ${WINNING.colors?.[0] || '#1a0533'}, ${WINNING.colors?.[1] || '#3b0764'}, ${WINNING.colors?.[2] || '#581c87'})`,
           }}
         >
-          <div
-            className="pointer-events-none absolute inset-0"
-            style={{
-              background:
-                'radial-gradient(circle at 30% 70%, rgba(139,92,246,0.3) 0%, transparent 60%)',
-            }}
-          />
-          <div className="relative p-8 text-center">
+          {!WINNING.coverUrl && (
             <div
-              className="font-black leading-[0.95] text-white/10 tracking-[-2px]"
-              style={{ fontSize: 'clamp(40px, 4vw, 56px)' }}
-            >
-              CYBER
-              <br />
-              PUNK
-            </div>
-            <div className="mt-3 text-[11px] font-bold tracking-[3px] text-white/30">
-              2 0 7 7
-            </div>
-          </div>
+              className="pointer-events-none absolute inset-0"
+              style={{
+                background:
+                  'radial-gradient(circle at 30% 70%, rgba(139,92,246,0.3) 0%, transparent 60%)',
+              }}
+            />
+          )}
+          {/* Dark overlay for readability on images */}
+          {WINNING.coverUrl && (
+            <div className="pointer-events-none absolute inset-0 bg-black/20" />
+          )}
           {/* Sticker badges */}
           <div className="absolute left-4 top-4 flex gap-1.5">
             {WINNING.tags.map((tag) => (

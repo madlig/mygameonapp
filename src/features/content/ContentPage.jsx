@@ -20,6 +20,7 @@ import {
   ExternalLink,
   Play,
   FileText,
+  Star,
 } from 'lucide-react';
 import Swal from 'sweetalert2';
 import {
@@ -31,6 +32,7 @@ import {
   seedPrerequisites,
   blogsCRUD,
   seedBlogs,
+  winningProductService,
 } from './services/contentFirestore';
 import { tutorials as staticTutorials } from '../landing/data/tutorials';
 import { downloads as staticDownloads } from '../landing/data/downloads';
@@ -195,6 +197,11 @@ const ContentPage = () => {
   const [loadingDownloads, setLoadingDownloads] = useState(true);
   const [loadingPrereqs, setLoadingPrereqs] = useState(true);
   const [loadingBlogs, setLoadingBlogs] = useState(true);
+  const [winningProduct, setWinningProduct] = useState(null);
+  const [loadingWP, setLoadingWP] = useState(true);
+  const [wpForm, setWpForm] = useState({});
+  const [savingWP, setSavingWP] = useState(false);
+  const [uploadingWP, setUploadingWP] = useState(false);
 
   // Form state
   const [showForm, setShowForm] = useState(false);
@@ -220,11 +227,33 @@ const ContentPage = () => {
       setBlogs(items);
       setLoadingBlogs(false);
     });
+    const u5 = winningProductService.subscribe((data) => {
+      setWinningProduct(data);
+      setLoadingWP(false);
+      if (data) {
+        setWpForm({
+          title: data.title || '',
+          sub: data.sub || '',
+          genre: data.genre || '',
+          size: data.size || '',
+          price: data.price || '',
+          oldPrice: data.oldPrice || '',
+          tag1: data.tags?.[0] || '',
+          tag2: data.tags?.[1] || '',
+          desc: data.desc || '',
+          color1: data.colors?.[0] || '#1a0533',
+          color2: data.colors?.[1] || '#3b0764',
+          color3: data.colors?.[2] || '#581c87',
+          coverUrl: data.coverUrl || '',
+        });
+      }
+    });
     return () => {
       u1();
       u2();
       u3();
       u4();
+      u5();
     };
   }, []);
 
@@ -446,6 +475,42 @@ const ContentPage = () => {
     await getCRUD().reorder(items.map((i) => i.id));
   };
 
+  const handleSaveWP = async () => {
+    setSavingWP(true);
+    try {
+      const tags = [wpForm.tag1?.trim(), wpForm.tag2?.trim()].filter(Boolean);
+      const colors = [
+        wpForm.color1 || '#1a0533',
+        wpForm.color2 || '#3b0764',
+        wpForm.color3 || '#581c87',
+      ];
+      await winningProductService.save({
+        title: wpForm.title.trim(),
+        sub: wpForm.sub.trim(),
+        genre: wpForm.genre.trim(),
+        size: wpForm.size.trim(),
+        price: wpForm.price.trim(),
+        oldPrice: wpForm.oldPrice.trim(),
+        tags,
+        desc: wpForm.desc.trim(),
+        colors,
+        coverUrl: wpForm.coverUrl || '',
+      });
+      Swal.fire({
+        ...swalDark,
+        icon: 'success',
+        title: 'Winning Product tersimpan',
+        timer: 1500,
+        showConfirmButton: false,
+      });
+    } catch (err) {
+      console.error('Save WP error:', err);
+      Swal.fire({ ...swalDark, icon: 'error', title: 'Gagal menyimpan' });
+    } finally {
+      setSavingWP(false);
+    }
+  };
+
   const isFormValid = () => {
     if (activeTab === 'videos')
       return form.title?.trim() && form.description?.trim();
@@ -508,6 +573,12 @@ const ContentPage = () => {
               icon: FileText,
               count: blogs.length,
             },
+            {
+              key: 'winning',
+              label: 'Winning',
+              icon: Star,
+              count: winningProduct ? 1 : 0,
+            },
           ].map((tab) => {
             const Icon = tab.icon;
             const active = activeTab === tab.key;
@@ -529,499 +600,851 @@ const ContentPage = () => {
           })}
         </div>
 
-        {/* Add button */}
-        <div className="flex justify-end mb-4">
-          <button
-            onClick={openAdd}
-            className="flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-lg bg-[#FFD100] text-[#0D1117] hover:bg-[#FFD100]/90 transition-colors"
-          >
-            <Plus size={14} />
-            Tambah {tabLabel}
-          </button>
-        </div>
+        {/* ── Winning Product Tab ── */}
+        {activeTab === 'winning' && (
+          <div className="mt-2">
+            {loadingWP ? (
+              <div className="flex justify-center py-16">
+                <Loader2 className="animate-spin text-[#FFD100] w-6 h-6" />
+              </div>
+            ) : (
+              <div className="rounded-xl border border-[#2A2F39] bg-[#111317] p-6">
+                <div className="flex items-center gap-2 mb-5">
+                  <Star size={16} className="text-[#FFD100]" />
+                  <h3 className="text-sm font-bold text-[#F3F4F6]">
+                    Winning Product Spotlight
+                  </h3>
+                  <span className="text-[10px] text-[#7E8796] ml-auto">
+                    Ditampilkan di landing page
+                  </span>
+                </div>
 
-        {/* Form Modal */}
-        {showForm && (
-          <FormModal
-            title={editing ? `Edit ${tabLabel}` : `Tambah ${tabLabel}`}
-            onClose={() => {
-              setShowForm(false);
-              setEditing(null);
-            }}
-            onSave={handleSave}
-            saving={saving}
-            disabled={!isFormValid()}
-          >
-            {activeTab === 'videos' && (
-              <>
-                <Field label="Judul">
-                  <input
-                    type="text"
-                    value={form.title}
-                    onChange={(e) =>
-                      setForm({ ...form, title: e.target.value })
-                    }
-                    className={inputCls}
-                    placeholder="Cara Install Game..."
-                  />
-                </Field>
-                <Field label="Deskripsi">
-                  <textarea
-                    value={form.description}
-                    onChange={(e) =>
-                      setForm({ ...form, description: e.target.value })
-                    }
-                    rows={3}
-                    className={`${inputCls} resize-none`}
-                    placeholder="Panduan lengkap..."
-                  />
-                </Field>
-                <Field label="YouTube Video ID">
-                  <input
-                    type="text"
-                    value={form.youtubeId}
-                    onChange={(e) =>
-                      setForm({ ...form, youtubeId: e.target.value })
-                    }
-                    className={inputCls}
-                    placeholder="dQw4w9WgXcQ (kosongkan jika belum ada)"
-                  />
-                  <p className="text-[10px] text-[#7E8796] mt-1">
-                    ID dari URL youtube.com/watch?v=<strong>ID_INI</strong>. Min
-                    720p, max 15 menit.
-                  </p>
-                </Field>
-                <Field label="Kategori">
-                  <select
-                    value={form.category}
-                    onChange={(e) =>
-                      setForm({ ...form, category: e.target.value })
-                    }
-                    className={inputCls}
+                {/* Preview card */}
+                {wpForm.title && (
+                  <div
+                    className="mb-6 rounded-xl overflow-hidden"
+                    style={{
+                      background: `linear-gradient(155deg, ${wpForm.color1}, ${wpForm.color2}, ${wpForm.color3})`,
+                      padding: '20px 24px',
+                    }}
                   >
-                    {VIDEO_CATEGORIES.map((c) => (
-                      <option key={c.value} value={c.value}>
-                        {c.label}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
-              </>
-            )}
-            {activeTab === 'downloads' && (
-              <>
-                <Field label="Nama Aplikasi">
-                  <input
-                    type="text"
-                    value={form.name}
-                    onChange={(e) => setForm({ ...form, name: e.target.value })}
-                    className={inputCls}
-                    placeholder="MyGameON Sims Launcher"
-                  />
-                </Field>
-                <Field label="Deskripsi">
-                  <textarea
-                    value={form.description}
-                    onChange={(e) =>
-                      setForm({ ...form, description: e.target.value })
-                    }
-                    rows={2}
-                    className={`${inputCls} resize-none`}
-                    placeholder="Kelola DLC, Mods..."
-                  />
-                </Field>
-                <div className="grid grid-cols-2 gap-3">
-                  <Field label="Versi">
-                    <input
-                      type="text"
-                      value={form.version}
-                      onChange={(e) =>
-                        setForm({ ...form, version: e.target.value })
-                      }
-                      className={inputCls}
-                      placeholder="10.0.1"
-                    />
-                  </Field>
-                  <Field label="Ukuran File">
-                    <input
-                      type="text"
-                      value={form.size}
-                      onChange={(e) =>
-                        setForm({ ...form, size: e.target.value })
-                      }
-                      className={inputCls}
-                      placeholder="~25 MB"
-                    />
-                  </Field>
-                </div>
-                <Field label="Download URL">
-                  <input
-                    type="text"
-                    value={form.downloadUrl}
-                    onChange={(e) =>
-                      setForm({ ...form, downloadUrl: e.target.value })
-                    }
-                    className={inputCls}
-                    placeholder="https://github.com/..."
-                  />
-                </Field>
-                <Field label="Requirements">
-                  <input
-                    type="text"
-                    value={form.requirements}
-                    onChange={(e) =>
-                      setForm({ ...form, requirements: e.target.value })
-                    }
-                    className={inputCls}
-                    placeholder="Windows 10+"
-                  />
-                </Field>
-                <Field label="Status">
-                  <div className="flex items-center gap-3">
-                    <label className="flex items-center gap-2 text-xs text-[#C8CFDA] cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={form.isAvailable}
-                        onChange={(e) =>
-                          setForm({ ...form, isAvailable: e.target.checked })
-                        }
-                        className="accent-[#FFD100]"
-                      />
-                      Tersedia untuk download
-                    </label>
-                  </div>
-                  {!form.isAvailable && (
-                    <input
-                      type="text"
-                      value={form.comingSoonNote}
-                      onChange={(e) =>
-                        setForm({ ...form, comingSoonNote: e.target.value })
-                      }
-                      className={`${inputCls} mt-2`}
-                      placeholder="Segera hadir"
-                    />
-                  )}
-                </Field>
-              </>
-            )}
-            {activeTab === 'blogs' && (
-              <>
-                <Field label="Judul Artikel">
-                  <input
-                    type="text"
-                    value={form.title}
-                    onChange={(e) =>
-                      setForm({ ...form, title: e.target.value })
-                    }
-                    className={inputCls}
-                    placeholder="Cyberpunk 2077 Patch 2.2..."
-                  />
-                </Field>
-                <Field label="Slug (otomatis jika kosong)">
-                  <input
-                    type="text"
-                    value={form.slug}
-                    onChange={(e) => setForm({ ...form, slug: e.target.value })}
-                    className={inputCls}
-                    placeholder="cyberpunk-2077-patch-2-2"
-                  />
-                </Field>
-                <div className="grid grid-cols-2 gap-3">
-                  <Field label="Kategori">
-                    <select
-                      value={form.category}
-                      onChange={(e) =>
-                        setForm({ ...form, category: e.target.value })
-                      }
-                      className={inputCls}
-                    >
-                      {BLOG_CATEGORIES.map((c) => (
-                        <option key={c.value} value={c.value}>
-                          {c.label}
-                        </option>
+                    <div className="flex items-center gap-2 mb-1.5">
+                      {[wpForm.tag1, wpForm.tag2].filter(Boolean).map((t) => (
+                        <span
+                          key={t}
+                          className="text-[9px] font-extrabold bg-white/20 text-white px-2 py-0.5 rounded"
+                        >
+                          {t.toUpperCase()}
+                        </span>
                       ))}
-                    </select>
-                  </Field>
-                  <Field label="Tanggal (teks)">
-                    <input
-                      type="text"
-                      value={form.date}
-                      onChange={(e) =>
-                        setForm({ ...form, date: e.target.value })
-                      }
-                      className={inputCls}
-                      placeholder="28 Mei 2026"
-                    />
-                  </Field>
-                </div>
-                <Field label="Excerpt / Ringkasan">
-                  <textarea
-                    value={form.excerpt}
-                    onChange={(e) =>
-                      setForm({ ...form, excerpt: e.target.value })
-                    }
-                    rows={2}
-                    className={`${inputCls} resize-none`}
-                    placeholder="Ringkasan singkat untuk card..."
-                  />
-                </Field>
-                <div className="grid grid-cols-2 gap-3">
-                  <Field label="Waktu Baca">
-                    <input
-                      type="text"
-                      value={form.readTime}
-                      onChange={(e) =>
-                        setForm({ ...form, readTime: e.target.value })
-                      }
-                      className={inputCls}
-                      placeholder="5 min"
-                    />
-                  </Field>
-                  <Field label="Penulis">
-                    <input
-                      type="text"
-                      value={form.author}
-                      onChange={(e) =>
-                        setForm({ ...form, author: e.target.value })
-                      }
-                      className={inputCls}
-                      placeholder="Admin MyGameON"
-                    />
-                  </Field>
-                </div>
-                <Field label="Opsi">
-                  <div className="flex items-center gap-4">
-                    <label className="flex items-center gap-2 text-xs text-[#C8CFDA] cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={form.featured}
-                        onChange={(e) =>
-                          setForm({ ...form, featured: e.target.checked })
-                        }
-                        className="accent-[#FFD100]"
-                      />
-                      Featured
-                    </label>
-                    <label className="flex items-center gap-2 text-xs text-[#C8CFDA] cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={form.trending}
-                        onChange={(e) =>
-                          setForm({ ...form, trending: e.target.checked })
-                        }
-                        className="accent-[#FFD100]"
-                      />
-                      Trending
-                    </label>
+                    </div>
+                    <p className="text-lg font-black text-white">
+                      {wpForm.title}
+                    </p>
+                    <p className="text-xs text-white/60">{wpForm.sub}</p>
+                    <div className="flex items-center gap-2 mt-2">
+                      <span className="text-[11px] text-white/40 line-through">
+                        {wpForm.oldPrice}
+                      </span>
+                      <span className="text-base font-black text-[#FFD100]">
+                        {wpForm.price}
+                      </span>
+                    </div>
                   </div>
-                </Field>
-                <Field label="Body (Markdown-lite: ## heading, **bold**, - list)">
-                  <textarea
-                    value={form.body}
-                    onChange={(e) => setForm({ ...form, body: e.target.value })}
-                    rows={10}
-                    className={`${inputCls} resize-y font-mono text-xs`}
-                    placeholder="Konten artikel lengkap..."
-                  />
-                </Field>
-              </>
+                )}
+
+                {/* Cover Image Upload */}
+                <div className="mb-5">
+                  <Field label="Cover Image (Rekomendasi: 800 × 500 px, max 2 MB — otomatis di-resize)">
+                    <div className="flex items-start gap-4 mt-1.5">
+                      {/* Preview */}
+                      <div
+                        className="shrink-0 w-[160px] h-[100px] rounded-lg overflow-hidden border border-[#2A2F39]"
+                        style={{
+                          background: wpForm.coverUrl
+                            ? `url(${wpForm.coverUrl}) center/cover`
+                            : `linear-gradient(155deg, ${wpForm.color1 || '#1a0533'}, ${wpForm.color2 || '#3b0764'}, ${wpForm.color3 || '#581c87'})`,
+                        }}
+                      >
+                        {!wpForm.coverUrl && (
+                          <div className="w-full h-full flex items-center justify-center text-[10px] text-white/30 font-bold">
+                            No Image
+                          </div>
+                        )}
+                      </div>
+                      {/* Upload button */}
+                      <div className="flex-1">
+                        <label className="inline-flex items-center gap-2 px-3 py-2 text-xs font-bold rounded-lg bg-[#2A2F39] text-[#C8CFDA] hover:bg-[#3A3F49] transition-colors cursor-pointer">
+                          {uploadingWP ? (
+                            <Loader2 size={14} className="animate-spin" />
+                          ) : (
+                            'Pilih Gambar'
+                          )}
+                          <input
+                            type="file"
+                            accept="image/jpeg,image/png,image/webp"
+                            className="hidden"
+                            disabled={uploadingWP}
+                            onChange={async (e) => {
+                              const file = e.target.files?.[0];
+                              if (!file) return;
+                              setUploadingWP(true);
+                              try {
+                                const url =
+                                  await winningProductService.uploadCover(file);
+                                setWpForm((prev) => ({
+                                  ...prev,
+                                  coverUrl: url,
+                                }));
+                                Swal.fire({
+                                  ...swalDark,
+                                  icon: 'success',
+                                  title: 'Gambar diupload',
+                                  text: 'Otomatis di-resize ke 800×500',
+                                  timer: 1500,
+                                  showConfirmButton: false,
+                                });
+                              } catch (err) {
+                                console.error('Upload error:', err);
+                                Swal.fire({
+                                  ...swalDark,
+                                  icon: 'error',
+                                  title: 'Upload gagal',
+                                  text: err.message,
+                                });
+                              } finally {
+                                setUploadingWP(false);
+                                e.target.value = '';
+                              }
+                            }}
+                          />
+                        </label>
+                        {wpForm.coverUrl && (
+                          <button
+                            onClick={() =>
+                              setWpForm((prev) => ({ ...prev, coverUrl: '' }))
+                            }
+                            className="ml-2 text-[10px] text-red-400 hover:text-red-300 transition-colors"
+                          >
+                            Hapus gambar
+                          </button>
+                        )}
+                        <p className="text-[10px] text-[#7E8796] mt-1.5 leading-relaxed">
+                          Format: JPG, PNG, WebP. Gambar otomatis di-crop &
+                          resize ke <strong>800 × 500 px</strong> (rasio 8:5).
+                          {' '}Jika tidak diisi, gradient warna akan digunakan.
+                        </p>
+                      </div>
+                    </div>
+                  </Field>
+                </div>
+
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <Field label="Judul Game">
+                      <input
+                        type="text"
+                        value={wpForm.title || ''}
+                        onChange={(e) =>
+                          setWpForm({ ...wpForm, title: e.target.value })
+                        }
+                        className={inputCls}
+                        placeholder="Cyberpunk 2077"
+                      />
+                    </Field>
+                    <Field label="Subtitle">
+                      <input
+                        type="text"
+                        value={wpForm.sub || ''}
+                        onChange={(e) =>
+                          setWpForm({ ...wpForm, sub: e.target.value })
+                        }
+                        className={inputCls}
+                        placeholder="Ultimate Edition — Update 2.2"
+                      />
+                    </Field>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-3">
+                    <Field label="Genre">
+                      <input
+                        type="text"
+                        value={wpForm.genre || ''}
+                        onChange={(e) =>
+                          setWpForm({ ...wpForm, genre: e.target.value })
+                        }
+                        className={inputCls}
+                        placeholder="RPG · Open World · AAA"
+                      />
+                    </Field>
+                    <Field label="Ukuran">
+                      <input
+                        type="text"
+                        value={wpForm.size || ''}
+                        onChange={(e) =>
+                          setWpForm({ ...wpForm, size: e.target.value })
+                        }
+                        className={inputCls}
+                        placeholder="70.8 GB"
+                      />
+                    </Field>
+                    <Field label="Harga Baru">
+                      <input
+                        type="text"
+                        value={wpForm.price || ''}
+                        onChange={(e) =>
+                          setWpForm({ ...wpForm, price: e.target.value })
+                        }
+                        className={inputCls}
+                        placeholder="Rp 25.000"
+                      />
+                    </Field>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-3">
+                    <Field label="Harga Lama (coret)">
+                      <input
+                        type="text"
+                        value={wpForm.oldPrice || ''}
+                        onChange={(e) =>
+                          setWpForm({ ...wpForm, oldPrice: e.target.value })
+                        }
+                        className={inputCls}
+                        placeholder="Rp 45.000"
+                      />
+                    </Field>
+                    <Field label="Tag 1">
+                      <input
+                        type="text"
+                        value={wpForm.tag1 || ''}
+                        onChange={(e) =>
+                          setWpForm({ ...wpForm, tag1: e.target.value })
+                        }
+                        className={inputCls}
+                        placeholder="Bestseller"
+                      />
+                    </Field>
+                    <Field label="Tag 2">
+                      <input
+                        type="text"
+                        value={wpForm.tag2 || ''}
+                        onChange={(e) =>
+                          setWpForm({ ...wpForm, tag2: e.target.value })
+                        }
+                        className={inputCls}
+                        placeholder="Baru Update"
+                      />
+                    </Field>
+                  </div>
+
+                  <Field label="Deskripsi">
+                    <textarea
+                      value={wpForm.desc || ''}
+                      onChange={(e) =>
+                        setWpForm({ ...wpForm, desc: e.target.value })
+                      }
+                      rows={3}
+                      className={`${inputCls} resize-none`}
+                      placeholder="Deskripsi singkat game..."
+                    />
+                  </Field>
+
+                  <div className="grid grid-cols-3 gap-3">
+                    <Field label="Gradient Warna 1">
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="color"
+                          value={wpForm.color1 || '#1a0533'}
+                          onChange={(e) =>
+                            setWpForm({ ...wpForm, color1: e.target.value })
+                          }
+                          className="w-8 h-8 rounded cursor-pointer border border-[#2A2F39] bg-transparent"
+                        />
+                        <input
+                          type="text"
+                          value={wpForm.color1 || ''}
+                          onChange={(e) =>
+                            setWpForm({ ...wpForm, color1: e.target.value })
+                          }
+                          className={`${inputCls} font-mono text-xs`}
+                          placeholder="#1a0533"
+                        />
+                      </div>
+                    </Field>
+                    <Field label="Gradient Warna 2">
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="color"
+                          value={wpForm.color2 || '#3b0764'}
+                          onChange={(e) =>
+                            setWpForm({ ...wpForm, color2: e.target.value })
+                          }
+                          className="w-8 h-8 rounded cursor-pointer border border-[#2A2F39] bg-transparent"
+                        />
+                        <input
+                          type="text"
+                          value={wpForm.color2 || ''}
+                          onChange={(e) =>
+                            setWpForm({ ...wpForm, color2: e.target.value })
+                          }
+                          className={`${inputCls} font-mono text-xs`}
+                          placeholder="#3b0764"
+                        />
+                      </div>
+                    </Field>
+                    <Field label="Gradient Warna 3">
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="color"
+                          value={wpForm.color3 || '#581c87'}
+                          onChange={(e) =>
+                            setWpForm({ ...wpForm, color3: e.target.value })
+                          }
+                          className="w-8 h-8 rounded cursor-pointer border border-[#2A2F39] bg-transparent"
+                        />
+                        <input
+                          type="text"
+                          value={wpForm.color3 || ''}
+                          onChange={(e) =>
+                            setWpForm({ ...wpForm, color3: e.target.value })
+                          }
+                          className={`${inputCls} font-mono text-xs`}
+                          placeholder="#581c87"
+                        />
+                      </div>
+                    </Field>
+                  </div>
+                </div>
+
+                <div className="flex justify-end mt-5">
+                  <button
+                    onClick={handleSaveWP}
+                    disabled={savingWP || !wpForm.title?.trim()}
+                    className="flex items-center gap-2 px-5 py-2.5 text-xs font-bold rounded-lg bg-[#FFD100] text-[#0D1117] hover:bg-[#FFD100]/90 transition-colors disabled:opacity-50"
+                  >
+                    {savingWP ? (
+                      <Loader2 size={14} className="animate-spin" />
+                    ) : (
+                      'Simpan Winning Product'
+                    )}
+                  </button>
+                </div>
+              </div>
             )}
-            {activeTab === 'prereqs' && (
-              <>
-                <Field label="Nama Software">
-                  <input
-                    type="text"
-                    value={form.name}
-                    onChange={(e) => setForm({ ...form, name: e.target.value })}
-                    className={inputCls}
-                    placeholder="DirectX End-User Runtime"
-                  />
-                </Field>
-                <Field label="Deskripsi">
-                  <textarea
-                    value={form.description}
-                    onChange={(e) =>
-                      setForm({ ...form, description: e.target.value })
-                    }
-                    rows={2}
-                    className={`${inputCls} resize-none`}
-                    placeholder="Diperlukan oleh hampir semua game..."
-                  />
-                </Field>
-                <Field label="URL Download Resmi">
-                  <input
-                    type="text"
-                    value={form.url}
-                    onChange={(e) => setForm({ ...form, url: e.target.value })}
-                    className={inputCls}
-                    placeholder="https://www.microsoft.com/..."
-                  />
-                </Field>
-              </>
-            )}
-          </FormModal>
+          </div>
         )}
 
-        {/* List */}
-        {isLoading() ? (
-          <div className="flex justify-center py-16">
-            <Loader2 className="animate-spin text-[#FFD100] w-6 h-6" />
-          </div>
-        ) : getItems().length === 0 ? (
-          <div className="text-center py-16 bg-[#111317] border border-[#2A2F39] rounded-xl">
-            <p className="text-sm text-[#C8CFDA]">Belum ada data</p>
-            <p className="text-xs text-[#7E8796] mt-1">
-              Klik "Tambah" untuk memulai.
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {getItems().map((item, index) => (
-              <ContentItem
-                key={item.id}
-                item={item}
-                index={index}
-                total={getItems().length}
-                onMove={handleMove}
-                onToggle={handleToggle}
-                onEdit={openEdit}
-                onDelete={handleDelete}
+        {/* Add button + Form + List (all CRUD tabs except winning) */}
+        {activeTab !== 'winning' && (
+          <>
+            <div className="flex justify-end mb-4">
+              <button
+                onClick={openAdd}
+                className="flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-lg bg-[#FFD100] text-[#0D1117] hover:bg-[#FFD100]/90 transition-colors"
+              >
+                <Plus size={14} />
+                Tambah {tabLabel}
+              </button>
+            </div>
+
+            {/* Form Modal */}
+            {showForm && (
+              <FormModal
+                title={editing ? `Edit ${tabLabel}` : `Tambah ${tabLabel}`}
+                onClose={() => {
+                  setShowForm(false);
+                  setEditing(null);
+                }}
+                onSave={handleSave}
+                saving={saving}
+                disabled={!isFormValid()}
               >
                 {activeTab === 'videos' && (
                   <>
-                    <div className="flex items-center gap-2 mb-0.5">
-                      <p className="text-sm font-semibold text-[#F3F4F6]">
-                        {item.title}
+                    <Field label="Judul">
+                      <input
+                        type="text"
+                        value={form.title}
+                        onChange={(e) =>
+                          setForm({ ...form, title: e.target.value })
+                        }
+                        className={inputCls}
+                        placeholder="Cara Install Game..."
+                      />
+                    </Field>
+                    <Field label="Deskripsi">
+                      <textarea
+                        value={form.description}
+                        onChange={(e) =>
+                          setForm({ ...form, description: e.target.value })
+                        }
+                        rows={3}
+                        className={`${inputCls} resize-none`}
+                        placeholder="Panduan lengkap..."
+                      />
+                    </Field>
+                    <Field label="YouTube Video ID">
+                      <input
+                        type="text"
+                        value={form.youtubeId}
+                        onChange={(e) =>
+                          setForm({ ...form, youtubeId: e.target.value })
+                        }
+                        className={inputCls}
+                        placeholder="dQw4w9WgXcQ (kosongkan jika belum ada)"
+                      />
+                      <p className="text-[10px] text-[#7E8796] mt-1">
+                        ID dari URL youtube.com/watch?v=<strong>ID_INI</strong>.
+                        Min 720p, max 15 menit.
                       </p>
-                      <span className="text-[10px] font-bold text-[#FFD100]/70 uppercase">
-                        {item.category === 'sims4'
-                          ? 'Sims 4'
-                          : item.category === 'troubleshoot'
-                            ? 'Troubleshoot'
-                            : 'Umum'}
-                      </span>
-                    </div>
-                    <p className="text-xs text-[#7E8796] leading-relaxed">
-                      {item.description}
-                    </p>
-                    {item.youtubeId ? (
-                      <a
-                        href={`https://youtube.com/watch?v=${item.youtubeId}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 mt-1 text-[10px] text-red-400 hover:text-red-300"
+                    </Field>
+                    <Field label="Kategori">
+                      <select
+                        value={form.category}
+                        onChange={(e) =>
+                          setForm({ ...form, category: e.target.value })
+                        }
+                        className={inputCls}
                       >
-                        <Play size={10} /> {item.youtubeId}
-                      </a>
-                    ) : (
-                      <span className="text-[10px] text-[#4A5568] mt-1 block">
-                        Belum ada video
-                      </span>
-                    )}
+                        {VIDEO_CATEGORIES.map((c) => (
+                          <option key={c.value} value={c.value}>
+                            {c.label}
+                          </option>
+                        ))}
+                      </select>
+                    </Field>
                   </>
                 )}
                 {activeTab === 'downloads' && (
                   <>
-                    <p className="text-sm font-semibold text-[#F3F4F6] mb-0.5">
-                      {item.name}
-                    </p>
-                    <p className="text-xs text-[#7E8796] leading-relaxed">
-                      {item.description}
-                    </p>
-                    <div className="flex flex-wrap items-center gap-2 mt-1">
-                      {item.version && (
-                        <span className="text-[10px] text-[#C8CFDA] bg-[#2A2F39] px-1.5 py-0.5 rounded">
-                          v{item.version}
-                        </span>
-                      )}
-                      {item.size && (
-                        <span className="text-[10px] text-[#7E8796]">
-                          {item.size}
-                        </span>
-                      )}
-                      {item.isAvailable === false && (
-                        <span className="text-[10px] font-bold text-[#FFD100] bg-[#FFD100]/15 px-1.5 py-0.5 rounded">
-                          {item.comingSoonNote || 'Coming soon'}
-                        </span>
-                      )}
-                      {item.downloadUrl && (
-                        <a
-                          href={item.downloadUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 text-[10px] text-blue-400 hover:text-blue-300"
-                        >
-                          <ExternalLink size={10} /> Link
-                        </a>
-                      )}
+                    <Field label="Nama Aplikasi">
+                      <input
+                        type="text"
+                        value={form.name}
+                        onChange={(e) =>
+                          setForm({ ...form, name: e.target.value })
+                        }
+                        className={inputCls}
+                        placeholder="MyGameON Sims Launcher"
+                      />
+                    </Field>
+                    <Field label="Deskripsi">
+                      <textarea
+                        value={form.description}
+                        onChange={(e) =>
+                          setForm({ ...form, description: e.target.value })
+                        }
+                        rows={2}
+                        className={`${inputCls} resize-none`}
+                        placeholder="Kelola DLC, Mods..."
+                      />
+                    </Field>
+                    <div className="grid grid-cols-2 gap-3">
+                      <Field label="Versi">
+                        <input
+                          type="text"
+                          value={form.version}
+                          onChange={(e) =>
+                            setForm({ ...form, version: e.target.value })
+                          }
+                          className={inputCls}
+                          placeholder="10.0.1"
+                        />
+                      </Field>
+                      <Field label="Ukuran File">
+                        <input
+                          type="text"
+                          value={form.size}
+                          onChange={(e) =>
+                            setForm({ ...form, size: e.target.value })
+                          }
+                          className={inputCls}
+                          placeholder="~25 MB"
+                        />
+                      </Field>
                     </div>
-                  </>
-                )}
-                {activeTab === 'prereqs' && (
-                  <>
-                    <p className="text-sm font-semibold text-[#F3F4F6] mb-0.5">
-                      {item.name}
-                    </p>
-                    <p className="text-xs text-[#7E8796] leading-relaxed">
-                      {item.description}
-                    </p>
-                    {item.url && (
-                      <a
-                        href={item.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 mt-1 text-[10px] text-blue-400 hover:text-blue-300"
-                      >
-                        <ExternalLink size={10} />{' '}
-                        {item.url.replace(/^https?:\/\//, '').split('/')[0]}
-                      </a>
-                    )}
+                    <Field label="Download URL">
+                      <input
+                        type="text"
+                        value={form.downloadUrl}
+                        onChange={(e) =>
+                          setForm({ ...form, downloadUrl: e.target.value })
+                        }
+                        className={inputCls}
+                        placeholder="https://github.com/..."
+                      />
+                    </Field>
+                    <Field label="Requirements">
+                      <input
+                        type="text"
+                        value={form.requirements}
+                        onChange={(e) =>
+                          setForm({ ...form, requirements: e.target.value })
+                        }
+                        className={inputCls}
+                        placeholder="Windows 10+"
+                      />
+                    </Field>
+                    <Field label="Status">
+                      <div className="flex items-center gap-3">
+                        <label className="flex items-center gap-2 text-xs text-[#C8CFDA] cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={form.isAvailable}
+                            onChange={(e) =>
+                              setForm({
+                                ...form,
+                                isAvailable: e.target.checked,
+                              })
+                            }
+                            className="accent-[#FFD100]"
+                          />
+                          Tersedia untuk download
+                        </label>
+                      </div>
+                      {!form.isAvailable && (
+                        <input
+                          type="text"
+                          value={form.comingSoonNote}
+                          onChange={(e) =>
+                            setForm({ ...form, comingSoonNote: e.target.value })
+                          }
+                          className={`${inputCls} mt-2`}
+                          placeholder="Segera hadir"
+                        />
+                      )}
+                    </Field>
                   </>
                 )}
                 {activeTab === 'blogs' && (
                   <>
-                    <div className="flex items-center gap-2 mb-0.5">
-                      <p className="text-sm font-semibold text-[#F3F4F6]">
-                        {item.title}
-                      </p>
-                      <span
-                        className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded"
-                        style={{
-                          color: item.categoryColor || '#F97316',
-                          backgroundColor: `${item.categoryColor || '#F97316'}22`,
-                        }}
-                      >
-                        {item.category}
-                      </span>
+                    <Field label="Judul Artikel">
+                      <input
+                        type="text"
+                        value={form.title}
+                        onChange={(e) =>
+                          setForm({ ...form, title: e.target.value })
+                        }
+                        className={inputCls}
+                        placeholder="Cyberpunk 2077 Patch 2.2..."
+                      />
+                    </Field>
+                    <Field label="Slug (otomatis jika kosong)">
+                      <input
+                        type="text"
+                        value={form.slug}
+                        onChange={(e) =>
+                          setForm({ ...form, slug: e.target.value })
+                        }
+                        className={inputCls}
+                        placeholder="cyberpunk-2077-patch-2-2"
+                      />
+                    </Field>
+                    <div className="grid grid-cols-2 gap-3">
+                      <Field label="Kategori">
+                        <select
+                          value={form.category}
+                          onChange={(e) =>
+                            setForm({ ...form, category: e.target.value })
+                          }
+                          className={inputCls}
+                        >
+                          {BLOG_CATEGORIES.map((c) => (
+                            <option key={c.value} value={c.value}>
+                              {c.label}
+                            </option>
+                          ))}
+                        </select>
+                      </Field>
+                      <Field label="Tanggal (teks)">
+                        <input
+                          type="text"
+                          value={form.date}
+                          onChange={(e) =>
+                            setForm({ ...form, date: e.target.value })
+                          }
+                          className={inputCls}
+                          placeholder="28 Mei 2026"
+                        />
+                      </Field>
                     </div>
-                    <p className="text-xs text-[#7E8796] leading-relaxed line-clamp-2">
-                      {item.excerpt}
-                    </p>
-                    <div className="flex flex-wrap items-center gap-2 mt-1">
-                      <span className="text-[10px] text-[#7E8796]">
-                        {item.date}
-                      </span>
-                      <span className="text-[10px] text-[#4A5568]">·</span>
-                      <span className="text-[10px] text-[#7E8796]">
-                        {item.readTime}
-                      </span>
-                      {item.featured && (
-                        <span className="text-[10px] font-bold text-[#FFD100] bg-[#FFD100]/15 px-1.5 py-0.5 rounded">
+                    <Field label="Excerpt / Ringkasan">
+                      <textarea
+                        value={form.excerpt}
+                        onChange={(e) =>
+                          setForm({ ...form, excerpt: e.target.value })
+                        }
+                        rows={2}
+                        className={`${inputCls} resize-none`}
+                        placeholder="Ringkasan singkat untuk card..."
+                      />
+                    </Field>
+                    <div className="grid grid-cols-2 gap-3">
+                      <Field label="Waktu Baca">
+                        <input
+                          type="text"
+                          value={form.readTime}
+                          onChange={(e) =>
+                            setForm({ ...form, readTime: e.target.value })
+                          }
+                          className={inputCls}
+                          placeholder="5 min"
+                        />
+                      </Field>
+                      <Field label="Penulis">
+                        <input
+                          type="text"
+                          value={form.author}
+                          onChange={(e) =>
+                            setForm({ ...form, author: e.target.value })
+                          }
+                          className={inputCls}
+                          placeholder="Admin MyGameON"
+                        />
+                      </Field>
+                    </div>
+                    <Field label="Opsi">
+                      <div className="flex items-center gap-4">
+                        <label className="flex items-center gap-2 text-xs text-[#C8CFDA] cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={form.featured}
+                            onChange={(e) =>
+                              setForm({ ...form, featured: e.target.checked })
+                            }
+                            className="accent-[#FFD100]"
+                          />
                           Featured
-                        </span>
-                      )}
-                      {item.trending && (
-                        <span className="text-[10px] font-bold text-[#F97316] bg-[#F97316]/15 px-1.5 py-0.5 rounded">
+                        </label>
+                        <label className="flex items-center gap-2 text-xs text-[#C8CFDA] cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={form.trending}
+                            onChange={(e) =>
+                              setForm({ ...form, trending: e.target.checked })
+                            }
+                            className="accent-[#FFD100]"
+                          />
                           Trending
-                        </span>
-                      )}
-                    </div>
+                        </label>
+                      </div>
+                    </Field>
+                    <Field label="Body (Markdown-lite: ## heading, **bold**, - list)">
+                      <textarea
+                        value={form.body}
+                        onChange={(e) =>
+                          setForm({ ...form, body: e.target.value })
+                        }
+                        rows={10}
+                        className={`${inputCls} resize-y font-mono text-xs`}
+                        placeholder="Konten artikel lengkap..."
+                      />
+                    </Field>
                   </>
                 )}
-              </ContentItem>
-            ))}
-          </div>
+                {activeTab === 'prereqs' && (
+                  <>
+                    <Field label="Nama Software">
+                      <input
+                        type="text"
+                        value={form.name}
+                        onChange={(e) =>
+                          setForm({ ...form, name: e.target.value })
+                        }
+                        className={inputCls}
+                        placeholder="DirectX End-User Runtime"
+                      />
+                    </Field>
+                    <Field label="Deskripsi">
+                      <textarea
+                        value={form.description}
+                        onChange={(e) =>
+                          setForm({ ...form, description: e.target.value })
+                        }
+                        rows={2}
+                        className={`${inputCls} resize-none`}
+                        placeholder="Diperlukan oleh hampir semua game..."
+                      />
+                    </Field>
+                    <Field label="URL Download Resmi">
+                      <input
+                        type="text"
+                        value={form.url}
+                        onChange={(e) =>
+                          setForm({ ...form, url: e.target.value })
+                        }
+                        className={inputCls}
+                        placeholder="https://www.microsoft.com/..."
+                      />
+                    </Field>
+                  </>
+                )}
+              </FormModal>
+            )}
+
+            {/* List */}
+            {isLoading() ? (
+              <div className="flex justify-center py-16">
+                <Loader2 className="animate-spin text-[#FFD100] w-6 h-6" />
+              </div>
+            ) : getItems().length === 0 ? (
+              <div className="text-center py-16 bg-[#111317] border border-[#2A2F39] rounded-xl">
+                <p className="text-sm text-[#C8CFDA]">Belum ada data</p>
+                <p className="text-xs text-[#7E8796] mt-1">
+                  Klik "Tambah" untuk memulai.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {getItems().map((item, index) => (
+                  <ContentItem
+                    key={item.id}
+                    item={item}
+                    index={index}
+                    total={getItems().length}
+                    onMove={handleMove}
+                    onToggle={handleToggle}
+                    onEdit={openEdit}
+                    onDelete={handleDelete}
+                  >
+                    {activeTab === 'videos' && (
+                      <>
+                        <div className="flex items-center gap-2 mb-0.5">
+                          <p className="text-sm font-semibold text-[#F3F4F6]">
+                            {item.title}
+                          </p>
+                          <span className="text-[10px] font-bold text-[#FFD100]/70 uppercase">
+                            {item.category === 'sims4'
+                              ? 'Sims 4'
+                              : item.category === 'troubleshoot'
+                                ? 'Troubleshoot'
+                                : 'Umum'}
+                          </span>
+                        </div>
+                        <p className="text-xs text-[#7E8796] leading-relaxed">
+                          {item.description}
+                        </p>
+                        {item.youtubeId ? (
+                          <a
+                            href={`https://youtube.com/watch?v=${item.youtubeId}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 mt-1 text-[10px] text-red-400 hover:text-red-300"
+                          >
+                            <Play size={10} /> {item.youtubeId}
+                          </a>
+                        ) : (
+                          <span className="text-[10px] text-[#4A5568] mt-1 block">
+                            Belum ada video
+                          </span>
+                        )}
+                      </>
+                    )}
+                    {activeTab === 'downloads' && (
+                      <>
+                        <p className="text-sm font-semibold text-[#F3F4F6] mb-0.5">
+                          {item.name}
+                        </p>
+                        <p className="text-xs text-[#7E8796] leading-relaxed">
+                          {item.description}
+                        </p>
+                        <div className="flex flex-wrap items-center gap-2 mt-1">
+                          {item.version && (
+                            <span className="text-[10px] text-[#C8CFDA] bg-[#2A2F39] px-1.5 py-0.5 rounded">
+                              v{item.version}
+                            </span>
+                          )}
+                          {item.size && (
+                            <span className="text-[10px] text-[#7E8796]">
+                              {item.size}
+                            </span>
+                          )}
+                          {item.isAvailable === false && (
+                            <span className="text-[10px] font-bold text-[#FFD100] bg-[#FFD100]/15 px-1.5 py-0.5 rounded">
+                              {item.comingSoonNote || 'Coming soon'}
+                            </span>
+                          )}
+                          {item.downloadUrl && (
+                            <a
+                              href={item.downloadUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-[10px] text-blue-400 hover:text-blue-300"
+                            >
+                              <ExternalLink size={10} /> Link
+                            </a>
+                          )}
+                        </div>
+                      </>
+                    )}
+                    {activeTab === 'prereqs' && (
+                      <>
+                        <p className="text-sm font-semibold text-[#F3F4F6] mb-0.5">
+                          {item.name}
+                        </p>
+                        <p className="text-xs text-[#7E8796] leading-relaxed">
+                          {item.description}
+                        </p>
+                        {item.url && (
+                          <a
+                            href={item.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 mt-1 text-[10px] text-blue-400 hover:text-blue-300"
+                          >
+                            <ExternalLink size={10} />{' '}
+                            {item.url.replace(/^https?:\/\//, '').split('/')[0]}
+                          </a>
+                        )}
+                      </>
+                    )}
+                    {activeTab === 'blogs' && (
+                      <>
+                        <div className="flex items-center gap-2 mb-0.5">
+                          <p className="text-sm font-semibold text-[#F3F4F6]">
+                            {item.title}
+                          </p>
+                          <span
+                            className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded"
+                            style={{
+                              color: item.categoryColor || '#F97316',
+                              backgroundColor: `${item.categoryColor || '#F97316'}22`,
+                            }}
+                          >
+                            {item.category}
+                          </span>
+                        </div>
+                        <p className="text-xs text-[#7E8796] leading-relaxed line-clamp-2">
+                          {item.excerpt}
+                        </p>
+                        <div className="flex flex-wrap items-center gap-2 mt-1">
+                          <span className="text-[10px] text-[#7E8796]">
+                            {item.date}
+                          </span>
+                          <span className="text-[10px] text-[#4A5568]">·</span>
+                          <span className="text-[10px] text-[#7E8796]">
+                            {item.readTime}
+                          </span>
+                          {item.featured && (
+                            <span className="text-[10px] font-bold text-[#FFD100] bg-[#FFD100]/15 px-1.5 py-0.5 rounded">
+                              Featured
+                            </span>
+                          )}
+                          {item.trending && (
+                            <span className="text-[10px] font-bold text-[#F97316] bg-[#F97316]/15 px-1.5 py-0.5 rounded">
+                              Trending
+                            </span>
+                          )}
+                        </div>
+                      </>
+                    )}
+                  </ContentItem>
+                ))}
+              </div>
+            )}
+          </>
         )}
+        {/* end activeTab !== winning */}
       </div>
     </div>
   );

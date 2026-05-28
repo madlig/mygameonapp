@@ -25,9 +25,12 @@ const RequestStatusPage = lazy(
 );
 const FaqPage = lazy(() => import('../features/landing/FaqPage'));
 const VideosPage = lazy(() => import('../features/landing/VideosPage'));
+const BlogPage = lazy(() => import('../features/landing/BlogPage'));
+const DownloadsPage = lazy(() => import('../features/landing/DownloadsPage'));
 // Import Halaman Umum
 const LoginPage = lazy(() => import('../pages/LoginPage'));
-const FeedbackPage = lazy(() => import('../pages/FeedbackPage'));
+const FeedbackPage = lazy(() => import('../features/feedback/FeedbackPage'));
+const ContentPage = lazy(() => import('../features/content/ContentPage'));
 const AboutPage = lazy(() => import('../pages/AboutPage'));
 const NotFoundPage = lazy(() => import('../pages/NotFoundPage'));
 
@@ -47,6 +50,8 @@ const AppRouter = () => {
         <Route path="/request-status" element={<RequestStatusPage />} />
         <Route path="/faq" element={<FaqPage />} />
         <Route path="/videos" element={<VideosPage />} />
+        <Route path="/blog" element={<BlogPage />} />
+        <Route path="/downloads" element={<DownloadsPage />} />
         <Route path="/login" element={<LoginPage />} />
 
         {/* Rute Privat yang dilindungi dan menggunakan Layout */}
@@ -58,6 +63,7 @@ const AppRouter = () => {
             <Route path="/requests" element={<RequestsPage />} />
             <Route path="/operational" element={<OperationalPage />} />
             <Route path="/feedback" element={<FeedbackPage />} />
+            <Route path="/content" element={<ContentPage />} />
             <Route path="/about" element={<AboutPage />} />
           </Route>
         </Route>

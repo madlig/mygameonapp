@@ -132,7 +132,10 @@ export const useDashboardData = () => {
 
           latestGames.forEach((doc) => {
             const data = doc.data();
-            const rawDate = data.createdAt?.toDate?.() || data.dateAdded?.toDate?.() || new Date();
+            const rawDate =
+              data.createdAt?.toDate?.() ||
+              data.dateAdded?.toDate?.() ||
+              new Date();
             activities.push({
               id: doc.id,
               type: 'GAME_ADDED',

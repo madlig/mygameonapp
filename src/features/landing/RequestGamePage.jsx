@@ -1,10 +1,9 @@
-// src/features/landing/RequestGamePage.jsx
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
+import { Link } from 'react-router-dom';
 import {
-  ArrowLeft,
   Send,
-  CheckCircle,
+  CheckCircle2,
   AlertCircle,
   Loader2,
   ThumbsUp,
@@ -14,7 +13,6 @@ import {
   Gamepad2,
   MessageCircle,
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
 import {
   collection,
   addDoc,
@@ -31,7 +29,102 @@ import {
   REQUEST_ACTIVE_STATUSES,
   REQUEST_STATUS,
 } from '../../shared/requestStatus';
+import PageShell from './components/PageShell';
 
+/* ── Shared input class ──────────────────────────────── */
+const inputCls =
+  'w-full px-3.5 py-3 rounded-[10px] bg-bg-secondary border border-border-default text-[13.5px] text-text-primary placeholder-text-faint focus:outline-none focus:ring-2 focus:ring-accent-yellow/30 focus:border-accent-yellow/40 transition-colors font-[inherit]';
+
+/* ── InputField ──────────────────────────────────────── */
+const InputField = ({ label, required, error, hint, children }) => (
+  <div>
+    <label className="block text-[13px] font-bold text-text-muted mb-1.5">
+      {label} {required && <span className="text-accent-red">*</span>}
+    </label>
+    {children}
+    {error && <p className="text-accent-red text-[11px] mt-1">{error}</p>}
+    {hint && !error && (
+      <p className="text-text-ghost text-[11px] mt-1">{hint}</p>
+    )}
+  </div>
+);
+
+/* ── Notification Banners ────────────────────────────── */
+const SuccessBanner = ({ trackingCode, onCopy }) => (
+  <div className="mx-[22px] mt-[18px] p-4 bg-accent-emerald/[0.08] border border-accent-emerald/20 rounded-xl flex gap-3 items-start">
+    <CheckCircle2 className="w-[18px] h-[18px] text-accent-emerald flex-shrink-0 mt-0.5" />
+    <div>
+      <p className="text-[13px] font-bold text-accent-emerald mb-1">
+        Request Berhasil Dikirim!
+      </p>
+      <p className="text-[11.5px] text-text-dim mb-2">
+        Simpan kode tracking untuk cek progres:
+      </p>
+      <div className="flex items-center gap-2">
+        <span className="font-mono font-extrabold text-accent-yellow text-[15px] tracking-wide">
+          {trackingCode}
+        </span>
+        <button
+          type="button"
+          onClick={onCopy}
+          className="bg-accent-emerald/[0.12] border-none rounded-md px-2 py-1 cursor-pointer text-accent-emerald text-[10px] font-bold hover:bg-accent-emerald/20 transition-colors"
+        >
+          <Copy className="w-3 h-3" />
+        </button>
+      </div>
+      {trackingCode && (
+        <Link
+          to={`/request-status?code=${trackingCode}`}
+          className="inline-block mt-2 text-[11.5px] font-bold text-accent-yellow no-underline hover:underline"
+        >
+          Cek Status →
+        </Link>
+      )}
+    </div>
+  </div>
+);
+
+const VotedBanner = ({ trackingCode }) => (
+  <div className="mx-[22px] mt-[18px] p-4 bg-accent-cyan/[0.08] border border-accent-cyan/20 rounded-xl flex gap-3 items-start">
+    <ThumbsUp className="w-[18px] h-[18px] text-accent-cyan flex-shrink-0 mt-0.5" />
+    <div>
+      <p className="text-[13px] font-bold text-accent-cyan mb-1">
+        +1 Vote Ditambahkan!
+      </p>
+      <p className="text-[11.5px] text-text-dim">
+        Game ini sudah direquest sebelumnya. Vote kamu membantu memprioritaskan.
+      </p>
+      {trackingCode && (
+        <Link
+          to={`/request-status?code=${trackingCode}`}
+          className="inline-block mt-2 text-[11.5px] font-bold text-accent-yellow no-underline hover:underline"
+        >
+          Cek Status: {trackingCode} →
+        </Link>
+      )}
+    </div>
+  </div>
+);
+
+const RateLimitBanner = () => (
+  <div className="mx-[22px] mt-[18px] p-4 bg-accent-orange/[0.08] border border-accent-orange/20 rounded-xl flex gap-3 items-center">
+    <Clock className="w-[18px] h-[18px] text-accent-orange flex-shrink-0" />
+    <p className="text-[13px] text-accent-orange">
+      Tunggu 2 menit sebelum mengirim request lagi.
+    </p>
+  </div>
+);
+
+const ErrorBanner = () => (
+  <div className="mx-[22px] mt-[18px] p-4 bg-accent-red/[0.08] border border-accent-red/20 rounded-xl flex gap-3 items-center">
+    <AlertCircle className="w-[18px] h-[18px] text-accent-red flex-shrink-0" />
+    <p className="text-[13px] text-accent-red">
+      Gagal mengirim. Periksa koneksi dan coba lagi.
+    </p>
+  </div>
+);
+
+/* ── Request Game Page ───────────────────────────────── */
 const RequestGamePage = () => {
   const {
     register,
@@ -105,7 +198,7 @@ const RequestGamePage = () => {
         }
         setSubmitStatus('voted');
       } else {
-        // New request dengan Shopee Username
+        // New request
         const code = createTrackingCode();
         const requestData = {
           title: cleanTitle,
@@ -139,276 +232,178 @@ const RequestGamePage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#0D1117]">
-      <nav className="bg-[#111317] border-b border-[#2A2F39] px-4 py-3 sticky top-0 z-10">
-        <div className="max-w-3xl mx-auto flex items-center justify-between">
-          <Link
-            to="/"
-            className="flex items-center text-[#7E8796] hover:text-[#F3F4F6] transition-colors font-medium text-sm"
-          >
-            <ArrowLeft size={18} className="mr-2" />
-            Kembali
-          </Link>
-          <span className="text-[#7E8796] text-sm font-medium">
-            Request Game
+    <PageShell title="Request Game" maxWidth={520}>
+      {/* Header */}
+      <div className="slide-stagger-1 mb-8">
+        {/* Eyebrow badge */}
+        <div className="inline-flex items-center gap-2 bg-accent-purple/[0.08] border border-accent-purple/20 px-3.5 py-[5px] rounded-full mb-5">
+          <span className="bg-accent-purple text-white text-[9px] font-extrabold px-2 py-[2px] rounded-full">
+            FORM
+          </span>
+          <span className="text-accent-purple-light text-[11.5px] font-semibold">
+            Tanpa login, proses cepat
           </span>
         </div>
-      </nav>
 
-      <main className="max-w-lg mx-auto px-4 py-10">
-        <div className="bg-[#1A1F27] rounded-2xl border border-[#2A2F39] overflow-hidden">
-          {/* Header */}
-          <div className="p-6 sm:p-8 border-b border-[#2A2F39]">
-            <h1 className="text-2xl sm:text-3xl font-bold text-[#F3F4F6] mb-2">
-              Request Game
-            </h1>
-            <p className="text-[#7E8796] text-sm">
-              Game yang kamu cari belum ada? Isi form ini dan kami akan carikan.
-            </p>
+        <h1 className="text-[clamp(26px,3.5vw,36px)] font-black tracking-[-1.2px] leading-[1.1] mb-2.5">
+          Request Game <span className="text-accent-yellow">Baru</span>
+        </h1>
+        <p className="text-text-dim text-[14px] leading-relaxed">
+          Game yang kamu cari belum ada di katalog? Isi form ini dan kami akan
+          carikan.
+        </p>
+      </div>
+
+      {/* Card */}
+      <div className="slide-stagger-2 bg-bg-secondary border border-border-default rounded-[18px] overflow-hidden">
+        {/* Info box */}
+        <div className="flex gap-3 items-start px-[22px] py-[18px] border-b border-bg-surface">
+          <div className="w-7 h-7 rounded-[7px] bg-accent-yellow/[0.08] border border-accent-yellow/[0.15] grid place-items-center flex-shrink-0 mt-0.5">
+            <Info className="w-3 h-3 text-accent-yellow" />
           </div>
+          <p className="text-[11.5px] text-text-dim leading-relaxed">
+            Tulis{' '}
+            <strong className="text-text-tertiary">judul game lengkap</strong>{' '}
+            (bukan singkatan). Jika game sudah pernah direquest, vote kamu akan
+            ditambahkan. Kamu dihubungi via WhatsApp saat tersedia.
+          </p>
+        </div>
 
-          <div className="p-6 sm:p-8">
-            {/* Info box */}
-            <div className="bg-[#111317] border border-[#2A2F39] rounded-xl p-4 mb-6 flex items-start gap-3">
-              <Info className="w-4 h-4 text-[#FFD100] flex-shrink-0 mt-0.5" />
-              <div className="text-xs text-[#7E8796] space-y-1">
-                <p>
-                  Tulis <b className="text-[#C8CFDA]">judul game lengkap</b>{' '}
-                  (bukan singkatan).
-                </p>
-                <p>
-                  Jika game sudah pernah direquest orang lain, vote kamu akan
-                  ditambahkan.
-                </p>
-                <p>Kamu akan dihubungi via WhatsApp saat game tersedia.</p>
-              </div>
-            </div>
+        {/* Status notifications */}
+        {submitStatus === 'success' && (
+          <SuccessBanner
+            trackingCode={trackingCode}
+            onCopy={copyTrackingCode}
+          />
+        )}
+        {submitStatus === 'voted' && (
+          <VotedBanner trackingCode={trackingCode} />
+        )}
+        {submitStatus === 'rate_limit' && <RateLimitBanner />}
+        {submitStatus === 'error' && <ErrorBanner />}
 
-            {/* Notifications */}
-            {submitStatus === 'success' && (
-              <div className="mb-6 p-4 bg-emerald-500/10 border border-emerald-500/25 text-emerald-300 rounded-xl flex items-start gap-3 animate-in fade-in slide-in-from-top-4">
-                <CheckCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
-                <div className="min-w-0">
-                  <p className="font-semibold text-sm">
-                    Request Berhasil Dikirim!
-                  </p>
-                  <p className="text-xs text-emerald-400/80 mt-1">
-                    Simpan kode tracking untuk cek progres:
-                  </p>
-                  <div className="mt-2 flex items-center gap-2">
-                    <span className="font-mono font-bold text-[#FFD100] text-sm">
-                      {trackingCode}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={copyTrackingCode}
-                      className="p-1.5 rounded-md bg-emerald-500/15 hover:bg-emerald-500/25 transition-colors"
-                    >
-                      <Copy size={12} />
-                    </button>
-                  </div>
-                  {trackingCode && (
-                    <Link
-                      to={`/request-status?code=${trackingCode}`}
-                      className="inline-block mt-2 text-xs font-semibold text-[#FFD100] hover:underline"
-                    >
-                      Cek Status →
-                    </Link>
-                  )}
-                </div>
-              </div>
-            )}
+        {/* Form */}
+        <form
+          onSubmit={handleSubmit(onSubmit)}
+          className="flex flex-col gap-[18px] p-[22px]"
+        >
+          {/* Honeypot */}
+          <input
+            type="text"
+            {...register('website_trap')}
+            tabIndex={-1}
+            autoComplete="off"
+            className="absolute opacity-0 h-0 w-0 -z-10"
+          />
 
-            {submitStatus === 'voted' && (
-              <div className="mb-6 p-4 bg-sky-500/10 border border-sky-500/25 text-sky-300 rounded-xl flex items-start gap-3 animate-in fade-in slide-in-from-top-4">
-                <ThumbsUp className="w-5 h-5 flex-shrink-0 mt-0.5" />
-                <div>
-                  <p className="font-semibold text-sm">+1 Vote Ditambahkan!</p>
-                  <p className="text-xs text-sky-400/80 mt-1">
-                    Game ini sudah direquest sebelumnya. Vote kamu membantu
-                    memprioritaskan.
-                  </p>
-                  {trackingCode && (
-                    <Link
-                      to={`/request-status?code=${trackingCode}`}
-                      className="inline-block mt-2 text-xs font-semibold text-[#FFD100] hover:underline"
-                    >
-                      Cek Status: {trackingCode} →
-                    </Link>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {submitStatus === 'rate_limit' && (
-              <div className="mb-6 p-4 bg-amber-500/10 border border-amber-500/25 text-amber-300 rounded-xl flex items-center gap-3">
-                <Clock className="w-5 h-5 flex-shrink-0" />
-                <p className="text-sm">
-                  Tunggu 2 menit sebelum mengirim request lagi.
-                </p>
-              </div>
-            )}
-
-            {submitStatus === 'error' && (
-              <div className="mb-6 p-4 bg-red-500/10 border border-red-500/25 text-red-300 rounded-xl flex items-center gap-3">
-                <AlertCircle className="w-5 h-5 flex-shrink-0" />
-                <p className="text-sm">
-                  Gagal mengirim. Periksa koneksi dan coba lagi.
-                </p>
-              </div>
-            )}
-
-            {/* Form */}
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-              {/* Honeypot */}
+          {/* Game title */}
+          <InputField
+            label="Judul Game"
+            required
+            error={errors.gameTitle?.message}
+            hint="Contoh: Cyberpunk 2077, Tekken 8"
+          >
+            <div className="relative">
+              <Gamepad2 className="absolute left-3.5 top-1/2 -translate-y-1/2 w-[15px] h-[15px] text-text-faint pointer-events-none" />
               <input
                 type="text"
-                {...register('website_trap')}
-                tabIndex={-1}
-                autoComplete="off"
-                style={{
-                  position: 'absolute',
-                  opacity: 0,
-                  height: 0,
-                  width: 0,
-                  zIndex: -1,
-                }}
+                {...register('gameTitle', {
+                  required: 'Judul game wajib diisi',
+                  minLength: { value: 3, message: 'Judul terlalu pendek' },
+                  maxLength: { value: 80, message: 'Judul terlalu panjang' },
+                })}
+                placeholder="Ketik judul game lengkap..."
+                className={`${inputCls} !pl-10`}
               />
+            </div>
+          </InputField>
 
-              {/* Game title */}
-              <div>
-                <label className="block text-sm font-semibold text-[#C8CFDA] mb-1.5">
-                  Judul Game *
-                </label>
-                <div className="relative">
-                  <Gamepad2
-                    className="absolute left-3 top-1/2 -translate-y-1/2 text-[#4A5568]"
-                    size={18}
-                  />
-                  <input
-                    type="text"
-                    {...register('gameTitle', {
-                      required: 'Judul game wajib diisi',
-                      minLength: { value: 3, message: 'Judul terlalu pendek' },
-                      maxLength: {
-                        value: 80,
-                        message: 'Judul terlalu panjang',
-                      },
-                    })}
-                    className="w-full pl-10 pr-4 py-3 rounded-lg border border-[#2A2F39] bg-[#111317] text-[#F3F4F6] focus:ring-2 focus:ring-[#FFD100]/40 focus:border-[#FFD100]/50 transition-all outline-none text-sm"
-                    placeholder="Contoh: Cyberpunk 2077, Tekken 8..."
-                  />
-                </div>
-                {errors.gameTitle && (
-                  <span className="text-red-400 text-xs mt-1 block">
-                    {errors.gameTitle.message}
-                  </span>
-                )}
-              </div>
+          {/* Shopee Username */}
+          <InputField
+            label="Username Shopee"
+            required
+            error={errors.shopeeUsername?.message}
+          >
+            <input
+              type="text"
+              {...register('shopeeUsername', {
+                required: 'Username Shopee wajib diisi',
+                maxLength: { value: 30, message: 'Username terlalu panjang' },
+              })}
+              placeholder="Username Shopee kamu"
+              className={inputCls}
+            />
+          </InputField>
 
-              {/* Shopee Username */}
-              <div>
-                <label className="block text-sm font-semibold text-[#C8CFDA] mb-1.5">
-                  Username Shopee *
-                </label>
-                <input
-                  type="text"
-                  {...register('shopeeUsername', {
-                    required: 'Username Shopee wajib diisi',
-                    maxLength: { value: 30, message: 'Username terlalu panjang' },
-                  })}
-                  className="w-full px-4 py-3 rounded-lg border border-[#2A2F39] bg-[#111317] text-[#F3F4F6] focus:ring-2 focus:ring-[#FFD100]/40 focus:border-[#FFD100]/50 transition-all outline-none text-sm"
-                  placeholder="Username Shopee kamu"
-                />
-                {errors.shopeeUsername && (
-                  <span className="text-red-400 text-xs mt-1 block">
-                    {errors.shopeeUsername.message}
-                  </span>
-                )}
-              </div>
+          {/* WhatsApp */}
+          <InputField
+            label="Nomor WhatsApp"
+            required
+            error={errors.contactWhatsApp?.message}
+            hint="Kami kirim link produk Shopee via WA saat game tersedia"
+          >
+            <div className="relative">
+              <MessageCircle className="absolute left-3.5 top-1/2 -translate-y-1/2 w-[15px] h-[15px] text-text-faint pointer-events-none" />
+              <input
+                type="text"
+                {...register('contactWhatsApp', {
+                  required: 'Nomor WhatsApp wajib diisi',
+                  minLength: { value: 9, message: 'Nomor terlalu pendek' },
+                  maxLength: { value: 20, message: 'Nomor terlalu panjang' },
+                  pattern: {
+                    value: /^[0-9+\-\s]+$/,
+                    message: 'Format nomor tidak valid',
+                  },
+                })}
+                placeholder="08xxxxxxxxxx"
+                className={`${inputCls} !pl-10`}
+              />
+            </div>
+          </InputField>
 
-              {/* WhatsApp */}
-              <div>
-                <label className="block text-sm font-semibold text-[#C8CFDA] mb-1.5">
-                  Nomor WhatsApp *
-                </label>
-                <div className="relative">
-                  <MessageCircle
-                    className="absolute left-3 top-1/2 -translate-y-1/2 text-[#4A5568]"
-                    size={18}
-                  />
-                  <input
-                    type="text"
-                    {...register('contactWhatsApp', {
-                      required: 'Nomor WhatsApp wajib diisi',
-                      minLength: {
-                        value: 9,
-                        message: 'Nomor terlalu pendek',
-                      },
-                      maxLength: {
-                        value: 20,
-                        message: 'Nomor terlalu panjang',
-                      },
-                      pattern: {
-                        value: /^[0-9+\-\s]+$/,
-                        message: 'Format nomor tidak valid',
-                      },
-                    })}
-                    className="w-full pl-10 pr-4 py-3 rounded-lg border border-[#2A2F39] bg-[#111317] text-[#F3F4F6] focus:ring-2 focus:ring-[#FFD100]/40 focus:border-[#FFD100]/50 transition-all outline-none text-sm"
-                    placeholder="08xxxxxxxxxx"
-                  />
-                </div>
-                {errors.contactWhatsApp && (
-                  <span className="text-red-400 text-xs mt-1 block">
-                    {errors.contactWhatsApp.message}
-                  </span>
-                )}
-                <p className="text-[10px] text-[#4A5568] mt-1">
-                  Kami kirim link produk Shopee via WhatsApp saat game tersedia.
-                </p>
-              </div>
+          {/* Notes */}
+          <InputField label="Catatan" hint="Versi tertentu, DLC, dll.">
+            <textarea
+              {...register('notes', {
+                maxLength: { value: 200, message: 'Catatan terlalu panjang' },
+              })}
+              placeholder="Opsional..."
+              rows={2}
+              className={`${inputCls} resize-none`}
+            />
+          </InputField>
 
-              {/* Notes (optional) */}
-              <div>
-                <label className="block text-sm font-semibold text-[#C8CFDA] mb-1.5">
-                  Catatan{' '}
-                  <span className="text-[#4A5568] font-normal">(opsional)</span>
-                </label>
-                <textarea
-                  {...register('notes', {
-                    maxLength: {
-                      value: 200,
-                      message: 'Catatan terlalu panjang',
-                    },
-                  })}
-                  rows="2"
-                  className="w-full px-4 py-3 rounded-lg border border-[#2A2F39] bg-[#111317] text-[#F3F4F6] focus:ring-2 focus:ring-[#FFD100]/40 focus:border-[#FFD100]/50 transition-all outline-none text-sm resize-none"
-                  placeholder="Versi tertentu, DLC, dll..."
-                />
-              </div>
+          {/* Submit */}
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className="btn-yellow w-full py-3.5 bg-accent-yellow text-bg-primary border-none rounded-xl text-[14px] font-extrabold cursor-pointer flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                Mengirim...
+              </>
+            ) : (
+              <>
+                <Send className="w-3.5 h-3.5" />
+                Kirim Request
+              </>
+            )}
+          </button>
+        </form>
+      </div>
 
-              {/* Submit */}
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="w-full py-3.5 bg-[#FFD100] hover:brightness-95 text-[#111317] font-bold rounded-xl active:scale-[0.98] transition-all flex items-center justify-center disabled:opacity-60 disabled:cursor-not-allowed text-sm"
-              >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />{' '}
-                    Mengirim...
-                  </>
-                ) : (
-                  <>
-                    <Send className="w-4 h-4 mr-2" /> Kirim Request
-                  </>
-                )}
-              </button>
-            </form>
-          </div>
-        </div>
-      </main>
-    </div>
+      {/* Bottom link */}
+      <div className="slide-stagger-3 mt-5 text-center">
+        <Link
+          to="/request-status"
+          className="text-[12.5px] text-text-faint font-semibold no-underline transition-colors hover:text-accent-yellow"
+        >
+          Sudah pernah request? Cek status di sini →
+        </Link>
+      </div>
+    </PageShell>
   );
 };
 

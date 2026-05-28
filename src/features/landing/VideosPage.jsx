@@ -1,22 +1,28 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { ArrowLeft, Play, Video, Filter } from 'lucide-react';
+import { Play, Video } from 'lucide-react';
 import { tutorials as staticTutorials } from './data/tutorials';
 import { tutorialsCRUD } from '../content/services/contentFirestore';
+import PageShell from './components/PageShell';
 
-const categories = [
+/* ── Category definitions ────────────────────────────── */
+const CATEGORIES = [
   { key: 'all', label: 'Semua' },
   { key: 'general', label: 'Umum' },
   { key: 'sims4', label: 'Sims 4' },
   { key: 'troubleshoot', label: 'Troubleshoot' },
 ];
 
+const categoryLabel = (key) =>
+  key === 'sims4' ? 'Sims 4' : key === 'troubleshoot' ? 'Troubleshoot' : 'Umum';
+
+/* ── Video Card ──────────────────────────────────────── */
 const VideoCard = ({ tutorial }) => {
   const [showEmbed, setShowEmbed] = useState(false);
   const hasVideo = Boolean(tutorial.youtubeId);
 
   return (
-    <div className="rounded-xl border border-[#2A2F39] bg-[#1A1F27] overflow-hidden hover:border-[#FFD100]/20 transition-colors">
+    <div className="rounded-2xl border border-border-default bg-bg-secondary overflow-hidden transition-colors hover:border-accent-yellow/20">
+      {/* Thumbnail / Embed */}
       {hasVideo && showEmbed ? (
         <div className="relative w-full aspect-video">
           <iframe
@@ -29,7 +35,9 @@ const VideoCard = ({ tutorial }) => {
         </div>
       ) : (
         <div
-          className={`relative w-full aspect-video bg-[#0D1117] grid place-items-center ${hasVideo ? 'cursor-pointer group' : ''}`}
+          className={`relative w-full aspect-video bg-bg-primary grid place-items-center ${
+            hasVideo ? 'cursor-pointer group' : ''
+          }`}
           onClick={hasVideo ? () => setShowEmbed(true) : undefined}
         >
           {hasVideo ? (
@@ -37,33 +45,33 @@ const VideoCard = ({ tutorial }) => {
               <img
                 src={`https://img.youtube.com/vi/${tutorial.youtubeId}/mqdefault.jpg`}
                 alt={tutorial.title}
-                className="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:opacity-80 transition-opacity"
+                className="absolute inset-0 w-full h-full object-cover opacity-50 group-hover:opacity-70 transition-opacity duration-300"
                 loading="lazy"
               />
-              <div className="relative z-10 w-16 h-16 rounded-full bg-[#FFD100] grid place-items-center group-hover:scale-110 transition-transform shadow-lg shadow-[#FFD100]/20">
-                <Play className="w-7 h-7 text-[#111317] ml-0.5" />
+              <div className="relative z-10 w-14 h-14 rounded-full bg-accent-yellow grid place-items-center group-hover:scale-110 transition-transform shadow-lg shadow-accent-yellow/20">
+                <Play className="w-6 h-6 text-bg-primary ml-0.5" />
               </div>
             </>
           ) : (
-            <div className="flex flex-col items-center gap-3 text-[#7E8796]">
-              <Video className="w-12 h-12 opacity-40" />
-              <span className="text-sm font-medium">Video segera hadir</span>
+            <div className="flex flex-col items-center gap-2.5 text-text-ghost">
+              <Video className="w-10 h-10 opacity-40" />
+              <span className="text-[12px] font-semibold">
+                Video segera hadir
+              </span>
             </div>
           )}
         </div>
       )}
+
+      {/* Info */}
       <div className="p-5">
-        <span className="inline-block text-[11px] font-semibold uppercase tracking-wider text-[#FFD100]/70 mb-2">
-          {tutorial.category === 'sims4'
-            ? 'Sims 4'
-            : tutorial.category === 'troubleshoot'
-              ? 'Troubleshoot'
-              : 'Umum'}
+        <span className="inline-block text-[9px] font-extrabold uppercase tracking-wider text-accent-purple-light bg-accent-purple/10 px-2 py-[3px] rounded-[5px] mb-2.5">
+          {categoryLabel(tutorial.category)}
         </span>
-        <h3 className="font-bold text-[#F3F4F6] text-lg leading-snug">
+        <h3 className="text-[15px] font-bold text-text-primary leading-snug mb-1.5">
           {tutorial.title}
         </h3>
-        <p className="mt-2 text-sm text-[#9CA3AF] leading-relaxed">
+        <p className="text-[12.5px] text-text-dim leading-relaxed">
           {tutorial.description}
         </p>
       </div>
@@ -71,6 +79,7 @@ const VideoCard = ({ tutorial }) => {
   );
 };
 
+/* ── Videos Page ─────────────────────────────────────── */
 const VideosPage = () => {
   const [tutorials, setTutorials] = useState(staticTutorials);
   const [activeCategory, setActiveCategory] = useState('all');
@@ -90,69 +99,52 @@ const VideosPage = () => {
       : tutorials.filter((t) => t.category === activeCategory);
 
   return (
-    <div className="min-h-screen bg-[#111317] text-[#F3F4F6]">
+    <PageShell title="Video Tutorial" maxWidth={960}>
       {/* Header */}
-      <header className="sticky top-0 z-40 border-b border-[#2A2F39] bg-[#111317]/90 backdrop-blur-md">
-        <div className="max-w-6xl mx-auto px-6 h-14 flex items-center gap-4">
-          <Link
-            to="/"
-            className="flex items-center gap-2 text-sm text-[#9CA3AF] hover:text-[#F3F4F6] transition-colors"
+      <div className="slide-stagger-1 mb-7">
+        <h1 className="text-[clamp(28px,3.5vw,40px)] font-black tracking-[-1.2px] leading-[1.08] mb-2.5">
+          Video <span className="text-accent-yellow">Tutorial</span>
+        </h1>
+        <p className="text-text-dim text-[14px] leading-relaxed">
+          Panduan video langkah demi langkah untuk install dan menjalankan game.
+        </p>
+      </div>
+
+      {/* Category pills */}
+      <div className="slide-stagger-2 flex gap-1.5 flex-wrap mb-8">
+        {CATEGORIES.map((cat) => (
+          <button
+            key={cat.key}
+            onClick={() => setActiveCategory(cat.key)}
+            className={`px-3.5 py-[7px] rounded-lg text-[12px] font-semibold cursor-pointer border transition-all duration-150 ${
+              activeCategory === cat.key
+                ? 'bg-accent-yellow text-bg-primary border-accent-yellow'
+                : 'bg-bg-secondary text-text-dim border-border-default hover:border-border-subtle'
+            }`}
           >
-            <ArrowLeft className="w-4 h-4" />
-            Kembali
-          </Link>
-          <div className="h-4 w-px bg-[#2A2F39]" />
-          <span className="text-sm font-semibold text-[#F3F4F6]">
-            Video Tutorial
-          </span>
-        </div>
-      </header>
+            {cat.label}
+          </button>
+        ))}
+      </div>
 
-      {/* Content */}
-      <main className="max-w-6xl mx-auto px-6 py-12 md:py-16">
-        <div className="mb-10">
-          <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight">
-            Video Tutorial
-          </h1>
-          <p className="mt-3 text-[#9CA3AF] text-lg">
-            Panduan video langkah demi langkah untuk install dan menjalankan
-            game.
-          </p>
-        </div>
-
-        {/* Category filter */}
-        <div className="flex items-center gap-2 mb-8 flex-wrap">
-          <Filter className="w-4 h-4 text-[#7E8796]" />
-          {categories.map((cat) => (
-            <button
-              key={cat.key}
-              onClick={() => setActiveCategory(cat.key)}
-              className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
-                activeCategory === cat.key
-                  ? 'bg-[#FFD100] text-[#111317]'
-                  : 'bg-[#1A1F27] text-[#9CA3AF] border border-[#2A2F39] hover:text-[#F3F4F6] hover:border-[#FFD100]/30'
-              }`}
-            >
-              {cat.label}
-            </button>
-          ))}
-        </div>
-
-        {/* Video grid */}
+      {/* Video grid */}
+      <div className="slide-stagger-3">
         {filtered.length > 0 ? (
-          <div className="grid gap-5 sm:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-2">
             {filtered.map((tutorial) => (
               <VideoCard key={tutorial.id} tutorial={tutorial} />
             ))}
           </div>
         ) : (
-          <div className="text-center py-16 text-[#7E8796]">
-            <Video className="w-12 h-12 mx-auto mb-3 opacity-40" />
-            <p>Belum ada video untuk kategori ini.</p>
+          <div className="text-center py-14">
+            <Video className="w-10 h-10 mx-auto mb-3 text-text-ghost opacity-40" />
+            <p className="text-[13px] text-text-ghost">
+              Belum ada video untuk kategori ini.
+            </p>
           </div>
         )}
-      </main>
-    </div>
+      </div>
+    </PageShell>
   );
 };
 

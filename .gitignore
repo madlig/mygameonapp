@@ -32,3 +32,4 @@ mygameonapp.zip
 
 # Kunci rahasia Firebase Admin
 src/scripts/serviceAccountKey.json
+mygamon-migration/serviceAccountKey.json

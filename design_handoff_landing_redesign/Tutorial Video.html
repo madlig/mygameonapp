@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Video Tutorial — MyGameON</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Plus Jakarta Sans', sans-serif; background: #0D0F14; color: #F3F4F6; -webkit-font-smoothing: antialiased; }
+    .nav-blur { backdrop-filter: blur(24px) saturate(200%); -webkit-backdrop-filter: blur(24px) saturate(200%); }
+    @keyframes slideIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+    .anim-in { animation: slideIn 0.5s cubic-bezier(0.22,1,0.36,1) both; }
+    .anim-in-d1 { animation: slideIn 0.5s 0.08s cubic-bezier(0.22,1,0.36,1) both; }
+  </style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel" src="shared-page.jsx"></script>
+<script type="text/babel">
+const { useState } = React;
+
+const TUTORIALS = [
+  { id: 'install-game', title: 'Cara Install Game dari Google Drive', description: 'Panduan lengkap download dan extract file game dari link Google Drive yang dikirim admin. Step by step untuk pemula.', youtubeId: null, category: 'general', duration: '8 min' },
+  { id: 'install-sims-launcher', title: 'Cara Pakai MyGameON Sims Launcher', description: 'Tutorial install dan menggunakan launcher untuk download DLC, Mods, dan CC The Sims 4 secara otomatis.', youtubeId: null, category: 'sims4', duration: '12 min' },
+  { id: 'extract-files', title: 'Cara Extract File ZIP/RAR dengan Benar', description: 'Panduan extract file download menggunakan 7-Zip atau WinRAR. Termasuk cara handle password dan file multi-part.', youtubeId: null, category: 'general', duration: '5 min' },
+  { id: 'troubleshoot', title: 'Troubleshooting: Game Tidak Bisa Dibuka', description: 'Solusi untuk masalah umum saat game tidak bisa dijalankan setelah install. Cek prerequisites, permissions, dan compatibility.', youtubeId: null, category: 'troubleshoot', duration: '10 min' },
+  { id: 'install-prereq', title: 'Install Prerequisites (DirectX, Visual C++, .NET)', description: 'Cara install semua software pendukung yang dibutuhkan agar game bisa berjalan dengan lancar di PC kamu.', youtubeId: null, category: 'general', duration: '6 min' },
+  { id: 'remote-install', title: 'Cara Request Remote Install via AnyDesk', description: 'Panduan menggunakan layanan remote install dari admin MyGameON. Install game tanpa ribet, dibantu langsung.', youtubeId: null, category: 'troubleshoot', duration: '4 min' },
+];
+
+const CATEGORIES = [
+  { key: 'all', label: 'Semua', color: '#FFD100' },
+  { key: 'general', label: 'Umum', color: '#8B5CF6' },
+  { key: 'sims4', label: 'Sims 4', color: '#22D3EE' },
+  { key: 'troubleshoot', label: 'Troubleshoot', color: '#F97316' },
+];
+
+const catLabel = (cat) => cat === 'sims4' ? 'Sims 4' : cat === 'troubleshoot' ? 'Troubleshoot' : 'Umum';
+const catColor = (cat) => CATEGORIES.find(c => c.key === cat)?.color || '#8B5CF6';
+
+const VideoCard = ({ tutorial }) => {
+  const [hov, setHov] = useState(false);
+  const color = catColor(tutorial.category);
+
+  return (
+    <div style={{ background: '#080A0E', border: `1px solid ${hov ? color + '35' : '#151920'}`, borderRadius: 16, overflow: 'hidden', transition: 'border-color 0.2s, transform 0.22s', transform: hov ? 'translateY(-3px)' : 'none', cursor: 'pointer' }}
+      onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)}
+    >
+      {/* Thumbnail */}
+      <div style={{ aspectRatio: '16/9', background: `linear-gradient(135deg, #0D0F14 0%, ${color}15 100%)`, position: 'relative', display: 'grid', placeItems: 'center', overflow: 'hidden' }}>
+        {/* Play button */}
+        <div style={{ width: 56, height: 56, borderRadius: '50%', background: color, display: 'grid', placeItems: 'center', boxShadow: `0 8px 24px ${color}35`, transition: 'transform 0.2s', transform: hov ? 'scale(1.1)' : 'scale(1)' }}>
+          <svg width="22" height="22" fill="#0D0F14" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
+        </div>
+        {/* Duration */}
+        <span style={{ position: 'absolute', bottom: 10, right: 10, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)', border: '1px solid rgba(255,255,255,0.06)', color: '#C8CFDA', fontSize: 10, fontWeight: 700, padding: '3px 9px', borderRadius: 6 }}>{tutorial.duration}</span>
+        {/* Coming soon overlay */}
+        {!tutorial.youtubeId && (
+          <div style={{ position: 'absolute', top: 10, left: 10, display: 'flex', alignItems: 'center', gap: 5, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(8px)', padding: '4px 10px', borderRadius: 6, border: '1px solid rgba(255,255,255,0.06)' }}>
+            <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#FFD100', animation: 'pulse 2s infinite' }} />
+            <span style={{ fontSize: 9, fontWeight: 700, color: '#FFD100', letterSpacing: '0.5px' }}>SEGERA HADIR</span>
+          </div>
+        )}
+        {/* Pattern overlay */}
+        <div style={{ position: 'absolute', inset: 0, opacity: 0.05, backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.3) 1px, transparent 1px)', backgroundSize: '16px 16px', pointerEvents: 'none' }} />
+      </div>
+
+      {/* Info */}
+      <div style={{ padding: '18px 18px 20px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+          <span style={{ background: color + '15', color: color, fontSize: 9.5, fontWeight: 800, padding: '3px 8px', borderRadius: 5, letterSpacing: '0.3px' }}>{catLabel(tutorial.category).toUpperCase()}</span>
+        </div>
+        <h3 style={{ fontSize: 15, fontWeight: 800, color: '#E5E7EB', lineHeight: 1.35, marginBottom: 8 }}>{tutorial.title}</h3>
+        <p style={{ fontSize: 12.5, color: '#4B5563', lineHeight: 1.6 }}>{tutorial.description}</p>
+      </div>
+    </div>
+  );
+};
+
+const TutorialPage = () => {
+  const [activeCat, setActiveCat] = useState('all');
+
+  const filtered = activeCat === 'all' ? TUTORIALS : TUTORIALS.filter(t => t.category === activeCat);
+
+  return (
+    <PageShell title="Video Tutorial">
+      <div style={{ maxWidth: 880, margin: '0 auto' }}>
+        {/* Header */}
+        <div className="anim-in" style={{ marginBottom: 28 }}>
+          <h1 style={{ fontSize: 'clamp(28px, 3.5vw, 40px)', fontWeight: 900, letterSpacing: '-1.2px', lineHeight: 1.08, marginBottom: 10 }}>
+            Video <span style={{ color: '#8B5CF6' }}>Tutorial</span>
+          </h1>
+          <p style={{ color: '#4B5563', fontSize: 14, lineHeight: 1.65 }}>
+            Panduan video langkah demi langkah untuk install dan menjalankan game. Cocok untuk pemula.
+          </p>
+        </div>
+
+        {/* Category filter */}
+        <div className="anim-in-d1" style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 28 }}>
+          {CATEGORIES.map(cat => (
+            <button key={cat.key} onClick={() => setActiveCat(cat.key)}
+              style={{ padding: '8px 16px', borderRadius: 10, fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, transition: 'all 0.15s',
+                background: activeCat === cat.key ? cat.color : '#080A0E',
+                color: activeCat === cat.key ? '#0D0F14' : '#4B5563',
+                border: activeCat === cat.key ? 'none' : '1px solid #151920',
+              }}
+            >
+              {activeCat === cat.key && <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#0D0F14' }} />}
+              {cat.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Stats */}
+        <div style={{ display: 'flex', gap: 8, marginBottom: 24, flexWrap: 'wrap' }}>
+          <div style={{ background: '#080A0E', border: '1px solid #151920', borderRadius: 10, padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 18, fontWeight: 900, color: '#FFD100' }}>{filtered.length}</span>
+            <span style={{ fontSize: 11, color: '#374151', fontWeight: 500 }}>tutorial tersedia</span>
+          </div>
+          <div style={{ background: '#080A0E', border: '1px solid #151920', borderRadius: 10, padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <svg width="14" height="14" fill="none" stroke="#FFD100" viewBox="0 0 24 24" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            <span style={{ fontSize: 11, color: '#374151', fontWeight: 500 }}>Total: {TUTORIALS.reduce((acc, t) => acc + parseInt(t.duration), 0)} menit</span>
+          </div>
+        </div>
+
+        {/* Grid */}
+        {filtered.length > 0 ? (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 14 }}>
+            {filtered.map(tutorial => <VideoCard key={tutorial.id} tutorial={tutorial} />)}
+          </div>
+        ) : (
+          <div style={{ textAlign: 'center', padding: '56px 0' }}>
+            <svg width="40" height="40" fill="none" stroke="#1F2937" viewBox="0 0 24 24" strokeWidth="1.5" style={{ margin: '0 auto 12px' }}><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5l4.72-4.72a.75.75 0 011.28.53v11.38a.75.75 0 01-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25h-9A2.25 2.25 0 002.25 7.5v9a2.25 2.25 0 002.25 2.25z" /></svg>
+            <p style={{ color: '#2A2F39', fontSize: 13 }}>Belum ada video untuk kategori ini.</p>
+          </div>
+        )}
+
+        {/* Bottom CTA */}
+        <div style={{ marginTop: 40, background: '#080A0E', border: '1px solid #151920', borderRadius: 16, padding: '24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
+          <div>
+            <h3 style={{ fontSize: 16, fontWeight: 800, color: '#E5E7EB', marginBottom: 4 }}>Masih bingung?</h3>
+            <p style={{ fontSize: 12.5, color: '#374151' }}>Hubungi admin untuk bantuan remote install langsung.</p>
+          </div>
+          <a href="https://wa.me/6285121309829" target="_blank" rel="noopener noreferrer"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: '#15803D', color: '#fff', padding: '11px 20px', borderRadius: 10, fontSize: 13, fontWeight: 700, textDecoration: 'none', transition: 'filter 0.15s' }}
+            onMouseEnter={e => e.currentTarget.style.filter='brightness(1.15)'}
+            onMouseLeave={e => e.currentTarget.style.filter='none'}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.894 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654z"/></svg>
+            Chat WhatsApp
+          </a>
+        </div>
+      </div>
+    </PageShell>
+  );
+};
+
+ReactDOM.createRoot(document.getElementById('root')).render(<TutorialPage />);
+</script>
+<style>@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }</style>
+</body>
+</html>

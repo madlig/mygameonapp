@@ -222,7 +222,8 @@ const resizeImage = (file, maxW = WP_IMG.w, maxH = WP_IMG.h) =>
 
       ctx.drawImage(img, sx, sy, sw, sh, 0, 0, maxW, maxH);
       canvas.toBlob(
-        (blob) => (blob ? resolve(blob) : reject(new Error('Canvas toBlob failed'))),
+        (blob) =>
+          blob ? resolve(blob) : reject(new Error('Canvas toBlob failed')),
         'image/jpeg',
         0.88
       );

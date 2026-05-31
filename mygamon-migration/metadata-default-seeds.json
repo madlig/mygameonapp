@@ -1,0 +1,422 @@
+{
+  "metadata": {
+    "genres": {
+      "action": {
+        "id": "action",
+        "label": "Action",
+        "isActive": true,
+        "isDefault": true,
+        "usageCount": 0,
+        "createdBy": "system"
+      },
+      "adventure": {
+        "id": "adventure",
+        "label": "Adventure",
+        "isActive": true,
+        "isDefault": true,
+        "usageCount": 0,
+        "createdBy": "system"
+      },
+      "rpg": {
+        "id": "rpg",
+        "label": "RPG",
+        "isActive": true,
+        "isDefault": true,
+        "usageCount": 0,
+        "createdBy": "system"
+      },
+      "strategy": {
+        "id": "strategy",
+        "label": "Strategy",
+        "isActive": true,
+        "isDefault": true,
+        "usageCount": 0,
+        "createdBy": "system"
+      },
+      "simulation": {
+        "id": "simulation",
+        "label": "Simulation",
+        "isActive": true,
+        "isDefault": true,
+        "usageCount": 0,
+        "createdBy": "system"
+      },
+      "sports": {
+        "id": "sports",
+        "label": "Sports",
+        "isActive": true,
+        "isDefault": true,
+        "usageCount": 0,
+        "createdBy": "system"
+      },
+      "puzzle": {
+        "id": "puzzle",
+        "label": "Puzzle",
+        "isActive": true,
+        "isDefault": true,
+        "usageCount": 0,
+        "createdBy": "system"
+      },
+      "casual": {
+        "id": "casual",
+        "label": "Casual",
+        "isActive": true,
+        "isDefault": true,
+        "usageCount": 0,
+        "createdBy": "system"
+      },
+      "indie": {
+        "id": "indie",
+        "label": "Indie",
+        "isActive": true,
+        "isDefault": true,
+        "usageCount": 0,
+        "createdBy": "system"
+      },
+      "racing": {
+        "id": "racing",
+        "label": "Racing",
+        "isActive": true,
+        "isDefault": true,
+        "usageCount": 0,
+        "createdBy": "system"
+      },
+      "fighting": {
+        "id": "fighting",
+        "label": "Fighting",
+        "isActive": true,
+        "isDefault": true,
+        "usageCount": 0,
+        "createdBy": "system"
+      },
+      "shooter": {
+        "id": "shooter",
+        "label": "Shooter",
+        "isActive": true,
+        "isDefault": true,
+        "usageCount": 0,
+        "createdBy": "system"
+      },
+      "horror": {
+        "id": "horror",
+        "label": "Horror",
+        "isActive": true,
+        "isDefault": true,
+        "usageCount": 0,
+        "createdBy": "system"
+      },
+      "platformer": {
+        "id": "platformer",
+        "label": "Platformer",
+        "isActive": true,
+        "isDefault": true,
+        "usageCount": 0,
+        "createdBy": "system"
+      },
+      "sandbox": {
+        "id": "sandbox",
+        "label": "Sandbox",
+        "isActive": true,
+        "isDefault": true,
+        "usageCount": 0,
+        "createdBy": "system"
+      },
+      "survival": {
+        "id": "survival",
+        "label": "Survival",
+        "isActive": true,
+        "isDefault": true,
+        "usageCount": 0,
+        "createdBy": "system"
+      },
+      "anime": {
+        "id": "anime",
+        "label": "Anime",
+        "isActive": true,
+        "isDefault": true,
+        "usageCount": 0,
+        "createdBy": "system"
+      },
+      "card-game": {
+        "id": "card-game",
+        "label": "Card Game",
+        "isActive": true,
+        "isDefault": true,
+        "usageCount": 0,
+        "createdBy": "system"
+      }
+    },
+    "tags": {
+      "santai": {
+        "id": "santai",
+        "label": "Santai",
+        "isActive": true,
+        "isDefault": true,
+        "usageCount": 0,
+        "createdBy": "system"
+      },
+      "ringan": {
+        "id": "ringan",
+        "label": "Ringan",
+        "isActive": true,
+        "isDefault": true,
+        "usageCount": 0,
+        "createdBy": "system"
+      },
+      "atmospheric": {
+        "id": "atmospheric",
+        "label": "Atmospheric",
+        "isActive": true,
+        "isDefault": true,
+        "usageCount": 0,
+        "createdBy": "system"
+      },
+      "pixel-art": {
+        "id": "pixel-art",
+        "label": "Pixel Art",
+        "isActive": true,
+        "isDefault": true,
+        "usageCount": 0,
+        "createdBy": "system"
+      },
+      "hand-drawn": {
+        "id": "hand-drawn",
+        "label": "Hand Drawn",
+        "isActive": true,
+        "isDefault": true,
+        "usageCount": 0,
+        "createdBy": "system"
+      },
+      "cocok-untuk-anak": {
+        "id": "cocok-untuk-anak",
+        "label": "Cocok untuk Anak",
+        "isActive": true,
+        "isDefault": true,
+        "usageCount": 0,
+        "createdBy": "system"
+      },
+      "story-driven": {
+        "id": "story-driven",
+        "label": "Story Driven",
+        "isActive": true,
+        "isDefault": true,
+        "usageCount": 0,
+        "createdBy": "system"
+      },
+      "replayable": {
+        "id": "replayable",
+        "label": "Replayable",
+        "isActive": true,
+        "isDefault": true,
+        "usageCount": 0,
+        "createdBy": "system"
+      },
+      "short-game": {
+        "id": "short-game",
+        "label": "Short Game",
+        "isActive": true,
+        "isDefault": true,
+        "usageCount": 0,
+        "createdBy": "system"
+      },
+      "long-game": {
+        "id": "long-game",
+        "label": "Long Game",
+        "isActive": true,
+        "isDefault": true,
+        "usageCount": 0,
+        "createdBy": "system"
+      },
+      "retro": {
+        "id": "retro",
+        "label": "Retro",
+        "isActive": true,
+        "isDefault": true,
+        "usageCount": 0,
+        "createdBy": "system"
+      },
+      "modern": {
+        "id": "modern",
+        "label": "Modern",
+        "isActive": true,
+        "isDefault": true,
+        "usageCount": 0,
+        "createdBy": "system"
+      },
+      "dark-theme": {
+        "id": "dark-theme",
+        "label": "Dark Theme",
+        "isActive": true,
+        "isDefault": true,
+        "usageCount": 0,
+        "createdBy": "system"
+      },
+      "colorful": {
+        "id": "colorful",
+        "label": "Colorful",
+        "isActive": true,
+        "isDefault": true,
+        "usageCount": 0,
+        "createdBy": "system"
+      }
+    },
+    "playModes": {
+      "singleplayer": {
+        "id": "singleplayer",
+        "label": "Singleplayer",
+        "isActive": true,
+        "isDefault": true,
+        "usageCount": 0,
+        "createdBy": "system"
+      },
+      "multiplayer-local": {
+        "id": "multiplayer-local",
+        "label": "Multiplayer Lokal",
+        "isActive": true,
+        "isDefault": true,
+        "usageCount": 0,
+        "createdBy": "system"
+      },
+      "multiplayer-online": {
+        "id": "multiplayer-online",
+        "label": "Multiplayer Online",
+        "isActive": true,
+        "isDefault": true,
+        "usageCount": 0,
+        "createdBy": "system"
+      },
+      "coop-local": {
+        "id": "coop-local",
+        "label": "Co-op Lokal",
+        "isActive": true,
+        "isDefault": true,
+        "usageCount": 0,
+        "createdBy": "system"
+      },
+      "coop-online": {
+        "id": "coop-online",
+        "label": "Co-op Online",
+        "isActive": true,
+        "isDefault": true,
+        "usageCount": 0,
+        "createdBy": "system"
+      },
+      "splitscreen": {
+        "id": "splitscreen",
+        "label": "Split-screen",
+        "isActive": true,
+        "isDefault": true,
+        "usageCount": 0,
+        "createdBy": "system"
+      },
+      "pvp-local": {
+        "id": "pvp-local",
+        "label": "PvP Lokal",
+        "isActive": true,
+        "isDefault": true,
+        "usageCount": 0,
+        "createdBy": "system"
+      },
+      "pvp-online": {
+        "id": "pvp-online",
+        "label": "PvP Online",
+        "isActive": true,
+        "isDefault": true,
+        "usageCount": 0,
+        "createdBy": "system"
+      }
+    },
+    "platforms": {
+      "steam": {
+        "id": "steam",
+        "label": "Steam",
+        "isActive": true,
+        "isDefault": true,
+        "usageCount": 0,
+        "displayIcon": "steam",
+        "createdBy": "system"
+      },
+      "gog": {
+        "id": "gog",
+        "label": "GOG",
+        "isActive": true,
+        "isDefault": true,
+        "usageCount": 0,
+        "displayIcon": "gog",
+        "createdBy": "system"
+      },
+      "epic": {
+        "id": "epic",
+        "label": "Epic Games",
+        "isActive": true,
+        "isDefault": true,
+        "usageCount": 0,
+        "displayIcon": "epic",
+        "createdBy": "system"
+      },
+      "itch": {
+        "id": "itch",
+        "label": "itch.io",
+        "isActive": true,
+        "isDefault": true,
+        "usageCount": 0,
+        "displayIcon": "itch",
+        "createdBy": "system"
+      },
+      "ubisoft-connect": {
+        "id": "ubisoft-connect",
+        "label": "Ubisoft Connect",
+        "isActive": true,
+        "isDefault": true,
+        "usageCount": 0,
+        "displayIcon": "ubisoft",
+        "createdBy": "system"
+      },
+      "ea-app": {
+        "id": "ea-app",
+        "label": "EA App",
+        "isActive": true,
+        "isDefault": true,
+        "usageCount": 0,
+        "displayIcon": "ea",
+        "createdBy": "system"
+      },
+      "microsoft-store": {
+        "id": "microsoft-store",
+        "label": "Microsoft Store",
+        "isActive": true,
+        "isDefault": true,
+        "usageCount": 0,
+        "displayIcon": "microsoft",
+        "createdBy": "system"
+      },
+      "xbox": {
+        "id": "xbox",
+        "label": "Xbox",
+        "isActive": true,
+        "isDefault": true,
+        "usageCount": 0,
+        "displayIcon": "xbox",
+        "createdBy": "system"
+      },
+      "playstation": {
+        "id": "playstation",
+        "label": "PlayStation",
+        "isActive": true,
+        "isDefault": true,
+        "usageCount": 0,
+        "displayIcon": "playstation",
+        "createdBy": "system"
+      },
+      "nintendo": {
+        "id": "nintendo",
+        "label": "Nintendo",
+        "isActive": true,
+        "isDefault": true,
+        "usageCount": 0,
+        "displayIcon": "nintendo",
+        "createdBy": "system"
+      }
+    }
+  }
+}

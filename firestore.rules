@@ -44,14 +44,14 @@ service cloud.firestore {
         request.resource.data.trackingCode.matches('^RQ-[A-Z0-9]{6}$');
     }
 
+    // Public request create — sensitive fields (contactWhatsApp, shopeeUsername)
+    // are now written to /requests/{id}/private/contact instead
     function isPublicRequestCreate() {
       return request.resource.data.keys().hasOnly([
           'title',
           'title_lower',
           'platform',
           'notes',
-          'shopeeUsername',
-          'contactWhatsApp',
           'status',
           'trackingCode',
           'votes',
@@ -64,18 +64,6 @@ service cloud.firestore {
         request.resource.data.title_lower is string &&
         request.resource.data.platform == 'PC' &&
         request.resource.data.notes is string &&
-        
-        // Validasi Shopee Username
-        request.resource.data.shopeeUsername is string &&
-        request.resource.data.shopeeUsername.size() > 0 &&
-        request.resource.data.shopeeUsername.size() <= 30 &&
-        
-        // Validasi WhatsApp
-        request.resource.data.contactWhatsApp is string &&
-        request.resource.data.contactWhatsApp.size() >= 9 &&
-        request.resource.data.contactWhatsApp.size() <= 20 &&
-        request.resource.data.contactWhatsApp.matches('^[0-9+\\-\\s]+$') &&
-        
         request.resource.data.status == 'pending' &&
         request.resource.data.votes == 1 &&
         request.resource.data.createdAt is timestamp &&
@@ -104,16 +92,26 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
-    // Requests: existing logic preserved
-    // - create: public submission allowed (tight validation)
-    // - read: public can check duplicates
-    // - update: admin full / public vote increment only
-    // - delete: admin only
+    // Requests: public fields only (NO sensitive contact data)
+    // contactWhatsApp & shopeeUsername → /requests/{id}/private/contact
     match /requests/{reqId} {
       allow create: if isAdmin() || isPublicRequestCreate();
       allow read: if true;
       allow update: if isAdmin() || isPublicVoteUpdate();
       allow delete: if isAdmin();
+
+      // Private sub-collection: sensitive contact info (admin-only read)
+      match /private/{docId} {
+        allow read, write: if isAdmin();
+        // Public can create 'contact' doc at submission time only
+        allow create: if docId == 'contact' &&
+          request.resource.data.keys().hasOnly(['contactWhatsApp', 'shopeeUsername']) &&
+          request.resource.data.contactWhatsApp is string &&
+          request.resource.data.contactWhatsApp.size() >= 9 &&
+          request.resource.data.contactWhatsApp.size() <= 20 &&
+          request.resource.data.shopeeUsername is string &&
+          request.resource.data.shopeeUsername.size() > 0;
+      }
     }
 
     // ========================================================
@@ -178,6 +176,18 @@ service cloud.firestore {
     // User questions: public can submit, admin manages
     match /userQuestions/{qId} {
       allow create: if true;
+      allow read, update, delete: if isAdmin();
+    }
+
+    // ========================================================
+    // ORDERS — purchase orders from desktop app (QRIS flow)
+    // ========================================================
+
+    match /orders/{orderId} {
+      allow create: if isSignedIn() &&
+        request.resource.data.gameId is string &&
+        request.resource.data.buyerEmail is string &&
+        request.resource.data.status == 'pending';
       allow read, update, delete: if isAdmin();
     }
 

@@ -5,6 +5,12 @@ import { AuthProvider } from "./contexts/AuthContext";
 import AppRouter from "./routes/AppRouter";
 
 const App = () => {
+  useEffect(() => {
+    initMetaPixel();
+  }, []);
+
+  usePageTracking();
+  
   return (
     <AuthProvider>
       <AppRouter />

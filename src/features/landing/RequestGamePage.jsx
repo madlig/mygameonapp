@@ -31,6 +31,7 @@ import {
   REQUEST_STATUS,
 } from '../../shared/requestStatus';
 import PageShell from './components/PageShell';
+import { trackGameRequest } from '../../utils/metaPixel';
 
 /* ── Shared input class ──────────────────────────────── */
 const inputCls =
@@ -221,6 +222,7 @@ const RequestGamePage = () => {
           contactWhatsApp: data.contactWhatsApp.trim(),
           shopeeUsername: data.shopeeUsername.trim(),
         });
+        trackGameRequest(data.gameTitle)
         setTrackingCode(code);
         localStorage.setItem('mygameon_last_tracking_code', code);
         setSubmitStatus('success');

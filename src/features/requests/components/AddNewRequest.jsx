@@ -40,7 +40,6 @@ const AddNewRequest = ({ onClose, onSuccess }) => {
         platform: 'PC',
         notes: data.notes?.trim() || '',
         requesterName: 'Admin',
-        contactWhatsApp: '',
         status: REQUEST_STATUS.PENDING,
         votes: 1,
         createdAt: serverTimestamp(),

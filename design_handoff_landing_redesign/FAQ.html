@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FAQ — MyGameON</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Plus Jakarta Sans', sans-serif; background: #0D0F14; color: #F3F4F6; -webkit-font-smoothing: antialiased; }
+    .nav-blur { backdrop-filter: blur(24px) saturate(200%); -webkit-backdrop-filter: blur(24px) saturate(200%); }
+    @keyframes slideIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+    .anim-in { animation: slideIn 0.5s cubic-bezier(0.22,1,0.36,1) both; }
+    .anim-in-d1 { animation: slideIn 0.5s 0.08s cubic-bezier(0.22,1,0.36,1) both; }
+    .anim-in-d2 { animation: slideIn 0.5s 0.16s cubic-bezier(0.22,1,0.36,1) both; }
+  </style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel" src="shared-page.jsx"></script>
+<script type="text/babel">
+const { useState } = React;
+
+const FAQ_DATA = [
+  { q: 'Bagaimana cara membeli game di MyGameON?', a: 'Cari game yang kamu inginkan di katalog, lalu klik tombol Shopee untuk melakukan pembelian. Setelah pembayaran dikonfirmasi, admin akan mengirimkan akses download ke email atau WhatsApp kamu.', cat: 'Pembelian' },
+  { q: 'Berapa lama proses pengiriman setelah pembayaran?', a: 'Pengiriman diproses segera selama admin sedang online — umumnya hanya 5–15 menit setelah pembayaran terkonfirmasi. Jika lebih dari itu, silakan hubungi via WhatsApp.', cat: 'Pembelian' },
+  { q: 'Apa itu MyGameON Sims Launcher?', a: 'MyGameON Sims Launcher adalah aplikasi khusus untuk mengelola DLC, Mods, dan CC The Sims 4. Dengan launcher ini, kamu bisa download dan install konten tambahan dengan mudah.', cat: 'Produk' },
+  { q: 'Apakah bisa request game yang belum tersedia?', a: 'Bisa! Gunakan fitur Request Game di website ini. Tim kami akan mengecek ketersediaan file dan memproses request kamu jika memungkinkan. Kamu bisa pantau status via kode tracking.', cat: 'Request' },
+  { q: 'Game yang saya download tidak bisa dibuka, bagaimana?', a: 'Pastikan kamu sudah menginstall semua prerequisites yang dibutuhkan (DirectX, Visual C++, .NET Framework). Jika masih bermasalah, hubungi admin via WhatsApp untuk bantuan remote install.', cat: 'Troubleshoot' },
+  { q: 'Apakah ada layanan bantuan install?', a: 'Ya! Kami menyediakan layanan remote install via AnyDesk/TeamViewer. Hubungi admin melalui WhatsApp untuk menjadwalkan sesi bantuan.', cat: 'Support' },
+  { q: 'Bagaimana cara mengecek status request saya?', a: 'Buka halaman Cek Status Request di website, masukkan kode tracking yang kamu dapat saat mengirim request. Status akan ditampilkan secara real-time.', cat: 'Request' },
+  { q: 'Apakah semua game pasti tersedia setelah direquest?', a: 'Tidak selalu. Ketersediaan tergantung pada file yang bisa kami akses. Jika game tidak bisa disediakan, status request akan diupdate menjadi "Tidak Tersedia" beserta alasannya.', cat: 'Request' },
+];
+
+const CATEGORIES = ['Semua', 'Pembelian', 'Request', 'Produk', 'Troubleshoot', 'Support'];
+
+const AccordionItem = ({ item, isOpen, onClick }) => (
+  <div style={{ background: '#080A0E', border: `1px solid ${isOpen ? 'rgba(255,209,0,0.2)' : '#151920'}`, borderRadius: 14, overflow: 'hidden', transition: 'border-color 0.2s' }}>
+    <button onClick={onClick} style={{ width: '100%', padding: '18px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1, minWidth: 0 }}>
+        <span style={{ background: 'rgba(139,92,246,0.1)', color: '#A78BFA', fontSize: 9, fontWeight: 800, padding: '3px 8px', borderRadius: 5, flexShrink: 0, letterSpacing: '0.3px' }}>{item.cat.toUpperCase()}</span>
+        <span style={{ fontSize: 14, fontWeight: 700, color: '#E5E7EB' }}>{item.q}</span>
+      </div>
+      <svg width="16" height="16" fill="none" stroke="#4B5563" viewBox="0 0 24 24" strokeWidth="2" style={{ flexShrink: 0, transform: isOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.25s ease' }}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+      </svg>
+    </button>
+    {isOpen && (
+      <div style={{ padding: '0 20px 18px', animation: 'slideIn 0.3s ease both' }}>
+        <p style={{ fontSize: 13.5, color: '#6B7280', lineHeight: 1.7, paddingLeft: 0 }}>{item.a}</p>
+      </div>
+    )}
+  </div>
+);
+
+const QuestionForm = () => {
+  const [name, setName] = useState('');
+  const [question, setQuestion] = useState('');
+  const [sent, setSent] = useState(false);
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!name.trim() || !question.trim()) return;
+    setSent(true);
+    setName(''); setQuestion('');
+    setTimeout(() => setSent(false), 4000);
+  };
+
+  return (
+    <div style={{ background: '#080A0E', border: '1px solid #151920', borderRadius: 16, padding: '24px', marginTop: 40 }}>
+      <h2 style={{ fontSize: 18, fontWeight: 800, color: '#F3F4F6', marginBottom: 4 }}>Punya pertanyaan lain?</h2>
+      <p style={{ fontSize: 12.5, color: '#374151', marginBottom: 20 }}>Kirim pertanyaanmu dan kami akan jawab secepatnya.</p>
+
+      {sent ? (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '20px 0', justifyContent: 'center' }}>
+          <svg width="18" height="18" fill="none" stroke="#10B981" viewBox="0 0 24 24" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+          <span style={{ fontSize: 13, fontWeight: 700, color: '#10B981' }}>Pertanyaan terkirim! Kami akan segera meninjau.</span>
+        </div>
+      ) : (
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <input value={name} onChange={e => setName(e.target.value)} placeholder="Nama kamu *" required
+              style={inputStyle} onFocus={inputFocus} onBlur={inputBlur} />
+            <input placeholder="Email (opsional)" style={inputStyle} onFocus={inputFocus} onBlur={inputBlur} />
+          </div>
+          <textarea value={question} onChange={e => setQuestion(e.target.value)} placeholder="Tulis pertanyaanmu di sini... *" required rows={3}
+            style={{ ...inputStyle, resize: 'none' }} onFocus={inputFocus} onBlur={inputBlur} />
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <a href="https://wa.me/6285121309829" target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, color: '#2A2F39', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 5, transition: 'color 0.15s' }}
+              onMouseEnter={e => e.currentTarget.style.color = '#22C55E'}
+              onMouseLeave={e => e.currentTarget.style.color = '#2A2F39'}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.894 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654z"/></svg>
+              Atau chat via WhatsApp
+            </a>
+            <button type="submit" style={{ padding: '10px 20px', background: '#FFD100', color: '#0D0F14', border: 'none', borderRadius: 10, fontSize: 12.5, fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
+              <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" /></svg>
+              Kirim
+            </button>
+          </div>
+        </form>
+      )}
+    </div>
+  );
+};
+
+const FaqPage = () => {
+  const [openIdx, setOpenIdx] = useState(null);
+  const [activeCat, setActiveCat] = useState('Semua');
+  const [searchQ, setSearchQ] = useState('');
+
+  const filtered = FAQ_DATA.filter(f => {
+    const catMatch = activeCat === 'Semua' || f.cat === activeCat;
+    const searchMatch = !searchQ || f.q.toLowerCase().includes(searchQ.toLowerCase()) || f.a.toLowerCase().includes(searchQ.toLowerCase());
+    return catMatch && searchMatch;
+  });
+
+  return (
+    <PageShell title="FAQ">
+      <div style={{ maxWidth: 680, margin: '0 auto' }}>
+        {/* Header */}
+        <div className="anim-in" style={{ marginBottom: 28 }}>
+          <h1 style={{ fontSize: 'clamp(28px, 3.5vw, 40px)', fontWeight: 900, letterSpacing: '-1.2px', lineHeight: 1.08, marginBottom: 10 }}>
+            Pertanyaan <span style={{ color: '#FFD100' }}>Umum</span>
+          </h1>
+          <p style={{ color: '#4B5563', fontSize: 14, lineHeight: 1.65 }}>
+            Temukan jawaban untuk pertanyaan yang sering ditanyakan tentang layanan MyGameON.
+          </p>
+        </div>
+
+        {/* Search */}
+        <div className="anim-in-d1" style={{ marginBottom: 16 }}>
+          <div style={{ position: 'relative' }}>
+            <svg style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)' }} width="15" height="15" fill="none" stroke="#374151" viewBox="0 0 24 24" strokeWidth="2"><circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" strokeLinecap="round" /></svg>
+            <input value={searchQ} onChange={e => setSearchQ(e.target.value)} placeholder="Cari pertanyaan..."
+              style={{ ...inputStyle, paddingLeft: 40 }} onFocus={inputFocus} onBlur={inputBlur}
+            />
+          </div>
+        </div>
+
+        {/* Category pills */}
+        <div className="anim-in-d1" style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 24 }}>
+          {CATEGORIES.map(cat => (
+            <button key={cat} onClick={() => { setActiveCat(cat); setOpenIdx(null); }}
+              style={{ padding: '7px 14px', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: 'none', transition: 'all 0.15s',
+                background: activeCat === cat ? '#FFD100' : '#080A0E',
+                color: activeCat === cat ? '#0D0F14' : '#4B5563',
+                ...(activeCat !== cat ? { border: '1px solid #151920' } : {}),
+              }}
+            >{cat}</button>
+          ))}
+        </div>
+
+        {/* FAQ list */}
+        <div className="anim-in-d2" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {filtered.length > 0 ? filtered.map((item, i) => (
+            <AccordionItem key={i} item={item} isOpen={openIdx === i} onClick={() => setOpenIdx(openIdx === i ? null : i)} />
+          )) : (
+            <div style={{ textAlign: 'center', padding: '40px 0' }}>
+              <p style={{ color: '#2A2F39', fontSize: 13 }}>Tidak ada FAQ yang cocok.</p>
+            </div>
+          )}
+        </div>
+
+        {/* Question form */}
+        <QuestionForm />
+      </div>
+    </PageShell>
+  );
+};
+
+ReactDOM.createRoot(document.getElementById('root')).render(<FaqPage />);
+</script>
+</body>
+</html>

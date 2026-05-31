@@ -1,0 +1,23 @@
+[
+  {
+    "file": "alanwake.jpg",
+    "matchedTitle": "Alan Wake 2",
+    "matchedId": "VhpdrXTe8q4ALpaV04fx",
+    "score": 93,
+    "_instruction": "BENAR: biarkan. SALAH tapi game ada: ganti matchedId & matchedTitle. SALAH & game belum ada: ganti matchedId jadi \"NEW\" & tulis judul yang benar di matchedTitle. SKIP: hapus baris ini."
+  },
+  {
+    "file": "kingdomcomedeliveranceii.jpg",
+    "matchedTitle": "Kingdom Come Deliverance",
+    "matchedId": "Z1YIdw4770Vw1DHxEgK9",
+    "score": 95,
+    "_instruction": "BENAR: biarkan. SALAH tapi game ada: ganti matchedId & matchedTitle. SALAH & game belum ada: ganti matchedId jadi \"NEW\" & tulis judul yang benar di matchedTitle. SKIP: hapus baris ini."
+  },
+  {
+    "file": "yakuza7.jpg",
+    "matchedTitle": "Yakuza 6",
+    "matchedId": "6E5Wj6QC8G3zKHF0wMZQ",
+    "score": 83,
+    "_instruction": "BENAR: biarkan. SALAH tapi game ada: ganti matchedId & matchedTitle. SALAH & game belum ada: ganti matchedId jadi \"NEW\" & tulis judul yang benar di matchedTitle. SKIP: hapus baris ini."
+  }
+]

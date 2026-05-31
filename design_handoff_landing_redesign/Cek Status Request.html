@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cek Status Request — MyGameON</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Plus Jakarta Sans', sans-serif; background: #0D0F14; color: #F3F4F6; -webkit-font-smoothing: antialiased; }
+    .nav-blur { backdrop-filter: blur(24px) saturate(200%); -webkit-backdrop-filter: blur(24px) saturate(200%); }
+    .btn-yellow { transition: filter 0.15s ease, transform 0.1s ease; }
+    .btn-yellow:hover { filter: brightness(0.92); }
+    @keyframes slideIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+    .anim-in { animation: slideIn 0.5s cubic-bezier(0.22,1,0.36,1) both; }
+    .anim-in-d1 { animation: slideIn 0.5s 0.1s cubic-bezier(0.22,1,0.36,1) both; }
+  </style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel" src="shared-page.jsx"></script>
+<script type="text/babel">
+const { useState } = React;
+
+const MOCK_REQUESTS = {
+  'RQ-ABC123': { title: 'Tekken 8', status: 'reviewing', trackingCode: 'RQ-ABC123', isRdp: false },
+  'RQ-DEF456': { title: 'Cyberpunk 2077 Phantom Liberty', status: 'completed', trackingCode: 'RQ-DEF456', shopeeUrl: 'https://shopee.co.id/mygameon', isRdp: false },
+  'RQ-GHI789': { title: 'Baldur\'s Gate 3', status: 'processing', trackingCode: 'RQ-GHI789', isRdp: true },
+};
+
+const TIMELINE = ['pending', 'reviewing', 'processing', 'completed'];
+const TIMELINE_RDP = ['pending', 'reviewing', 'queued', 'processing', 'completed'];
+const LABELS = { pending: 'Menunggu Review', reviewing: 'Sedang Direview', queued: 'Antrian Batch RDP', processing: 'Sedang Diproses', completed: 'Selesai — Tersedia', rejected: 'Tidak Tersedia' };
+const DESCS = { pending: 'Request masuk dan menunggu giliran review.', reviewing: 'Tim sedang mengecek ketersediaan file game.', queued: 'Masuk antrian batch upload via RDP.', processing: 'File sedang diupload dan disiapkan.', completed: 'Game tersedia! Cek link Shopee di bawah.', rejected: 'Maaf, file game tidak dapat ditemukan saat ini.' };
+
+const StatusPage = () => {
+  const [code, setCode] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [result, setResult] = useState(null);
+
+  const handleSearch = (e) => {
+    e.preventDefault();
+    const c = code.trim().toUpperCase();
+    if (!c) { setError('Masukkan kode tracking.'); return; }
+    setLoading(true); setError(''); setResult(null);
+    setTimeout(() => {
+      const found = MOCK_REQUESTS[c];
+      if (found) { setResult(found); } else { setError('Kode tracking tidak ditemukan. Pastikan kode sudah benar.'); }
+      setLoading(false);
+    }, 800);
+  };
+
+  const copyCode = () => { if (result?.trackingCode) navigator.clipboard.writeText(result.trackingCode); };
+
+  const timeline = result?.isRdp ? TIMELINE_RDP : TIMELINE;
+  const currentIdx = result ? timeline.indexOf(result.status) : -1;
+  const isCompleted = result?.status === 'completed';
+  const isRejected = result?.status === 'rejected';
+
+  return (
+    <PageShell title="Cek Status Request">
+      <div style={{ maxWidth: 580, margin: '0 auto' }}>
+        {/* Header */}
+        <div className="anim-in" style={{ marginBottom: 32 }}>
+          <h1 style={{ fontSize: 'clamp(26px, 3.5vw, 36px)', fontWeight: 900, letterSpacing: '-1.2px', lineHeight: 1.1, marginBottom: 10 }}>
+            Cek Status <span style={{ color: '#FFD100' }}>Request</span>
+          </h1>
+          <p style={{ color: '#4B5563', fontSize: 14, lineHeight: 1.65 }}>
+            Masukkan kode tracking untuk melihat progres request game kamu.
+          </p>
+        </div>
+
+        {/* Search */}
+        <div className="anim-in-d1" style={{ background: '#080A0E', border: '1px solid #151920', borderRadius: 16, padding: '22px', marginBottom: 20 }}>
+          <form onSubmit={handleSearch} style={{ display: 'flex', gap: 8 }}>
+            <div style={{ position: 'relative', flex: 1 }}>
+              <svg style={{ position: 'absolute', left: 13, top: '50%', transform: 'translateY(-50%)' }} width="15" height="15" fill="none" stroke="#374151" viewBox="0 0 24 24" strokeWidth="2"><circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" strokeLinecap="round" /></svg>
+              <input value={code} onChange={e => setCode(e.target.value.toUpperCase())}
+                placeholder="RQ-XXXXXX"
+                style={{ ...inputStyle, paddingLeft: 40, fontFamily: 'monospace', letterSpacing: '1px' }}
+                onFocus={inputFocus} onBlur={inputBlur}
+              />
+            </div>
+            <button type="submit" disabled={loading} className="btn-yellow"
+              style={{ padding: '12px 22px', background: '#FFD100', color: '#0D0F14', border: 'none', borderRadius: 10, fontSize: 13, fontWeight: 800, cursor: 'pointer', whiteSpace: 'nowrap', opacity: loading ? 0.6 : 1 }}
+            >{loading ? '...' : 'Cek Status'}</button>
+          </form>
+
+          {error && (
+            <div style={{ marginTop: 14, padding: '12px 14px', background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.15)', borderRadius: 10, fontSize: 12.5, color: '#F87171' }}>{error}</div>
+          )}
+
+          {/* Demo hint */}
+          <p style={{ marginTop: 12, fontSize: 10.5, color: '#1F2937', textAlign: 'center' }}>
+            Demo: coba <span style={{ color: '#374151', fontFamily: 'monospace', cursor: 'pointer' }} onClick={() => setCode('RQ-ABC123')}>RQ-ABC123</span>, <span style={{ color: '#374151', fontFamily: 'monospace', cursor: 'pointer' }} onClick={() => setCode('RQ-DEF456')}>RQ-DEF456</span>, atau <span style={{ color: '#374151', fontFamily: 'monospace', cursor: 'pointer' }} onClick={() => setCode('RQ-GHI789')}>RQ-GHI789</span>
+          </p>
+        </div>
+
+        {/* Result */}
+        {result && (
+          <div style={{ background: '#080A0E', border: '1px solid #151920', borderRadius: 16, overflow: 'hidden', animation: 'slideIn 0.4s cubic-bezier(0.22,1,0.36,1) both' }}>
+            {/* Title bar */}
+            <div style={{ padding: '18px 22px', borderBottom: '1px solid #111317', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+              <div>
+                <h2 style={{ fontSize: 18, fontWeight: 800, color: '#F3F4F6', marginBottom: 4 }}>{result.title}</h2>
+                <p style={{ fontSize: 12, color: '#4B5563' }}>Status: <span style={{ color: '#FFD100', fontWeight: 700 }}>{LABELS[result.status]}</span></p>
+              </div>
+              <button onClick={copyCode} style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#0D0F14', border: '1px solid #1A1F27', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', color: '#6B7280', fontSize: 11, fontWeight: 700, fontFamily: 'monospace', transition: 'border-color 0.15s' }}
+                onMouseEnter={e => e.currentTarget.style.borderColor = '#FFD100'}
+                onMouseLeave={e => e.currentTarget.style.borderColor = '#1A1F27'}
+              >
+                <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2" /><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" /></svg>
+                {result.trackingCode}
+              </button>
+            </div>
+
+            {/* Shopee link */}
+            {isCompleted && result.shopeeUrl && (
+              <div style={{ padding: '14px 22px', borderBottom: '1px solid #111317' }}>
+                <a href={result.shopeeUrl} target="_blank" rel="noopener noreferrer" className="btn-yellow"
+                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', background: '#FFD100', color: '#0D0F14', padding: '13px', borderRadius: 11, fontWeight: 800, fontSize: 14, textDecoration: 'none' }}
+                >
+                  <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M7 18c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm10 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zM7.2 14.8c0 .1.1.2.2.2h12V13H7.5L5.2 2H2v2h2l3.6 7.6L6.2 14c-.1.3-.2.6-.2 1 0 1.1.9 2 2 2h12v-2H8.1c-.1 0-.2-.1-.2-.2v-.1l.7-1.2h7.5c.8 0 1.5-.4 1.8-1.1l3.6-6.5c.2-.3-.1-.7-.5-.7H6.5l-.9-2H2"/></svg>
+                  Beli di Shopee
+                </a>
+              </div>
+            )}
+
+            {/* Rejected */}
+            {isRejected && (
+              <div style={{ margin: '18px 22px', padding: '14px 16px', background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.15)', borderRadius: 10 }}>
+                <p style={{ fontSize: 13, fontWeight: 700, color: '#F87171', marginBottom: 4 }}>Tidak Tersedia</p>
+                <p style={{ fontSize: 11.5, color: '#4B5563' }}>{DESCS.rejected}</p>
+              </div>
+            )}
+
+            {/* Timeline */}
+            {!isRejected && (
+              <div style={{ padding: '22px' }}>
+                {timeline.map((step, i) => {
+                  const done = currentIdx >= i;
+                  const isCurrent = currentIdx === i;
+                  const isLast = i === timeline.length - 1;
+                  return (
+                    <div key={step} style={{ display: 'flex', gap: 14 }}>
+                      {/* Line + dot */}
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: 20 }}>
+                        <div style={{ width: 20, height: 20, borderRadius: '50%', display: 'grid', placeItems: 'center', flexShrink: 0, background: done ? (isCurrent ? '#FFD100' : 'rgba(255,209,0,0.15)') : '#111317', border: done ? 'none' : '1px solid #1F2937', transition: 'all 0.3s' }}>
+                          {done && (
+                            <svg width="10" height="10" fill="none" stroke={isCurrent ? '#0D0F14' : '#FFD100'} viewBox="0 0 24 24" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                          )}
+                        </div>
+                        {!isLast && <div style={{ width: 1, flex: 1, minHeight: 28, background: done ? 'rgba(255,209,0,0.2)' : '#151920' }} />}
+                      </div>
+                      {/* Text */}
+                      <div style={{ paddingBottom: isLast ? 0 : 20 }}>
+                        <p style={{ fontSize: 13.5, fontWeight: 700, color: isCurrent ? '#FFD100' : done ? '#D1D5DB' : '#2A2F39' }}>{LABELS[step]}</p>
+                        <p style={{ fontSize: 11.5, color: done ? '#4B5563' : '#1F2937', marginTop: 2 }}>{DESCS[step]}</p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Footer note */}
+            <div style={{ padding: '14px 22px', borderTop: '1px solid #111317' }}>
+              <p style={{ fontSize: 10, color: '#1F2937' }}>Status diperbarui oleh admin. Kamu akan dihubungi via WhatsApp saat game tersedia.</p>
+            </div>
+          </div>
+        )}
+
+        {/* Bottom link */}
+        <div style={{ marginTop: 24, textAlign: 'center' }}>
+          <a href="Request Game.html" style={{ fontSize: 12.5, color: '#374151', textDecoration: 'none', fontWeight: 600, transition: 'color 0.15s' }}
+            onMouseEnter={e => e.currentTarget.style.color = '#FFD100'}
+            onMouseLeave={e => e.currentTarget.style.color = '#374151'}
+          >Belum punya kode? Request game dulu →</a>
+        </div>
+      </div>
+    </PageShell>
+  );
+};
+
+ReactDOM.createRoot(document.getElementById('root')).render(<StatusPage />);
+</script>
+</body>
+</html>

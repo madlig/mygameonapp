@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Blog — MyGameON</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body { font-family: 'Plus Jakarta Sans', sans-serif; background: #0D0F14; color: #F3F4F6; -webkit-font-smoothing: antialiased; overflow-x: hidden; }
+    .nav-blur { backdrop-filter: blur(24px) saturate(200%); -webkit-backdrop-filter: blur(24px) saturate(200%); }
+    p { text-wrap: pretty; }
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #1F2937; border-radius: 2px; }
+    @media (max-width: 900px) {
+      .blog-layout { grid-template-columns: 1fr !important; }
+      .hero-article { grid-template-columns: 1fr !important; min-height: auto !important; }
+      .sidebar { display: none !important; }
+    }
+    @media (max-width: 600px) {
+      .cat-bar { overflow-x: auto; flex-wrap: nowrap !important; }
+      .cat-bar::-webkit-scrollbar { display: none; }
+    }
+  </style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel" src="shared-page.jsx"></script>
+<script type="text/babel">
+const { useState } = React;
+
+/* ── Article Data ────────────────────────────────────── */
+const ARTICLES = [
+  {
+    id: 1, slug: 'cyberpunk-2077-patch-2-2',
+    category: 'Update', categoryColor: '#EF4444',
+    title: 'Cyberpunk 2077 Patch 2.2 — Semua yang Perlu Kamu Tahu',
+    excerpt: 'Update terbesar tahun ini membawa fitur ray-tracing path baru, tiga quest tambahan di Dogtown, dan peningkatan performa hingga 20% di rata-rata hardware.',
+    date: '25 Mei 2026', readTime: '5 min', author: 'Admin MyGameON',
+    featured: true, trending: true,
+    coverGradient: ['#0c0121','#3b0764','#581c87'],
+    body: `CD Projekt Red baru saja merilis patch 2.2 untuk Cyberpunk 2077 — dan ini adalah update terbesar yang pernah dirilis sejak ekspansi Phantom Liberty.
+
+## Apa yang Baru?
+
+Update ini membawa sejumlah peningkatan signifikan yang sudah lama ditunggu komunitas:
+
+**Ray-Tracing Path Baru** — Teknologi rendering baru yang menghadirkan pencahayaan dan refleksi yang jauh lebih realistis. Untuk pemilik GPU generasi terbaru (RTX 40 series ke atas), ini akan jadi game-changer visual.
+
+**3 Quest Side-Story Baru** — Tiga quest tambahan yang berlokasi di area Dogtown. Masing-masing memiliki branching dialogue dan multiple endings, menambah sekitar 4-5 jam gameplay baru.
+
+**Peningkatan Performa** — CDPR melaporkan peningkatan frame rate 15-20% di rata-rata hardware. Ini berarti PC mid-range sekarang bisa menikmati pengalaman yang jauh lebih smooth.
+
+**200+ Bug Fix** — Dari bug visual minor hingga crash yang dilaporkan komunitas, semua ditangani di patch ini.
+
+## Bagaimana Cara Update?
+
+Untuk kamu yang sudah punya game dari MyGameON, cukup jalankan launcher dan update akan otomatis terdownload. Pastikan kamu punya ruang penyimpanan minimal 15 GB untuk file update.
+
+## Kesimpulan
+
+Cyberpunk 2077 semakin matang dengan setiap update. Kalau kamu belum punya game ini, sekarang adalah waktu yang tepat untuk memulai — game ini sudah tersedia di katalog MyGameON dengan harga terbaik.`
+  },
+  {
+    id: 2, slug: 'game-pc-ringan-low-spec',
+    category: 'Tips', categoryColor: '#8B5CF6',
+    title: '7 Game PC Ringan yang Seru Banget untuk Spek Kentang',
+    excerpt: 'RAM 4GB, GPU integrated, laptop lawas — bukan alasan untuk nggak main game. Ini rekomendasi game yang tetap seru meskipun spek PC terbatas.',
+    date: '22 Mei 2026', readTime: '4 min', author: 'Admin MyGameON',
+    featured: false, trending: true,
+    coverGradient: ['#0d0318','#581c87','#7c3aed'],
+    body: `Tidak semua game bagus butuh hardware mahal. Faktanya, beberapa game terbaik sepanjang masa bisa dimainkan di PC dengan spesifikasi minimal.
+
+## Rekomendasi Game
+
+**1. Stardew Valley** — Farming simulator yang bikin ketagihan. Bisa dimainkan ratusan jam tanpa bosan. Spek minimum: RAM 2GB, 500MB storage.
+
+**2. Hades** — Roguelike terbaik dengan art style memukau dan combat yang sangat memuaskan. Setiap run terasa fresh.
+
+**3. Hollow Knight** — Metroidvania dengan dunia yang luas dan menantang. Nilai seni dan musik yang luar biasa tinggi.
+
+**4. Celeste** — Platformer yang menantang tapi sangat rewarding. Cerita tentang mental health yang menyentuh.
+
+**5. Undertale** — RPG unik dimana kamu bisa menyelesaikan game tanpa membunuh satu musuh pun. Cerita yang memorable.
+
+**6. Terraria** — Sandbox 2D yang punya konten hampir tak terbatas. Perfect untuk main bersama teman.
+
+**7. Papers, Please** — Simulasi imigrasi yang membuat kamu berpikir tentang moralitas. Gameplay sederhana tapi sangat addictive.
+
+Semua game di atas bisa jalan smooth di RAM 4GB dan GPU integrated. Cek katalog MyGameON untuk ketersediaan!`
+  },
+  {
+    id: 3, slug: 'gta-vi-info-terbaru',
+    category: 'News', categoryColor: '#F97316',
+    title: 'GTA VI — Timeline, Fitur Terkonfirmasi, dan Prediksi Harga',
+    excerpt: 'Rockstar sudah rilis trailer kedua. Map terbesar dalam sejarah franchise, dual protagonis, dan online dari hari pertama — ini rangkuman lengkapnya.',
+    date: '20 Mei 2026', readTime: '6 min', author: 'Admin MyGameON',
+    featured: false, trending: true,
+    coverGradient: ['#060914','#1e3a5f','#2563eb'],
+    body: `Grand Theft Auto VI adalah game yang paling ditunggu-tunggu di industri gaming saat ini. Setelah trailer kedua dirilis, semakin banyak informasi yang bisa kita konfirmasi.
+
+## Yang Sudah Dikonfirmasi
+
+**Setting: Vice City Modern** — Game berlatar di versi modern Vice City (terinspirasi Miami) beserta area sekitarnya termasuk Everglades dan Keys.
+
+**Dual Protagonis** — Lucia dan partner-nya (belum ada nama resmi) sebagai dua karakter utama yang bisa dimainkan. Chemistry keduanya sangat terasa di trailer.
+
+**Map Terbesar** — Rockstar mengkonfirmasi ini adalah map terbesar dalam sejarah franchise GTA. Estimasi komunitas: 3-4x lebih besar dari GTA V.
+
+**Online dari Hari Pertama** — GTA Online akan tersedia sejak hari peluncuran, bukan sebagai update terpisah.
+
+## Prediksi Rilis dan Harga
+
+Target rilis Fall 2026 (September-November). Harga prediksi untuk PC version sekitar $69.99 atau sekitar Rp 1.1 juta. Versi PC kemungkinan rilis 6-12 bulan setelah konsol.
+
+Stay tuned untuk update terbaru tentang GTA VI!`
+  },
+  {
+    id: 4, slug: 'cara-install-game-google-drive',
+    category: 'Tutorial', categoryColor: '#22D3EE',
+    title: 'Panduan Lengkap: Install Game dari Google Drive (Pemula)',
+    excerpt: 'Baru pertama kali beli game digital? Ini panduan step-by-step dari download, extract, sampai game siap dimainkan.',
+    date: '18 Mei 2026', readTime: '8 min', author: 'Admin MyGameON',
+    featured: false, trending: false,
+    coverGradient: ['#021a18','#064e3b','#059669'],
+    body: `Panduan ini ditujukan untuk kamu yang baru pertama kali beli game digital dari MyGameON. Ikuti langkah-langkah berikut:
+
+## Step 1: Download File
+
+Setelah pembayaran terkonfirmasi, admin akan mengirimkan link Google Drive via WhatsApp. Klik link tersebut dan download semua file (biasanya dalam format .zip atau .rar).
+
+**Tips:** Jika file terlalu besar, gunakan Internet Download Manager (IDM) untuk download yang lebih stabil.
+
+## Step 2: Extract File
+
+Gunakan 7-Zip (gratis) atau WinRAR untuk extract file yang sudah didownload. Klik kanan pada file → Extract Here atau Extract to [nama folder].
+
+**Penting:** Jangan extract ke Desktop atau folder Downloads. Buat folder khusus seperti D:\\Games\\.
+
+## Step 3: Install Prerequisites
+
+Sebelum menjalankan game, pastikan software berikut sudah terinstall: DirectX Runtime, Visual C++ Redistributable (2015-2022), .NET Framework 4.8+.
+
+Semua file prerequisite bisa didownload dari halaman Software Pendukung di website MyGameON.
+
+## Step 4: Jalankan Game
+
+Cari file setup.exe atau launcher.exe di folder game. Klik kanan → Run as Administrator. Ikuti instruksi instalasi jika ada.
+
+## Masih Bingung?
+
+Hubungi admin via WhatsApp untuk layanan remote install via AnyDesk/TeamViewer. Kami bantu dari A sampai Z!`
+  },
+  {
+    id: 5, slug: 'steam-summer-sale-2026',
+    category: 'News', categoryColor: '#F97316',
+    title: 'Steam Summer Sale 2026 — Kapan Mulai dan Game Apa yang Diskon?',
+    excerpt: 'Summer Sale tahunan Steam diprediksi mulai akhir Juni. Berikut prediksi tanggal dan game yang kemungkinan dapat diskon besar.',
+    date: '15 Mei 2026', readTime: '3 min', author: 'Admin MyGameON',
+    featured: false, trending: false,
+    coverGradient: ['#0c0a09','#44403c','#78716c'],
+    body: `Steam Summer Sale 2026 diprediksi akan dimulai pada tanggal 26 Juni 2026 berdasarkan pola tahun-tahun sebelumnya.
+
+## Prediksi Game Diskon Besar
+
+Berdasarkan histori sale sebelumnya, beberapa game yang kemungkinan mendapat diskon signifikan:
+
+- **Elden Ring** — Prediksi diskon 40-50%
+- **Baldur's Gate 3** — Prediksi diskon 25-30% (first major sale)
+- **Cyberpunk 2077** — Prediksi diskon 50-60%
+- **Hogwarts Legacy** — Prediksi diskon 40-50%
+
+## Tips Belanja
+
+Buat wishlist dari sekarang agar kamu dapat notifikasi saat game diinginkan masuk sale. Bandingkan harga dengan katalog MyGameON — kadang harga kami lebih murah bahkan tanpa sale!`
+  },
+  {
+    id: 6, slug: 'sims-launcher-v10',
+    category: 'Update', categoryColor: '#EF4444',
+    title: 'MyGameON Sims Launcher v10.0.1 — Changelog Lengkap',
+    excerpt: 'Versi terbaru launcher The Sims 4 kami hadir dengan fitur auto-backup mods, peningkatan kecepatan download 20%, dan perbaikan bug crash.',
+    date: '12 Mei 2026', readTime: '3 min', author: 'Admin MyGameON',
+    featured: false, trending: false,
+    coverGradient: ['#0d0f14','#1e3a5f','#3b82f6'],
+    body: `MyGameON Sims Launcher versi 10.0.1 sudah dirilis! Berikut changelog lengkapnya:
+
+## Fitur Baru
+
+**Auto-Backup Mods** — Launcher sekarang otomatis backup folder mods kamu sebelum update. Jadi kalau ada yang error, tinggal restore.
+
+**Kecepatan Download +20%** — Optimasi server dan multi-thread download membuat proses download DLC dan CC jauh lebih cepat.
+
+## Bug Fix
+
+- Fix crash saat import CC berukuran lebih dari 500MB
+- Fix UI yang tidak responsive di resolusi 1366x768
+- Fix error "permission denied" saat update di Windows 11
+- Fix daftar mods yang tidak ter-refresh setelah delete
+
+## Cara Update
+
+Jika kamu sudah punya launcher versi sebelumnya, update akan otomatis muncul saat membuka aplikasi. Atau download manual dari halaman Downloads di website.`
+  },
+  {
+    id: 7, slug: 'tips-optimasi-pc-gaming',
+    category: 'Tips', categoryColor: '#8B5CF6',
+    title: 'Cara Optimasi PC Kentang untuk Gaming — 10 Tips yang Terbukti',
+    excerpt: 'Sebelum upgrade hardware, coba dulu tips optimasi ini. Bisa naikin FPS 20-40% tanpa keluar uang sepeser pun.',
+    date: '8 Mei 2026', readTime: '7 min', author: 'Admin MyGameON',
+    featured: false, trending: false,
+    coverGradient: ['#1a0a00','#7c2d12','#ea580c'],
+    body: `PC kamu lemot saat main game? Coba 10 tips optimasi ini sebelum memutuskan upgrade hardware.
+
+## Tips Optimasi
+
+**1. Update Driver GPU** — Selalu gunakan driver terbaru dari NVIDIA atau AMD.
+
+**2. Matikan Startup Programs** — Buka Task Manager → Startup, disable semua yang tidak perlu.
+
+**3. Game Mode Windows** — Aktifkan di Settings → Gaming → Game Mode.
+
+**4. Set Power Plan ke High Performance** — Control Panel → Power Options.
+
+**5. Turunkan Resolusi In-Game** — Dari 1080p ke 720p bisa naikin FPS 40-60%.
+
+**6. Matikan V-Sync** — Kecuali kamu mengalami screen tearing yang parah.
+
+**7. Bersihkan Temp Files** — Ketik %temp% di Run, hapus semua isinya.
+
+**8. Defrag HDD** — Kalau masih pakai HDD, defrag secara berkala.
+
+**9. Tambah Virtual Memory** — Set virtual memory ke 1.5x RAM fisik.
+
+**10. Tutup Background Apps** — Discord, Chrome, dan browser lain makan RAM banyak.
+
+Kombinasi semua tips di atas bisa meningkatkan FPS 20-40% tergantung kondisi PC kamu!`
+  },
+];
+
+const CATEGORIES = ['Semua', 'Update', 'News', 'Tips', 'Tutorial'];
+const CAT_COLORS = { 'Update': '#EF4444', 'News': '#F97316', 'Tips': '#8B5CF6', 'Tutorial': '#22D3EE' };
+
+/* ── Navbar ──────────────────────────────────────────── */
+const BlogNav = ({ onHome }) => (
+  <nav className="nav-blur" style={{ position: 'sticky', top: 0, zIndex: 100, borderBottom: '1px solid #151920', background: 'rgba(13,15,20,0.92)', padding: '0 24px' }}>
+    <div style={{ maxWidth: 1100, margin: '0 auto', height: 56, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+        <a href="Landing Page v2.html" style={{ display: 'flex', alignItems: 'center', gap: 7, textDecoration: 'none' }}>
+          <div style={{ width: 26, height: 26, background: '#FFD100', borderRadius: 6, display: 'grid', placeItems: 'center', fontSize: 9, fontWeight: 900, color: '#0D0F14' }}>MG</div>
+          <span style={{ fontWeight: 800, fontSize: 14, color: '#F3F4F6', letterSpacing: '-0.3px' }}>MyGameON</span>
+        </a>
+        <div style={{ width: 1, height: 16, background: '#1F2937' }} />
+        <button onClick={onHome} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 700, color: '#FFD100', padding: 0, letterSpacing: '-0.2px' }}>Blog</button>
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <a href="Landing Page v2.html#catalog" style={{ fontSize: 12, fontWeight: 500, color: '#4B5563', textDecoration: 'none', padding: '6px 12px', borderRadius: 8, transition: 'color 0.15s' }}
+          onMouseEnter={e => e.currentTarget.style.color='#F3F4F6'}
+          onMouseLeave={e => e.currentTarget.style.color='#4B5563'}
+        >Katalog</a>
+        <a href="Request Game.html" style={{ padding: '6px 14px', background: '#FFD100', color: '#0D0F14', borderRadius: 100, fontSize: 11, fontWeight: 800, textDecoration: 'none' }}>+ Request</a>
+      </div>
+    </div>
+  </nav>
+);
+
+/* ── Hero Featured Article ───────────────────────────── */
+const HeroArticle = ({ article, onClick }) => (
+  <div onClick={() => onClick(article)} className="hero-article" style={{ display: 'grid', gridTemplateColumns: '1.1fr 1fr', borderRadius: 20, overflow: 'hidden', background: '#080A0E', border: '1px solid #151920', cursor: 'pointer', minHeight: 380, transition: 'border-color 0.2s' }}
+    onMouseEnter={e => e.currentTarget.style.borderColor = article.categoryColor + '40'}
+    onMouseLeave={e => e.currentTarget.style.borderColor = '#151920'}
+  >
+    {/* Cover */}
+    <div style={{ background: `linear-gradient(145deg, ${article.coverGradient.join(',')})`, position: 'relative', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', padding: 28 }}>
+      <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse at 20% 80%, rgba(255,255,255,0.06), transparent 60%)', pointerEvents: 'none' }} />
+      <div style={{ position: 'absolute', inset: 0, opacity: 0.03, backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.4) 1px, transparent 1px)', backgroundSize: '20px 20px', pointerEvents: 'none' }} />
+      <span style={{ position: 'relative', display: 'inline-block', width: 'fit-content', background: article.categoryColor, color: '#fff', fontSize: 10, fontWeight: 800, padding: '4px 12px', borderRadius: 6, marginBottom: 10, letterSpacing: '0.5px', transform: 'rotate(-1.5deg)' }}>FEATURED</span>
+      <p style={{ position: 'relative', fontSize: 13, color: 'rgba(255,255,255,0.4)', fontWeight: 500 }}>{article.date} · {article.readTime} baca</p>
+    </div>
+    {/* Content */}
+    <div style={{ padding: 'clamp(24px,3vw,40px)', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+      <span style={{ background: article.categoryColor + '18', color: article.categoryColor, fontSize: 10, fontWeight: 800, padding: '3px 10px', borderRadius: 5, display: 'inline-block', width: 'fit-content', marginBottom: 16, letterSpacing: '0.5px' }}>{article.category.toUpperCase()}</span>
+      <h2 style={{ fontSize: 'clamp(22px, 2.4vw, 32px)', fontWeight: 900, letterSpacing: '-0.8px', lineHeight: 1.2, color: '#F3F4F6', marginBottom: 14 }}>{article.title}</h2>
+      <p style={{ fontSize: 14, color: '#6B7280', lineHeight: 1.7, marginBottom: 20, display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{article.excerpt}</p>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#1A1F27', display: 'grid', placeItems: 'center', fontSize: 10, fontWeight: 800, color: '#FFD100' }}>A</div>
+        <span style={{ fontSize: 12, color: '#4B5563', fontWeight: 500 }}>{article.author}</span>
+      </div>
+    </div>
+  </div>
+);
+
+/* ── Article Card ────────────────────────────────────── */
+const ArticleCard = ({ article, onClick }) => (
+  <article onClick={() => onClick(article)} style={{ background: '#080A0E', border: '1px solid #151920', borderRadius: 14, overflow: 'hidden', cursor: 'pointer', transition: 'border-color 0.2s, transform 0.2s', display: 'flex', flexDirection: 'column' }}
+    onMouseEnter={e => { e.currentTarget.style.borderColor = article.categoryColor + '30'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
+    onMouseLeave={e => { e.currentTarget.style.borderColor = '#151920'; e.currentTarget.style.transform = 'none'; }}
+  >
+    {/* Mini cover */}
+    <div style={{ height: 140, background: `linear-gradient(135deg, ${article.coverGradient.join(',')})`, position: 'relative' }}>
+      <div style={{ position: 'absolute', inset: 0, opacity: 0.04, backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.4) 1px, transparent 1px)', backgroundSize: '16px 16px' }} />
+      <span style={{ position: 'absolute', top: 10, left: 10, background: article.categoryColor + '20', backdropFilter: 'blur(8px)', color: article.categoryColor, fontSize: 9, fontWeight: 800, padding: '3px 9px', borderRadius: 5, border: `1px solid ${article.categoryColor}30`, letterSpacing: '0.3px' }}>{article.category.toUpperCase()}</span>
+    </div>
+    {/* Body */}
+    <div style={{ padding: '16px 16px 18px', flex: 1, display: 'flex', flexDirection: 'column' }}>
+      <h3 style={{ fontSize: 14.5, fontWeight: 800, color: '#E5E7EB', lineHeight: 1.35, marginBottom: 8, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{article.title}</h3>
+      <p style={{ fontSize: 12, color: '#4B5563', lineHeight: 1.6, flex: 1, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{article.excerpt}</p>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 14, paddingTop: 12, borderTop: '1px solid #111317' }}>
+        <span style={{ fontSize: 10.5, color: '#1F2937' }}>{article.date} · {article.readTime}</span>
+        <span style={{ fontSize: 11, fontWeight: 700, color: article.categoryColor }}>Baca →</span>
+      </div>
+    </div>
+  </article>
+);
+
+/* ── Sidebar ─────────────────────────────────────────── */
+const Sidebar = ({ articles, onArticleClick }) => {
+  const trending = articles.filter(a => a.trending).slice(0, 4);
+  return (
+    <aside className="sidebar" style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      {/* Trending */}
+      <div style={{ background: '#080A0E', border: '1px solid #151920', borderRadius: 14, padding: '18px 16px' }}>
+        <h3 style={{ fontSize: 12, fontWeight: 800, color: '#FFD100', letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 6 }}>
+          <svg width="12" height="12" fill="none" stroke="#FFD100" viewBox="0 0 24 24" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>
+          Trending
+        </h3>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {trending.map((a, i) => (
+            <div key={a.id} onClick={() => onArticleClick(a)} style={{ display: 'flex', gap: 12, cursor: 'pointer', padding: '8px 0', borderBottom: i < trending.length - 1 ? '1px solid #111317' : 'none' }}>
+              <span style={{ fontSize: 22, fontWeight: 900, color: '#151920', lineHeight: 1, minWidth: 28 }}>{'0' + (i+1)}</span>
+              <div>
+                <span style={{ fontSize: 9, fontWeight: 700, color: a.categoryColor, letterSpacing: '0.3px' }}>{a.category.toUpperCase()}</span>
+                <h4 style={{ fontSize: 12.5, fontWeight: 700, color: '#C8CFDA', lineHeight: 1.35, marginTop: 2 }}>{a.title}</h4>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Tags */}
+      <div style={{ background: '#080A0E', border: '1px solid #151920', borderRadius: 14, padding: '18px 16px' }}>
+        <h3 style={{ fontSize: 12, fontWeight: 800, color: '#6B7280', letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 14 }}>Topik</h3>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+          {['PC Gaming','The Sims 4','Open World','AAA','Indie','Troubleshoot','Low Spec','Launcher','DLC','Mod'].map(tag => (
+            <span key={tag} style={{ background: '#0D0F14', border: '1px solid #1A1F27', color: '#374151', fontSize: 10.5, fontWeight: 600, padding: '4px 10px', borderRadius: 6, cursor: 'pointer', transition: 'all 0.15s' }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = '#FFD100'; e.currentTarget.style.color = '#FFD100'; }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = '#1A1F27'; e.currentTarget.style.color = '#374151'; }}
+            >{tag}</span>
+          ))}
+        </div>
+      </div>
+
+      {/* Newsletter-style CTA */}
+      <div style={{ background: 'linear-gradient(135deg, #0D0F14 0%, #110D1E 100%)', border: '1px solid rgba(139,92,246,0.15)', borderRadius: 14, padding: '20px 16px', position: 'relative', overflow: 'hidden' }}>
+        <div style={{ position: 'absolute', top: -30, right: -30, width: 100, height: 100, background: 'rgba(139,92,246,0.15)', borderRadius: '50%', filter: 'blur(30px)', pointerEvents: 'none' }} />
+        <p style={{ position: 'relative', fontSize: 13, fontWeight: 800, color: '#E5E7EB', marginBottom: 6 }}>Game belum ada?</p>
+        <p style={{ position: 'relative', fontSize: 11.5, color: '#4B5563', marginBottom: 14, lineHeight: 1.5 }}>Request langsung dan kami carikan untukmu.</p>
+        <a href="Request Game.html" style={{ position: 'relative', display: 'block', textAlign: 'center', background: '#FFD100', color: '#0D0F14', padding: '10px', borderRadius: 9, fontSize: 12, fontWeight: 800, textDecoration: 'none' }}>Request Game</a>
+      </div>
+    </aside>
+  );
+};
+
+/* ── Article Reader ──────────────────────────────────── */
+const ArticleReader = ({ article, allArticles, onBack, onArticleClick }) => {
+  const related = allArticles.filter(a => a.id !== article.id && a.category === article.category).slice(0, 2);
+  return (
+    <div style={{ maxWidth: 720, margin: '0 auto', padding: '48px 24px 80px' }}>
+      {/* Back */}
+      <button onClick={onBack} style={{ background: 'none', border: 'none', color: '#4B5563', fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, marginBottom: 32, padding: 0, transition: 'color 0.15s' }}
+        onMouseEnter={e => e.currentTarget.style.color='#F3F4F6'}
+        onMouseLeave={e => e.currentTarget.style.color='#4B5563'}
+      >
+        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
+        Kembali ke Blog
+      </button>
+
+      {/* Cover */}
+      <div style={{ height: 240, background: `linear-gradient(135deg, ${article.coverGradient.join(',')})`, borderRadius: 18, marginBottom: 28, position: 'relative', overflow: 'hidden' }}>
+        <div style={{ position: 'absolute', inset: 0, opacity: 0.04, backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.4) 1px, transparent 1px)', backgroundSize: '20px 20px' }} />
+      </div>
+
+      {/* Meta */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18, flexWrap: 'wrap' }}>
+        <span style={{ background: article.categoryColor + '18', color: article.categoryColor, fontSize: 10, fontWeight: 800, padding: '4px 10px', borderRadius: 5 }}>{article.category.toUpperCase()}</span>
+        <span style={{ fontSize: 12, color: '#2A2F39' }}>{article.date} · {article.readTime} baca</span>
+        <span style={{ fontSize: 12, color: '#2A2F39' }}>oleh {article.author}</span>
+      </div>
+
+      {/* Title */}
+      <h1 style={{ fontSize: 'clamp(26px, 3.5vw, 40px)', fontWeight: 900, letterSpacing: '-1.2px', lineHeight: 1.15, marginBottom: 28, color: '#F3F4F6' }}>{article.title}</h1>
+
+      {/* Body */}
+      <div style={{ background: '#080A0E', border: '1px solid #151920', borderRadius: 16, padding: 'clamp(20px, 3vw, 32px)' }}>
+        {article.body.split('\n\n').map((block, i) => {
+          if (block.startsWith('## ')) {
+            return <h2 key={i} style={{ fontSize: 18, fontWeight: 800, color: '#E5E7EB', marginTop: i > 0 ? 28 : 0, marginBottom: 12, letterSpacing: '-0.3px' }}>{block.slice(3)}</h2>;
+          }
+          const lines = block.split('\n');
+          return (
+            <div key={i} style={{ marginBottom: 16 }}>
+              {lines.map((line, j) => {
+                if (line.startsWith('- **') || line.startsWith('**')) {
+                  const parts = line.replace(/^\- /, '').split('**').filter(Boolean);
+                  return <p key={j} style={{ fontSize: 14, color: '#6B7280', lineHeight: 1.85, marginBottom: 4 }}>
+                    {line.startsWith('- ') && <span style={{ color: '#FFD100', marginRight: 6 }}>•</span>}
+                    {parts.map((p, k) => k % 2 === 0 ? <strong key={k} style={{ color: '#C8CFDA', fontWeight: 700 }}>{p}</strong> : <span key={k}>{p}</span>)}
+                  </p>;
+                }
+                return <p key={j} style={{ fontSize: 14, color: '#6B7280', lineHeight: 1.85 }}>{line}</p>;
+              })}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Share / CTA */}
+      <div style={{ marginTop: 28, display: 'flex', gap: 10 }}>
+        <a href="Request Game.html" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, background: '#FFD100', color: '#0D0F14', padding: '13px', borderRadius: 11, fontWeight: 700, fontSize: 13, textDecoration: 'none' }}>Request Game</a>
+        <a href="Landing Page v2.html#catalog" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#080A0E', border: '1px solid #151920', color: '#6B7280', padding: '13px', borderRadius: 11, fontWeight: 600, fontSize: 13, textDecoration: 'none', transition: 'border-color 0.15s' }}
+          onMouseEnter={e => e.currentTarget.style.borderColor='rgba(255,209,0,0.3)'}
+          onMouseLeave={e => e.currentTarget.style.borderColor='#151920'}
+        >Lihat Katalog</a>
+      </div>
+
+      {/* Related */}
+      {related.length > 0 && (
+        <div style={{ marginTop: 48 }}>
+          <h3 style={{ fontSize: 14, fontWeight: 800, color: '#6B7280', letterSpacing: '1px', textTransform: 'uppercase', marginBottom: 16 }}>Artikel Terkait</h3>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 12 }}>
+            {related.map(a => <ArticleCard key={a.id} article={a} onClick={onArticleClick} />)}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+/* ── Blog App ────────────────────────────────────────── */
+const BlogApp = () => {
+  const [activeCategory, setActiveCategory] = useState('Semua');
+  const [reading, setReading] = useState(null);
+  const [searchQ, setSearchQ] = useState('');
+
+  const filtered = ARTICLES.filter(a => {
+    const catMatch = activeCategory === 'Semua' || a.category === activeCategory;
+    const searchMatch = !searchQ || a.title.toLowerCase().includes(searchQ.toLowerCase()) || a.excerpt.toLowerCase().includes(searchQ.toLowerCase());
+    return catMatch && searchMatch;
+  });
+
+  const featured = ARTICLES.find(a => a.featured);
+  const nonFeatured = filtered.filter(a => !a.featured || activeCategory !== 'Semua');
+
+  const openArticle = (a) => { setReading(a); window.scrollTo(0, 0); };
+  const goHome = () => { setReading(null); window.scrollTo(0, 0); };
+
+  if (reading) {
+    return (
+      <div style={{ minHeight: '100vh', background: '#0D0F14' }}>
+        <BlogNav onHome={goHome} />
+        <ArticleReader article={reading} allArticles={ARTICLES} onBack={goHome} onArticleClick={openArticle} />
+        <footer style={{ borderTop: '1px solid #111317', padding: '20px 24px', textAlign: 'center' }}>
+          <p style={{ fontSize: 11, color: '#1F2937' }}>© {new Date().getFullYear()} MyGameON Hub</p>
+        </footer>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ minHeight: '100vh', background: '#0D0F14' }}>
+      <BlogNav onHome={goHome} />
+
+      <div style={{ maxWidth: 1100, margin: '0 auto', padding: '36px 24px 80px' }}>
+        {/* Header */}
+        <div style={{ marginBottom: 28 }}>
+          <h1 style={{ fontSize: 'clamp(30px, 3.5vw, 44px)', fontWeight: 900, letterSpacing: '-1.5px', lineHeight: 1.05, marginBottom: 8 }}>
+            Blog & <span style={{ background: 'linear-gradient(135deg, #F97316, #EF4444)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>Update</span>
+          </h1>
+          <p style={{ color: '#4B5563', fontSize: 14.5 }}>Info terkini, tips, tutorial, dan update game dari tim MyGameON.</p>
+        </div>
+
+        {/* Category bar + search */}
+        <div className="cat-bar" style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 28, flexWrap: 'wrap' }}>
+          {CATEGORIES.map(cat => (
+            <button key={cat} onClick={() => setActiveCategory(cat)}
+              style={{ padding: '8px 16px', borderRadius: 9, fontSize: 12, fontWeight: 700, cursor: 'pointer', border: activeCategory === cat ? 'none' : '1px solid #151920', transition: 'all 0.15s', whiteSpace: 'nowrap',
+                background: activeCategory === cat ? '#FFD100' : '#080A0E',
+                color: activeCategory === cat ? '#0D0F14' : '#4B5563',
+              }}
+            >{cat}</button>
+          ))}
+          <div style={{ flex: 1 }} />
+          <div style={{ position: 'relative', minWidth: 180 }}>
+            <svg style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)' }} width="13" height="13" fill="none" stroke="#374151" viewBox="0 0 24 24" strokeWidth="2"><circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" strokeLinecap="round" /></svg>
+            <input value={searchQ} onChange={e => setSearchQ(e.target.value)} placeholder="Cari artikel..."
+              style={{ width: '100%', padding: '8px 12px 8px 32px', background: '#080A0E', border: '1px solid #151920', borderRadius: 9, color: '#F3F4F6', fontSize: 12, outline: 'none', fontFamily: 'inherit', transition: 'border-color 0.2s' }}
+              onFocus={e => e.target.style.borderColor='rgba(255,209,0,0.35)'}
+              onBlur={e => e.target.style.borderColor='#151920'}
+            />
+          </div>
+        </div>
+
+        {/* Featured hero */}
+        {activeCategory === 'Semua' && !searchQ && featured && (
+          <div style={{ marginBottom: 28 }}>
+            <HeroArticle article={featured} onClick={openArticle} />
+          </div>
+        )}
+
+        {/* Main + Sidebar */}
+        <div className="blog-layout" style={{ display: 'grid', gridTemplateColumns: '1fr 280px', gap: 20 }}>
+          {/* Main */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: 12, alignContent: 'start' }}>
+            {nonFeatured.length > 0 ? nonFeatured.map(a => (
+              <ArticleCard key={a.id} article={a} onClick={openArticle} />
+            )) : (
+              <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '48px 0' }}>
+                <p style={{ color: '#2A2F39', fontSize: 13 }}>Tidak ada artikel yang cocok.</p>
+              </div>
+            )}
+          </div>
+          {/* Sidebar */}
+          <Sidebar articles={ARTICLES} onArticleClick={openArticle} />
+        </div>
+      </div>
+
+      <footer style={{ borderTop: '1px solid #111317', padding: '20px 24px', textAlign: 'center' }}>
+        <p style={{ fontSize: 11, color: '#1F2937' }}>© {new Date().getFullYear()} MyGameON Hub</p>
+      </footer>
+    </div>
+  );
+};
+
+ReactDOM.createRoot(document.getElementById('root')).render(<BlogApp />);
+</script>
+</body>
+</html>

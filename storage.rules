@@ -24,6 +24,12 @@ service firebase.storage {
       allow write: if isSignedIn();
     }
 
+    // Order payment proofs from desktop app
+    match /order-proofs/{fileName} {
+      allow write: if isSignedIn() && request.resource.size < 5 * 1024 * 1024;
+      allow read: if isSignedIn();
+    }
+
     // Default deny untuk folder lain
     match /{allPaths=**} {
       allow read, write: if false;

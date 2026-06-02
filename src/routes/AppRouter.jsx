@@ -3,6 +3,7 @@
 import React, { Suspense, lazy } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import 'react-datepicker/dist/react-datepicker.css';
+import usePageTracking from '../hooks/usePageTracking';
 
 // Import Layout dan Halaman
 const Layout = lazy(() => import('../components/layout/Layout'));
@@ -35,6 +36,8 @@ const AboutPage = lazy(() => import('../pages/AboutPage'));
 const NotFoundPage = lazy(() => import('../pages/NotFoundPage'));
 
 const AppRouter = () => {
+  usePageTracking();
+
   const fallback = (
     <div className="min-h-screen grid place-items-center text-slate-500">
       Memuat halaman...

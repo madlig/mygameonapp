@@ -14,7 +14,7 @@
 import React from 'react';
 import { Helmet } from 'react-helmet-async';
 
-const SITE_URL = 'https://mygameonapp.vercel.app';
+const SITE_URL = 'https://mygameon.store';
 const SITE_NAME = 'MyGameON';
 const DEFAULT_TITLE = 'MyGameON — Toko Game PC Digital & Request Game';
 const DEFAULT_DESC =

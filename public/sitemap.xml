@@ -1,37 +1,37 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://mygameonapp.vercel.app/</loc>
+    <loc>https://mygameon.store/</loc>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
-    <loc>https://mygameonapp.vercel.app/request-game</loc>
+    <loc>https://mygameon.store/request-game</loc>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
-    <loc>https://mygameonapp.vercel.app/request-status</loc>
+    <loc>https://mygameon.store/request-status</loc>
     <changefreq>weekly</changefreq>
     <priority>0.5</priority>
   </url>
   <url>
-    <loc>https://mygameonapp.vercel.app/faq</loc>
+    <loc>https://mygameon.store/faq</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://mygameonapp.vercel.app/videos</loc>
+    <loc>https://mygameon.store/videos</loc>
     <changefreq>weekly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://mygameonapp.vercel.app/blog</loc>
+    <loc>https://mygameon.store/blog</loc>
     <changefreq>weekly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://mygameonapp.vercel.app/downloads</loc>
+    <loc>https://mygameon.store/downloads</loc>
     <changefreq>weekly</changefreq>
     <priority>0.6</priority>
   </url>

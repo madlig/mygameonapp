@@ -173,9 +173,31 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
-    // User questions: public can submit, admin manages
+    // User questions: public can submit (validated shape only), admin manages.
+    // Hardened: enforce exact field set + types + size limits to block
+    // arbitrary/oversized payloads and spam injection.
+    function isPublicQuestionCreate() {
+      return request.resource.data.keys().hasOnly([
+          'name', 'email', 'question', 'status',
+          'answer', 'promotedToFaq', 'createdAt'
+        ]) &&
+        request.resource.data.name is string &&
+        request.resource.data.name.size() >= 1 &&
+        request.resource.data.name.size() <= 80 &&
+        request.resource.data.email is string &&
+        request.resource.data.email.size() <= 120 &&
+        request.resource.data.email.matches('^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$') &&
+        request.resource.data.question is string &&
+        request.resource.data.question.size() >= 5 &&
+        request.resource.data.question.size() <= 1000 &&
+        request.resource.data.status == 'new' &&
+        request.resource.data.answer == null &&
+        request.resource.data.promotedToFaq == false &&
+        request.resource.data.createdAt is timestamp;
+    }
+
     match /userQuestions/{qId} {
-      allow create: if true;
+      allow create: if isAdmin() || isPublicQuestionCreate();
       allow read, update, delete: if isAdmin();
     }
 

@@ -21,6 +21,7 @@ import {
 } from '../../config/firebaseConfig';
 import { formatFileSize } from '../games/utils/formatters';
 import { winningProductService } from '../content/services/contentFirestore';
+import Seo from '../../components/common/Seo';
 
 // ─── Env ─────────────────────────────────────────────────────
 const STORE_URL =
@@ -1190,6 +1191,11 @@ const ScrollToTopButton = () => {
 const LandingPage = () => {
   return (
     <div className="min-h-screen bg-bg-primary font-sans text-text-primary">
+      <Seo
+        title=""
+        description="MyGameON menyediakan ribuan game PC digital lengkap dengan update terbaru. Beli lewat Shopee atau request game favoritmu — proses cepat tanpa ribet."
+        path="/"
+      />
       <NavBar />
       <Hero />
       <WinningProduct />

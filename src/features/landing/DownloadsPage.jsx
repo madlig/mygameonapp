@@ -15,6 +15,7 @@ import {
   prerequisitesCRUD,
 } from '../content/services/contentFirestore';
 import PageShell from './components/PageShell';
+import Seo from '../../components/common/Seo';
 
 /* ── Icon map ────────────────────────────────────────── */
 const ICONS = {
@@ -139,6 +140,11 @@ const DownloadsPage = () => {
 
   return (
     <PageShell title="Downloads" maxWidth={720}>
+      <Seo
+        title="Download Aplikasi"
+        description="Download aplikasi pendukung untuk game PC dari MyGameON — DirectX, Visual C++, dan tools lainnya yang kamu butuhkan."
+        path="/downloads"
+      />
       {/* Header */}
       <div className="slide-stagger-1 mb-8">
         <h1 className="text-[clamp(28px,3.5vw,40px)] font-black tracking-[-1.2px] leading-[1.08] mb-2.5">

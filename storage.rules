@@ -3,25 +3,34 @@ rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
     
-    // Helper function
+    // Helper functions
     function isSignedIn() {
       return request.auth != null;
+    }
+
+    // Single source of truth: role-based admin check (mirrors Firestore rules)
+    function isAdmin() {
+      return isSignedIn() && request.auth.token.role == 'admin';
+    }
+
+    // Size guard (avoid strict contentType check to not regress some browsers)
+    function isUnder5MB() {
+      return request.resource.size < 5 * 1024 * 1024;
     }
 
     // Aturan untuk folder 'game_covers'
     match /game_covers/{fileName} {
       // 1. Publik boleh download/lihat gambar
       allow read: if true;
-      
-      // 2. Admin boleh upload
-      // Kita sederhanakan menjadi cek login saja untuk menghindari error metadata dari browser tertentu.
-      allow write: if isSignedIn();
+
+      // 2. Hanya admin boleh upload (defense-in-depth) + batas ukuran 5 MB
+      allow write: if isAdmin() && isUnder5MB();
     }
 
     // Aturan untuk folder 'winning_product'
     match /winning_product/{fileName} {
       allow read: if true;
-      allow write: if isSignedIn();
+      allow write: if isAdmin() && isUnder5MB();
     }
 
     // Order payment proofs from desktop app

@@ -11,6 +11,7 @@ import { loadActiveFaqs } from '../feedback/services/feedbackFirestore';
 import { submitUserQuestion } from '../feedback/services/feedbackFirestore';
 import { faqItems as staticFaqItems } from './data/faq';
 import PageShell from './components/PageShell';
+import Seo from '../../components/common/Seo';
 
 const WA_NUMBER = import.meta.env.VITE_WHATSAPP_NUMBER || '6285121309829';
 
@@ -208,6 +209,11 @@ const FaqPage = () => {
 
   return (
     <PageShell title="FAQ" maxWidth={680}>
+      <Seo
+        title="FAQ — Pertanyaan Umum"
+        description="Pertanyaan umum seputar MyGameON: cara beli game PC, proses request, pembayaran via Shopee, dan dukungan via WhatsApp."
+        path="/faq"
+      />
       {/* Header */}
       <div className="slide-stagger-1 mb-7">
         <h1 className="text-[clamp(28px,3.5vw,40px)] font-black tracking-[-1.2px] leading-[1.08] mb-2.5">

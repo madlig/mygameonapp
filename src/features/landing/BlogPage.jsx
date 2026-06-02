@@ -4,6 +4,7 @@ import { ChevronLeft, Search, TrendingUp } from 'lucide-react';
 import { BLOG_ARTICLES, BLOG_CATEGORIES, BLOG_TAGS } from './data/blogArticles';
 import { blogsCRUD } from '../content/services/contentFirestore';
 import PageShell from './components/PageShell';
+import Seo from '../../components/common/Seo';
 
 /* ── Markdown-lite body renderer ─────────────────────── */
 const renderBody = (body) =>
@@ -396,6 +397,11 @@ const BlogPage = () => {
   /* ── Listing view ── */
   return (
     <PageShell title="Blog" maxWidth={1100}>
+      <Seo
+        title="Blog"
+        description="Artikel, tips, dan berita terbaru seputar game PC dari MyGameON. Review game, panduan, dan rekomendasi pilihan."
+        path="/blog"
+      />
       {/* Header */}
       <div className="slide-stagger-1 mb-7">
         <h1 className="text-[clamp(30px,3.5vw,44px)] font-black tracking-[-1.5px] leading-[1.05] mb-2">

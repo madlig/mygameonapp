@@ -31,6 +31,7 @@ import {
   REQUEST_STATUS,
 } from '../../shared/requestStatus';
 import PageShell from './components/PageShell';
+import Seo from '../../components/common/Seo';
 import { trackGameRequest } from '../../utils/metaPixel';
 
 /* ── Shared input class ──────────────────────────────── */
@@ -222,7 +223,7 @@ const RequestGamePage = () => {
           contactWhatsApp: data.contactWhatsApp.trim(),
           shopeeUsername: data.shopeeUsername.trim(),
         });
-        trackGameRequest(data.gameTitle)
+        trackGameRequest(data.gameTitle);
         setTrackingCode(code);
         localStorage.setItem('mygameon_last_tracking_code', code);
         setSubmitStatus('success');
@@ -241,6 +242,11 @@ const RequestGamePage = () => {
 
   return (
     <PageShell title="Request Game" maxWidth={520}>
+      <Seo
+        title="Request Game"
+        description="Game yang kamu cari belum ada di katalog MyGameON? Isi form request — tanpa login, proses cepat, dan kami kabari via WhatsApp saat tersedia."
+        path="/request-game"
+      />
       {/* Header */}
       <div className="slide-stagger-1 mb-8">
         {/* Eyebrow badge */}

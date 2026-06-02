@@ -19,6 +19,7 @@ import {
   REQUEST_STATUS,
 } from '../../shared/requestStatus';
 import PageShell from './components/PageShell';
+import Seo from '../../components/common/Seo';
 
 /* ── Timeline Step ───────────────────────────────────── */
 const TimelineStep = ({ step, done, isCurrent, isLast }) => (
@@ -171,6 +172,11 @@ const RequestStatusPage = () => {
 
   return (
     <PageShell title="Cek Status Request" maxWidth={580}>
+      <Seo
+        title="Cek Status Request"
+        description="Lacak status request game kamu di MyGameON. Masukkan kode tracking untuk melihat progres terbaru."
+        path="/request-status"
+      />
       {/* Header */}
       <div className="slide-stagger-1 mb-8">
         <h1 className="text-[clamp(26px,3.5vw,36px)] font-black tracking-[-1.2px] leading-[1.1] mb-2.5">

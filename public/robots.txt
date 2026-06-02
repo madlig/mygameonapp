@@ -13,4 +13,4 @@ Disallow: /content
 Disallow: /about
 Disallow: /login
 
-Sitemap: https://mygameonapp.vercel.app/sitemap.xml
+Sitemap: https://mygameon.store/sitemap.xml

@@ -36,9 +36,11 @@ const PageShell = ({ title, maxWidth = 960, children }) => {
 
           {/* Right: Logo */}
           <Link to="/" className="flex items-center gap-[7px] no-underline">
-            <div className="grid h-6 w-6 place-items-center rounded-[6px] bg-accent-yellow text-[8px] font-black text-bg-primary">
-              MG
-            </div>
+            <img
+              src="/logo.png"
+              alt="MyGameON"
+              className="h-6 w-6 object-contain"
+            />
             <span className="text-[13px] font-bold text-text-ghost">
               MyGameON
             </span>

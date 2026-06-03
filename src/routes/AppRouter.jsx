@@ -28,6 +28,7 @@ const FaqPage = lazy(() => import('../features/landing/FaqPage'));
 const VideosPage = lazy(() => import('../features/landing/VideosPage'));
 const BlogPage = lazy(() => import('../features/landing/BlogPage'));
 const DownloadsPage = lazy(() => import('../features/landing/DownloadsPage'));
+const LinkBioPage = lazy(() => import('../features/landing/LinkBioPage'));
 // Import Halaman Umum
 const LoginPage = lazy(() => import('../pages/LoginPage'));
 const FeedbackPage = lazy(() => import('../features/feedback/FeedbackPage'));
@@ -55,6 +56,7 @@ const AppRouter = () => {
         <Route path="/videos" element={<VideosPage />} />
         <Route path="/blog" element={<BlogPage />} />
         <Route path="/downloads" element={<DownloadsPage />} />
+        <Route path="/link" element={<LinkBioPage />} />
         <Route path="/login" element={<LoginPage />} />
 
         {/* Rute Privat yang dilindungi dan menggunakan Layout */}

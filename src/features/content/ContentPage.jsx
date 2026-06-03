@@ -731,8 +731,8 @@ const ContentPage = () => {
                         )}
                         <p className="text-[10px] text-[#7E8796] mt-1.5 leading-relaxed">
                           Format: JPG, PNG, WebP. Gambar otomatis di-crop &
-                          resize ke <strong>800 × 500 px</strong> (rasio 8:5).
-                          {' '}Jika tidak diisi, gradient warna akan digunakan.
+                          resize ke <strong>800 × 500 px</strong> (rasio 8:5).{' '}
+                          Jika tidak diisi, gradient warna akan digunakan.
                         </p>
                       </div>
                     </div>

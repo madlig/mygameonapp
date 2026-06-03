@@ -8,7 +8,7 @@
 //   completed  → copy link Shopee / kirim WA
 //   rejected   → (read-only)
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Clock,
   User,
@@ -24,7 +24,7 @@ import {
   ExternalLink,
   Server,
 } from 'lucide-react';
-import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../../config/firebaseConfig';
 import { format } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
@@ -53,7 +53,23 @@ const STATUS_BORDER = {
 
 const RequestCard = ({ request }) => {
   const [showFinalize, setShowFinalize] = useState(false);
+  const [contactInfo, setContactInfo] = useState(null);
   const status = request.status;
+
+  // Fetch sensitive contact data from private sub-collection
+  useEffect(() => {
+    const fetchContact = async () => {
+      try {
+        const snap = await getDoc(
+          doc(db, 'requests', request.id, 'private', 'contact')
+        );
+        if (snap.exists()) setContactInfo(snap.data());
+      } catch {
+        // permission denied or doc not found — ignore
+      }
+    };
+    fetchContact();
+  }, [request.id]);
 
   const title = request.title || 'Tanpa Judul';
   const displayUser = request.requesterName || 'Anonymous';
@@ -136,7 +152,11 @@ const RequestCard = ({ request }) => {
 
   // WhatsApp message builder
   const buildWhatsAppUrl = () => {
-    const phone = (request.contactWhatsApp || '').replace(/[^0-9]/g, '');
+    const phone = (
+      contactInfo?.contactWhatsApp ||
+      request.contactWhatsApp ||
+      ''
+    ).replace(/[^0-9]/g, '');
     if (!phone) return '';
     const trackLink = `${window.location.origin}/request-status?code=${trackingCode}`;
     let msg = '';
@@ -359,9 +379,14 @@ const RequestCard = ({ request }) => {
             >
               <Copy size={12} />
             </button>
-            {request.contactWhatsApp && (
+            {(contactInfo?.contactWhatsApp || request.contactWhatsApp) && (
               <button
-                onClick={() => copyText(request.contactWhatsApp, 'WhatsApp')}
+                onClick={() =>
+                  copyText(
+                    contactInfo?.contactWhatsApp || request.contactWhatsApp,
+                    'WhatsApp'
+                  )
+                }
                 className="p-1.5 rounded hover:bg-[#2A2F39] text-[#7E8796] hover:text-[#C8CFDA] transition-colors"
                 title="Copy nomor WA"
               >

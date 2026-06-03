@@ -3,6 +3,7 @@
 import React, { Suspense, lazy } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import 'react-datepicker/dist/react-datepicker.css';
+import usePageTracking from '../hooks/usePageTracking';
 
 // Import Layout dan Halaman
 const Layout = lazy(() => import('../components/layout/Layout'));
@@ -27,6 +28,7 @@ const FaqPage = lazy(() => import('../features/landing/FaqPage'));
 const VideosPage = lazy(() => import('../features/landing/VideosPage'));
 const BlogPage = lazy(() => import('../features/landing/BlogPage'));
 const DownloadsPage = lazy(() => import('../features/landing/DownloadsPage'));
+const LinkBioPage = lazy(() => import('../features/landing/LinkBioPage'));
 // Import Halaman Umum
 const LoginPage = lazy(() => import('../pages/LoginPage'));
 const FeedbackPage = lazy(() => import('../features/feedback/FeedbackPage'));
@@ -35,6 +37,8 @@ const AboutPage = lazy(() => import('../pages/AboutPage'));
 const NotFoundPage = lazy(() => import('../pages/NotFoundPage'));
 
 const AppRouter = () => {
+  usePageTracking();
+
   const fallback = (
     <div className="min-h-screen grid place-items-center text-slate-500">
       Memuat halaman...
@@ -52,6 +56,7 @@ const AppRouter = () => {
         <Route path="/videos" element={<VideosPage />} />
         <Route path="/blog" element={<BlogPage />} />
         <Route path="/downloads" element={<DownloadsPage />} />
+        <Route path="/link" element={<LinkBioPage />} />
         <Route path="/login" element={<LoginPage />} />
 
         {/* Rute Privat yang dilindungi dan menggunakan Layout */}

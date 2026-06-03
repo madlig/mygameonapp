@@ -14,6 +14,7 @@ import React from 'react';
 import { LazyLoadImage } from 'react-lazy-load-image-component';
 import 'react-lazy-load-image-component/src/effects/blur.css';
 import { formatFileSize, resolveTimestamp } from '../../games/utils/formatters';
+import { trackClickShopee, trackClickWhatsApp } from '../../../utils/metaPixel';
 
 // ============================================================
 // HELPERS
@@ -227,6 +228,7 @@ const GameCard = ({ game }) => {
               href={shopeeUrl}
               target="_blank"
               rel="noopener noreferrer"
+              onClick={() => trackClickShopee(gameTitle)}
               className="flex items-center justify-center flex-grow bg-orange-500 text-white text-sm font-semibold hover:bg-orange-600 transition-colors min-h-[46px]"
               aria-label={`Beli "${gameTitle}" di Shopee`}
             >
@@ -236,6 +238,7 @@ const GameCard = ({ game }) => {
               href={waLink}
               target="_blank"
               rel="noopener noreferrer"
+              onClick={() => trackClickWhatsApp(gameTitle)}
               className="flex items-center justify-center px-4 bg-green-500 text-white hover:bg-green-600 transition-colors min-h-[46px]"
               aria-label="Chat di WhatsApp"
               title="Chat di WhatsApp"

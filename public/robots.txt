@@ -1,2 +1,16 @@
+# MyGameON — robots.txt
 User-agent: *
-Disallow: /
+Allow: /
+
+# Halaman privat / admin: jangan diindeks
+Disallow: /dashboard
+Disallow: /games
+Disallow: /task
+Disallow: /requests
+Disallow: /operational
+Disallow: /feedback
+Disallow: /content
+Disallow: /about
+Disallow: /login
+
+Sitemap: https://mygameon.store/sitemap.xml

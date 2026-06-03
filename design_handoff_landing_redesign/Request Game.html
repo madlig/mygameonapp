@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Request Game — MyGameON</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Plus Jakarta Sans', sans-serif; background: #0D0F14; color: #F3F4F6; -webkit-font-smoothing: antialiased; }
+    .nav-blur { backdrop-filter: blur(24px) saturate(200%); -webkit-backdrop-filter: blur(24px) saturate(200%); }
+    .btn-yellow { transition: filter 0.15s ease, transform 0.1s ease; }
+    .btn-yellow:hover { filter: brightness(0.92); }
+    .btn-yellow:active { transform: scale(0.97); }
+    @keyframes slideIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+    .anim-in { animation: slideIn 0.5s cubic-bezier(0.22,1,0.36,1) both; }
+    .anim-in-d1 { animation: slideIn 0.5s 0.08s cubic-bezier(0.22,1,0.36,1) both; }
+    .anim-in-d2 { animation: slideIn 0.5s 0.16s cubic-bezier(0.22,1,0.36,1) both; }
+  </style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel" src="shared-page.jsx"></script>
+<script type="text/babel">
+const { useState } = React;
+
+const RequestGamePage = () => {
+  const [form, setForm] = useState({ gameTitle: '', shopeeUsername: '', contactWhatsApp: '', notes: '' });
+  const [errors, setErrors] = useState({});
+  const [status, setStatus] = useState(null); // success | voted | error | rate_limit
+  const [submitting, setSubmitting] = useState(false);
+  const [trackingCode, setTrackingCode] = useState('');
+
+  const validate = () => {
+    const e = {};
+    if (!form.gameTitle.trim() || form.gameTitle.trim().length < 3) e.gameTitle = 'Judul game minimal 3 karakter';
+    if (!form.shopeeUsername.trim()) e.shopeeUsername = 'Username Shopee wajib diisi';
+    if (!form.contactWhatsApp.trim() || form.contactWhatsApp.trim().length < 9) e.contactWhatsApp = 'Nomor WhatsApp tidak valid';
+    setErrors(e);
+    return Object.keys(e).length === 0;
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!validate()) return;
+    setSubmitting(true);
+    // Simulate submission
+    setTimeout(() => {
+      const code = 'RQ-' + Math.random().toString(36).slice(2, 8).toUpperCase();
+      setTrackingCode(code);
+      setStatus('success');
+      setSubmitting(false);
+      setForm({ gameTitle: '', shopeeUsername: '', contactWhatsApp: '', notes: '' });
+    }, 1200);
+  };
+
+  const copyCode = () => { if (trackingCode) navigator.clipboard.writeText(trackingCode); };
+
+  return (
+    <PageShell title="Request Game">
+      <div style={{ maxWidth: 520, margin: '0 auto' }}>
+        {/* Header */}
+        <div className="anim-in" style={{ marginBottom: 32 }}>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'rgba(139,92,246,0.08)', border: '1px solid rgba(139,92,246,0.2)', padding: '5px 14px', borderRadius: 100, marginBottom: 20 }}>
+            <span style={{ background: '#8B5CF6', color: '#fff', fontSize: 9, fontWeight: 800, padding: '2px 8px', borderRadius: 100 }}>FORM</span>
+            <span style={{ color: '#A78BFA', fontSize: 11.5, fontWeight: 600 }}>Tanpa login, proses cepat</span>
+          </div>
+          <h1 style={{ fontSize: 'clamp(26px, 3.5vw, 36px)', fontWeight: 900, letterSpacing: '-1.2px', lineHeight: 1.1, marginBottom: 10 }}>
+            Request Game <span style={{ color: '#FFD100' }}>Baru</span>
+          </h1>
+          <p style={{ color: '#4B5563', fontSize: 14, lineHeight: 1.65 }}>
+            Game yang kamu cari belum ada di katalog? Isi form ini dan kami akan carikan.
+          </p>
+        </div>
+
+        {/* Card */}
+        <div className="anim-in-d1" style={{ background: '#080A0E', border: '1px solid #151920', borderRadius: 18, overflow: 'hidden' }}>
+          {/* Info box */}
+          <div style={{ padding: '18px 22px', borderBottom: '1px solid #111317', display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+            <div style={{ width: 28, height: 28, borderRadius: 7, background: 'rgba(255,209,0,0.08)', border: '1px solid rgba(255,209,0,0.15)', display: 'grid', placeItems: 'center', flexShrink: 0, marginTop: 1 }}>
+              <svg width="12" height="12" fill="none" stroke="#FFD100" viewBox="0 0 24 24" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            </div>
+            <div style={{ fontSize: 11.5, color: '#4B5563', lineHeight: 1.6 }}>
+              Tulis <strong style={{ color: '#6B7280' }}>judul game lengkap</strong> (bukan singkatan). Jika game sudah pernah direquest, vote kamu akan ditambahkan. Kamu dihubungi via WhatsApp saat tersedia.
+            </div>
+          </div>
+
+          {/* Notifications */}
+          {status === 'success' && (
+            <div style={{ margin: '18px 22px 0', padding: '16px 18px', background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.2)', borderRadius: 12, display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+              <svg width="18" height="18" fill="none" stroke="#10B981" viewBox="0 0 24 24" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+              <div>
+                <p style={{ fontSize: 13, fontWeight: 700, color: '#10B981', marginBottom: 4 }}>Request Berhasil Dikirim!</p>
+                <p style={{ fontSize: 11.5, color: '#4B5563', marginBottom: 8 }}>Simpan kode tracking untuk cek progres:</p>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontFamily: 'monospace', fontWeight: 800, color: '#FFD100', fontSize: 15, letterSpacing: '0.5px' }}>{trackingCode}</span>
+                  <button onClick={copyCode} style={{ background: 'rgba(16,185,129,0.12)', border: 'none', borderRadius: 6, padding: '4px 8px', cursor: 'pointer', color: '#10B981', fontSize: 10, fontWeight: 700 }}>Copy</button>
+                </div>
+                <a href="Cek Status Request.html" style={{ display: 'inline-block', marginTop: 8, fontSize: 11.5, fontWeight: 700, color: '#FFD100', textDecoration: 'none' }}>Cek Status →</a>
+              </div>
+            </div>
+          )}
+
+          {/* Form */}
+          <form onSubmit={handleSubmit} style={{ padding: '22px', display: 'flex', flexDirection: 'column', gap: 18 }}>
+            <InputField label="Judul Game" required error={errors.gameTitle} hint="Contoh: Cyberpunk 2077, Tekken 8">
+              <div style={{ position: 'relative' }}>
+                <svg style={{ position: 'absolute', left: 13, top: '50%', transform: 'translateY(-50%)' }} width="15" height="15" fill="none" stroke="#374151" viewBox="0 0 24 24" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                <input value={form.gameTitle} onChange={e => setForm({...form, gameTitle: e.target.value})}
+                  placeholder="Ketik judul game lengkap..."
+                  style={{ ...inputStyle, paddingLeft: 40 }}
+                  onFocus={inputFocus} onBlur={inputBlur}
+                />
+              </div>
+            </InputField>
+
+            <InputField label="Username Shopee" required error={errors.shopeeUsername}>
+              <input value={form.shopeeUsername} onChange={e => setForm({...form, shopeeUsername: e.target.value})}
+                placeholder="Username Shopee kamu"
+                style={inputStyle} onFocus={inputFocus} onBlur={inputBlur}
+              />
+            </InputField>
+
+            <InputField label="Nomor WhatsApp" required error={errors.contactWhatsApp} hint="Kami kirim link produk Shopee via WA saat game tersedia">
+              <input value={form.contactWhatsApp} onChange={e => setForm({...form, contactWhatsApp: e.target.value})}
+                placeholder="08xxxxxxxxxx"
+                style={inputStyle} onFocus={inputFocus} onBlur={inputBlur}
+              />
+            </InputField>
+
+            <InputField label="Catatan" hint="Versi tertentu, DLC, dll.">
+              <textarea value={form.notes} onChange={e => setForm({...form, notes: e.target.value})}
+                placeholder="Opsional..."
+                rows={2}
+                style={{ ...inputStyle, resize: 'none' }} onFocus={inputFocus} onBlur={inputBlur}
+              />
+            </InputField>
+
+            <button type="submit" disabled={submitting} className="btn-yellow"
+              style={{ width: '100%', padding: '14px', background: '#FFD100', color: '#0D0F14', border: 'none', borderRadius: 12, fontSize: 14, fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, opacity: submitting ? 0.6 : 1 }}
+            >
+              {submitting ? (
+                <><span style={{ display: 'inline-block', width: 14, height: 14, border: '2px solid rgba(0,0,0,0.2)', borderTopColor: '#0D0F14', borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} /> Mengirim...</>
+              ) : (
+                <><svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" /></svg> Kirim Request</>
+              )}
+            </button>
+          </form>
+        </div>
+
+        {/* Bottom link */}
+        <div className="anim-in-d2" style={{ marginTop: 20, textAlign: 'center' }}>
+          <a href="Cek Status Request.html" style={{ fontSize: 12.5, color: '#374151', textDecoration: 'none', fontWeight: 600, transition: 'color 0.15s' }}
+            onMouseEnter={e => e.currentTarget.style.color = '#FFD100'}
+            onMouseLeave={e => e.currentTarget.style.color = '#374151'}
+          >Sudah pernah request? Cek status di sini →</a>
+        </div>
+      </div>
+    </PageShell>
+  );
+};
+
+ReactDOM.createRoot(document.getElementById('root')).render(<RequestGamePage />);
+</script>
+<style>@keyframes spin { to { transform: rotate(360deg); } }</style>
+</body>
+</html>

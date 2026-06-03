@@ -3,6 +3,7 @@ import { Play, Video } from 'lucide-react';
 import { tutorials as staticTutorials } from './data/tutorials';
 import { tutorialsCRUD } from '../content/services/contentFirestore';
 import PageShell from './components/PageShell';
+import Seo from '../../components/common/Seo';
 
 /* ── Category definitions ────────────────────────────── */
 const CATEGORIES = [
@@ -100,6 +101,11 @@ const VideosPage = () => {
 
   return (
     <PageShell title="Video Tutorial" maxWidth={960}>
+      <Seo
+        title="Video Tutorial"
+        description="Panduan lengkap cara install dan main game dari MyGameON. Tutorial download, ekstrak, dan troubleshooting game PC."
+        path="/videos"
+      />
       {/* Header */}
       <div className="slide-stagger-1 mb-7">
         <h1 className="text-[clamp(28px,3.5vw,40px)] font-black tracking-[-1.2px] leading-[1.08] mb-2.5">

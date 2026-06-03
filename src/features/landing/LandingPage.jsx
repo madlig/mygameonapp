@@ -21,6 +21,7 @@ import {
 } from '../../config/firebaseConfig';
 import { formatFileSize } from '../games/utils/formatters';
 import { winningProductService } from '../content/services/contentFirestore';
+import Seo from '../../components/common/Seo';
 
 // ─── Env ─────────────────────────────────────────────────────
 const STORE_URL =
@@ -54,9 +55,11 @@ const NavBar = () => {
       >
         {/* Logo */}
         <Link to="/" className="flex items-center gap-2 no-underline">
-          <div className="grid h-7 w-7 place-items-center rounded-[7px] bg-accent-yellow text-[10px] font-black text-bg-primary">
-            MG
-          </div>
+          <img
+            src="/logo.png"
+            alt="MyGameON"
+            className="h-7 w-7 object-contain"
+          />
           <span className="text-sm font-extrabold tracking-tight text-text-primary">
             MyGameON
           </span>
@@ -1057,9 +1060,11 @@ const LandingFooter = () => (
         {/* Brand */}
         <div>
           <div className="mb-2.5 flex items-center gap-2">
-            <div className="grid h-[26px] w-[26px] place-items-center rounded-[6px] bg-accent-yellow text-[9px] font-black text-bg-primary">
-              MG
-            </div>
+            <img
+              src="/logo.png"
+              alt="MyGameON"
+              className="h-[26px] w-[26px] object-contain"
+            />
             <span className="text-sm font-extrabold tracking-tight text-text-dim">
               MyGameON
             </span>
@@ -1190,6 +1195,11 @@ const ScrollToTopButton = () => {
 const LandingPage = () => {
   return (
     <div className="min-h-screen bg-bg-primary font-sans text-text-primary">
+      <Seo
+        title=""
+        description="MyGameON menyediakan ribuan game PC digital lengkap dengan update terbaru. Beli lewat Shopee atau request game favoritmu — proses cepat tanpa ribet."
+        path="/"
+      />
       <NavBar />
       <Hero />
       <WinningProduct />

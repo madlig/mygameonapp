@@ -16,6 +16,7 @@ import {
 import {
   collection,
   addDoc,
+  setDoc,
   serverTimestamp,
   query,
   where,
@@ -30,6 +31,8 @@ import {
   REQUEST_STATUS,
 } from '../../shared/requestStatus';
 import PageShell from './components/PageShell';
+import Seo from '../../components/common/Seo';
+import { trackGameRequest } from '../../utils/metaPixel';
 
 /* ── Shared input class ──────────────────────────────── */
 const inputCls =
@@ -205,8 +208,6 @@ const RequestGamePage = () => {
           title_lower: titleLower,
           platform: 'PC',
           notes: data.notes?.trim() || '',
-          shopeeUsername: data.shopeeUsername.trim(),
-          contactWhatsApp: data.contactWhatsApp.trim(),
           status: REQUEST_STATUS.PENDING,
           trackingCode: code,
           votes: 1,
@@ -214,7 +215,15 @@ const RequestGamePage = () => {
           updatedAt: serverTimestamp(),
         };
 
-        await addDoc(collection(db, 'requests'), requestData);
+        // Write main request (public-readable)
+        const newDocRef = await addDoc(collection(db, 'requests'), requestData);
+
+        // Write sensitive contact info to private sub-collection (admin-only read)
+        await setDoc(doc(db, 'requests', newDocRef.id, 'private', 'contact'), {
+          contactWhatsApp: data.contactWhatsApp.trim(),
+          shopeeUsername: data.shopeeUsername.trim(),
+        });
+        trackGameRequest(data.gameTitle);
         setTrackingCode(code);
         localStorage.setItem('mygameon_last_tracking_code', code);
         setSubmitStatus('success');
@@ -233,6 +242,11 @@ const RequestGamePage = () => {
 
   return (
     <PageShell title="Request Game" maxWidth={520}>
+      <Seo
+        title="Request Game"
+        description="Game yang kamu cari belum ada di katalog MyGameON? Isi form request — tanpa login, proses cepat, dan kami kabari via WhatsApp saat tersedia."
+        path="/request-game"
+      />
       {/* Header */}
       <div className="slide-stagger-1 mb-8">
         {/* Eyebrow badge */}

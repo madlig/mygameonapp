@@ -14,6 +14,7 @@ import React from 'react';
 import { LazyLoadImage } from 'react-lazy-load-image-component';
 import 'react-lazy-load-image-component/src/effects/blur.css';
 import { formatFileSize, resolveTimestamp } from '../../games/utils/formatters';
+import { trackClickShopee, trackClickWhatsApp } from '../../../utils/metaPixel';
 
 // ============================================================
 // HELPERS
@@ -24,8 +25,7 @@ const defaultCover =
 
 const STORE_URL =
   import.meta.env.VITE_SHOPEE_STORE_URL || 'https://shopee.co.id/mygameon';
-const WA_NUMBER =
-  import.meta.env.VITE_WHATSAPP_NUMBER || '6285121309829';
+const WA_NUMBER = import.meta.env.VITE_WHATSAPP_NUMBER || '6285121309829';
 
 /**
  * Apakah game ini baru di-update dalam 7 hari terakhir?
@@ -135,13 +135,11 @@ const GameList = ({ hit }) => {
   // Tags (tetap pakai game.tags[], tidak berubah)
   const tags = Array.isArray(game.tags) ? game.tags.slice(0, 2) : [];
   const extraTagCount =
-    Array.isArray(game.tags) && game.tags.length > 2
-      ? game.tags.length - 2
-      : 0;
+    Array.isArray(game.tags) && game.tags.length > 2 ? game.tags.length - 2 : 0;
 
   // WhatsApp
   const waMessage = encodeURIComponent(
-    `Halo, saya tertarik dengan game "${gameTitle}". Apakah masih tersedia?`
+    `Halo MyGameON, saya mau beli game "${gameTitle}". Proses dan pembayarannya gimana ya?`
   );
   const waLink = `https://wa.me/${WA_NUMBER}?text=${waMessage}`;
 
@@ -230,28 +228,34 @@ const GameList = ({ hit }) => {
         </div>
 
         {/* CTA buttons */}
-        <div className="mt-auto pt-5">
-          <div className="flex w-full overflow-hidden rounded-md sm:rounded-lg">
-            <a
-              href={shopeeUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center justify-center flex-grow bg-orange-500 text-white text-sm font-semibold hover:bg-orange-600 transition-colors min-h-[46px]"
-              aria-label={`Beli "${gameTitle}" di Shopee`}
-            >
-              Shopee
-            </a>
-            <a
-              href={waLink}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center justify-center px-4 bg-green-500 text-white hover:bg-green-600 transition-colors min-h-[46px]"
-              aria-label="Chat di WhatsApp"
-              title="Chat di WhatsApp"
-            >
-              <WhatsAppIcon />
-            </a>
-          </div>
+        <div className="mt-auto pt-4">
+          <p className="text-sm font-bold text-[#FFD100] mb-3">
+            Mulai dari Rp 10.000
+          </p>
+          <a
+            href={waLink}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={() => trackClickWhatsApp(gameTitle)}
+            className="flex items-center justify-center gap-2 w-full bg-[#25D366] hover:bg-[#20BD5A] text-white text-sm font-semibold rounded-lg min-h-[46px] transition-colors mb-2 no-underline"
+            aria-label={`Beli "${gameTitle}" via WhatsApp`}
+          >
+            <WhatsAppIcon />
+            Beli via WhatsApp
+          </a>
+          <a
+            href={shopeeUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={() => trackClickShopee(gameTitle)}
+            className="flex items-center justify-center w-full border border-[#2F3643] text-[#9B8FB8] text-xs font-medium rounded-lg min-h-[36px] hover:border-[#FFD100]/40 hover:text-[#C8CFDA] transition-colors no-underline"
+            aria-label={`Beli "${gameTitle}" di Shopee`}
+          >
+            Beli di Shopee
+          </a>
+          <p className="text-[11px] text-[#7E8796] text-center mt-2">
+            File terverifikasi · Panduan install gratis
+          </p>
         </div>
       </div>
     </div>

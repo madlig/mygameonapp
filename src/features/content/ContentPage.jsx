@@ -499,7 +499,7 @@ const ContentPage = () => {
       Swal.fire({
         ...swalDark,
         icon: 'success',
-        title: 'Winning Product tersimpan',
+        title: 'Best Selling Product tersimpan',
         timer: 1500,
         showConfirmButton: false,
       });
@@ -575,7 +575,7 @@ const ContentPage = () => {
             },
             {
               key: 'winning',
-              label: 'Winning',
+              label: 'Best Selling',
               icon: Star,
               count: winningProduct ? 1 : 0,
             },
@@ -612,7 +612,7 @@ const ContentPage = () => {
                 <div className="flex items-center gap-2 mb-5">
                   <Star size={16} className="text-[#FFD100]" />
                   <h3 className="text-sm font-bold text-[#F3F4F6]">
-                    Winning Product Spotlight
+                    Best Selling Product Spotlight
                   </h3>
                   <span className="text-[10px] text-[#7E8796] ml-auto">
                     Ditampilkan di landing page
@@ -925,7 +925,7 @@ const ContentPage = () => {
                     {savingWP ? (
                       <Loader2 size={14} className="animate-spin" />
                     ) : (
-                      'Simpan Winning Product'
+                      'Simpan Best Selling Product'
                     )}
                   </button>
                 </div>

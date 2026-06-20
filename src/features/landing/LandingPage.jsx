@@ -18,6 +18,7 @@ import {
   PlayCircle,
   Layers,
   Wrench,
+  X,
 } from 'lucide-react';
 import { trackEvent, trackCustomEvent } from '../../utils/metaPixel';
 import {
@@ -717,8 +718,17 @@ const GameCatalogSection = () => {
           value={searchTerm}
           onChange={handleSearch}
           placeholder="Cari game..."
-          className="w-full rounded-[11px] border border-border-default bg-bg-secondary py-3 pl-[42px] pr-4 font-sans text-[13.5px] text-text-primary outline-none transition-[border-color] duration-200 placeholder:text-text-faint focus:border-accent-yellow/35"
+          className="w-full rounded-[11px] border border-border-default bg-bg-secondary py-3 pl-[42px] pr-9 font-sans text-[13.5px] text-text-primary outline-none transition-[border-color] duration-200 placeholder:text-text-faint focus:border-accent-yellow/35"
         />
+        {searchTerm && (
+          <button
+            type="button"
+            onClick={() => setSearchTerm('')}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-text-faint hover:text-text-primary transition-colors"
+          >
+            <X size={16} />
+          </button>
+        )}
       </div>
 
       {/* Grid */}
@@ -1368,7 +1378,6 @@ const WhySection = () => {
 // ═══════════════════════════════════════════════════════════════
 const PortfolioPromo = () => (
   <div className="mx-auto max-w-2xl px-6 mb-16">
-    {/* TODO: Ganti URL portofolio di sini */}
     <div
       className="flex flex-wrap items-center justify-between gap-4 rounded-xl px-6 py-5"
       style={{ background: '#1A1F27', border: '1px solid #2A2F39' }}

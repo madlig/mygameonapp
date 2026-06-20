@@ -46,6 +46,7 @@ import {
   RefreshCw,
   Calendar,
   Disc,
+  X,
 } from 'lucide-react';
 import Swal from 'sweetalert2';
 
@@ -543,8 +544,17 @@ const GamesPage = () => {
                 placeholder="Cari judul, lokasi akun..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 bg-[#111317] border border-[#2A2F39] rounded-lg text-[#F3F4F6] placeholder-[#4A5568] focus:outline-none focus:ring-2 focus:ring-[#FFD100]/40 focus:border-[#FFD100]/40 transition-colors"
+                className="w-full pl-10 pr-9 py-2 bg-[#111317] border border-[#2A2F39] rounded-lg text-[#F3F4F6] placeholder-[#4A5568] focus:outline-none focus:ring-2 focus:ring-[#FFD100]/40 focus:border-[#FFD100]/40 transition-colors"
               />
+              {searchTerm && (
+                <button
+                  type="button"
+                  onClick={() => setSearchTerm('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[#7E8796] hover:text-white transition-colors"
+                >
+                  <X size={16} />
+                </button>
+              )}
             </div>
             <div className="relative w-full sm:w-auto">
               <Filter

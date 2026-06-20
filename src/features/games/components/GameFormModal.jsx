@@ -26,7 +26,8 @@ import {
   writeBatch,
   Timestamp,
 } from 'firebase/firestore';
-import { db } from '../../../config/firebaseConfig';
+import { db, storage } from '../../../config/firebaseConfig';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import Swal from 'sweetalert2';
 import {
   X,
@@ -37,6 +38,8 @@ import {
   Loader2,
   Save,
   ExternalLink,
+  Upload,
+  ImageIcon,
 } from 'lucide-react';
 
 // ============================================================
@@ -73,8 +76,57 @@ function toTimestampInput(ts) {
   return d.toISOString().split('T')[0];
 }
 
-const PLATFORM_OPTIONS = ['steam', 'gog', 'epic', 'itch', 'ubisoft-connect', 'ea-app', 'microsoft-store'];
-const PACKAGE_TYPES = ['PRE-INSTALLED', 'INSTALLER-GOG', 'INSTALLER-ELAMIGOS', 'INSTALLER'];
+const COVER_MAX_W = 600;
+const COVER_MAX_H = 450;
+
+const resizeCoverImage = (file) =>
+  new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = COVER_MAX_W;
+      canvas.height = COVER_MAX_H;
+      const ctx = canvas.getContext('2d');
+      const srcRatio = img.width / img.height;
+      const dstRatio = COVER_MAX_W / COVER_MAX_H;
+      let sx = 0,
+        sy = 0,
+        sw = img.width,
+        sh = img.height;
+      if (srcRatio > dstRatio) {
+        sw = img.height * dstRatio;
+        sx = (img.width - sw) / 2;
+      } else {
+        sh = img.width / dstRatio;
+        sy = (img.height - sh) / 2;
+      }
+      ctx.drawImage(img, sx, sy, sw, sh, 0, 0, COVER_MAX_W, COVER_MAX_H);
+      canvas.toBlob(
+        (blob) =>
+          blob ? resolve(blob) : reject(new Error('Canvas toBlob failed')),
+        'image/jpeg',
+        0.85
+      );
+    };
+    img.onerror = () => reject(new Error('Image load failed'));
+    img.src = URL.createObjectURL(file);
+  });
+
+const PLATFORM_OPTIONS = [
+  'steam',
+  'gog',
+  'epic',
+  'itch',
+  'ubisoft-connect',
+  'ea-app',
+  'microsoft-store',
+];
+const PACKAGE_TYPES = [
+  'PRE-INSTALLED',
+  'INSTALLER-GOG',
+  'INSTALLER-ELAMIGOS',
+  'INSTALLER',
+];
 const VERIFICATION_OPTIONS = ['needs_check', 'verified', 'rejected'];
 
 // ============================================================
@@ -130,7 +182,11 @@ const SectionHeader = ({ title, isOpen, onToggle }) => (
     className="w-full flex items-center justify-between py-3 px-4 bg-slate-50 rounded-lg border border-slate-200 hover:bg-slate-100 transition-colors"
   >
     <span className="font-semibold text-slate-700 text-sm">{title}</span>
-    {isOpen ? <ChevronUp size={16} className="text-slate-500" /> : <ChevronDown size={16} className="text-slate-500" />}
+    {isOpen ? (
+      <ChevronUp size={16} className="text-slate-500" />
+    ) : (
+      <ChevronDown size={16} className="text-slate-500" />
+    )}
   </button>
 );
 
@@ -143,9 +199,15 @@ const FieldLabel = ({ children, required }) => (
 const FieldError = ({ message }) =>
   message ? <p className="text-red-500 text-xs mt-1">{message}</p> : null;
 
-const inputCls = 'w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500';
+const inputCls =
+  'w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500';
 
-const TagSelector = ({ options, selected, onChange, colorClass = 'bg-blue-100 text-blue-800 border-blue-200' }) => (
+const TagSelector = ({
+  options,
+  selected,
+  onChange,
+  colorClass = 'bg-blue-100 text-blue-800 border-blue-200',
+}) => (
   <div className="flex flex-wrap gap-2">
     {options.map((opt) => {
       const isSelected = selected.includes(opt.id);
@@ -154,7 +216,11 @@ const TagSelector = ({ options, selected, onChange, colorClass = 'bg-blue-100 te
           key={opt.id}
           type="button"
           onClick={() =>
-            onChange(isSelected ? selected.filter((s) => s !== opt.id) : [...selected, opt.id])
+            onChange(
+              isSelected
+                ? selected.filter((s) => s !== opt.id)
+                : [...selected, opt.id]
+            )
           }
           className={`px-3 py-1 rounded-full text-xs font-semibold border transition-all ${
             isSelected
@@ -198,6 +264,7 @@ const GameFormModal = ({ isOpen, onClose, initialData = null, onSuccess }) => {
 
   // --- OfficialPlatforms dynamic list ---
   const [officialPlatforms, setOfficialPlatforms] = useState([]);
+  const [uploadingCover, setUploadingCover] = useState(false);
 
   // --- Form ---
   const {
@@ -262,12 +329,13 @@ const GameFormModal = ({ isOpen, onClose, initialData = null, onSuccess }) => {
     const fetchAll = async () => {
       setLoadingMeta(true);
       try {
-        const [genresSnap, tagsSnap, playModesSnap, privateSnap] = await Promise.all([
-          getDocs(collection(db, 'metadata', 'genres', 'entries')),
-          getDocs(collection(db, 'metadata', 'tags', 'entries')),
-          getDocs(collection(db, 'metadata', 'playModes', 'entries')),
-          getDocs(collection(db, 'gamesPrivate')),
-        ]);
+        const [genresSnap, tagsSnap, playModesSnap, privateSnap] =
+          await Promise.all([
+            getDocs(collection(db, 'metadata', 'genres', 'entries')),
+            getDocs(collection(db, 'metadata', 'tags', 'entries')),
+            getDocs(collection(db, 'metadata', 'playModes', 'entries')),
+            getDocs(collection(db, 'gamesPrivate')),
+          ]);
         setGenres(
           genresSnap.docs
             .map((d) => ({ id: d.id, label: d.data().label || d.id }))
@@ -289,18 +357,22 @@ const GameFormModal = ({ isOpen, onClose, initialData = null, onSuccess }) => {
         privateSnap.docs.forEach((d) => {
           const locs = d.data().storageLocations || [];
           locs.forEach((loc) => {
-            if (loc?.email && loc.email !== 'TBD' && loc.email !== 'KEBERSAMAAN') {
+            if (
+              loc?.email &&
+              loc.email !== 'TBD' &&
+              loc.email !== 'KEBERSAMAAN'
+            ) {
               emailSet.add(loc.email);
             }
           });
         });
         setLocationEmails([...emailSet].sort());
-          } catch (err) {
-            console.error('[GameFormModal] Failed to load metadata:', err);
-          } finally {
-            setLoadingMeta(false);
-          }
-        };
+      } catch (err) {
+        console.error('[GameFormModal] Failed to load metadata:', err);
+      } finally {
+        setLoadingMeta(false);
+      }
+    };
     fetchAll();
   }, [isOpen]);
 
@@ -325,7 +397,9 @@ const GameFormModal = ({ isOpen, onClose, initialData = null, onSuccess }) => {
         platform: initialData.platform || 'PC',
         genres: Array.isArray(initialData.genres) ? initialData.genres : [],
         tags: Array.isArray(initialData.tags) ? initialData.tags : [],
-        playModes: Array.isArray(initialData.playModes) ? initialData.playModes : ['singleplayer'],
+        playModes: Array.isArray(initialData.playModes)
+          ? initialData.playModes
+          : ['singleplayer'],
         coverImageUrl: initialData.coverImageUrl || '',
         videoUrl: initialData.videoUrl || '',
         description: initialData.description || '',
@@ -382,13 +456,116 @@ const GameFormModal = ({ isOpen, onClose, initialData = null, onSuccess }) => {
 
   // --- Official Platforms helpers ---
   const addPlatform = () =>
-    setOfficialPlatforms((prev) => [...prev, { platform: '', url: '', isAvailable: true }]);
+    setOfficialPlatforms((prev) => [
+      ...prev,
+      { platform: '', url: '', isAvailable: true },
+    ]);
   const removePlatform = (i) =>
     setOfficialPlatforms((prev) => prev.filter((_, idx) => idx !== i));
   const updatePlatform = (i, key, val) =>
     setOfficialPlatforms((prev) =>
       prev.map((p, idx) => (idx === i ? { ...p, [key]: val } : p))
     );
+
+  // --- Cover upload handler ---
+  const handleCoverUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      Swal.fire({
+        title: 'File harus berupa gambar',
+        icon: 'warning',
+        timer: 2000,
+        showConfirmButton: false,
+      });
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      Swal.fire({
+        title: 'Ukuran maksimal 5 MB',
+        icon: 'warning',
+        timer: 2000,
+        showConfirmButton: false,
+      });
+      return;
+    }
+    setUploadingCover(true);
+    try {
+      const blob = await resizeCoverImage(file);
+      const slug = watch('slug') || 'game';
+      const storageRef = ref(storage, `game_covers/${slug}_${Date.now()}.jpg`);
+      await uploadBytes(storageRef, blob, { contentType: 'image/jpeg' });
+      const url = await getDownloadURL(storageRef);
+      setValue('coverImageUrl', url);
+    } catch (err) {
+      console.error('[GameFormModal] Cover upload error:', err);
+      Swal.fire({
+        title: 'Gagal upload',
+        text: err.message,
+        icon: 'error',
+        confirmButtonColor: '#0f172a',
+      });
+    } finally {
+      setUploadingCover(false);
+      e.target.value = '';
+    }
+  };
+
+  const fieldToSection = {
+    title: 'file',
+    slug: 'file',
+    fileVersion: 'file',
+    fileEdition: 'file',
+    fileSizeGB: 'file',
+    partsCount: 'file',
+    packageType: 'file',
+    platform: 'classification',
+    genres: 'classification',
+    tags: 'classification',
+    playModes: 'classification',
+    coverImageUrl: 'media',
+    videoUrl: 'media',
+    description: 'description',
+    shortDescription: 'description',
+    shopeeIsAvailable: 'duallink',
+    shopeeUrl: 'duallink',
+    shopeePackagePrice: 'duallink',
+    steamAppId: 'duallink',
+    availabilityStatus: 'status',
+    isProblematic: 'status',
+    storageEmails: 'admin',
+    adminNotes: 'admin',
+    verificationStatus: 'admin',
+    coverSourceCredit: 'admin',
+    lastFileUpdatedAt: 'admin',
+  };
+
+  const onValidationError = (validationErrors) => {
+    const sectionsToOpen = new Set();
+    Object.keys(validationErrors).forEach((field) => {
+      const section = fieldToSection[field];
+      if (section) sectionsToOpen.add(section);
+    });
+    if (sectionsToOpen.size > 0) {
+      setOpenSections((prev) => {
+        const next = { ...prev };
+        sectionsToOpen.forEach((s) => {
+          next[s] = true;
+        });
+        return next;
+      });
+    }
+    const firstField = Object.keys(validationErrors)[0];
+    const firstMsg =
+      validationErrors[firstField]?.message || 'Ada field yang belum valid';
+    Swal.fire({
+      title: 'Form belum lengkap',
+      text: firstMsg,
+      icon: 'warning',
+      timer: 3000,
+      showConfirmButton: false,
+    });
+  };
 
   // --- Submit ---
   const onSubmitHandler = async (data) => {
@@ -404,15 +581,17 @@ const GameFormModal = ({ isOpen, onClose, initialData = null, onSuccess }) => {
               (loc) => loc.email === email
             )
           : null;
-        return existing || {
-          email,
-          role: 'PRIMARY',
-          version: data.fileVersion || '',
-          uploadedAt: null,
-          shopeeListed: data.shopeeIsAvailable || false,
-          tipe: data.packageType || '',
-          notes: '',
-        };
+        return (
+          existing || {
+            email,
+            role: 'PRIMARY',
+            version: data.fileVersion || '',
+            uploadedAt: null,
+            shopeeListed: data.shopeeIsAvailable || false,
+            tipe: data.packageType || '',
+            notes: '',
+          }
+        );
       });
 
       // Auto-generate shortDescription if blank
@@ -421,8 +600,8 @@ const GameFormModal = ({ isOpen, onClose, initialData = null, onSuccess }) => {
         fileSizeBytes > 1024 ** 3
           ? `${(fileSizeBytes / 1024 ** 3).toFixed(2)} GB`
           : fileSizeBytes > 1024 ** 2
-          ? `${(fileSizeBytes / 1024 ** 2).toFixed(1)} MB`
-          : '-';
+            ? `${(fileSizeBytes / 1024 ** 2).toFixed(1)} MB`
+            : '-';
       const autoShortDesc = `${data.title} — game ${genreText} berukuran ${sizeText}. Tersedia paket instalasi siap main.`;
 
       // Public doc
@@ -446,7 +625,9 @@ const GameFormModal = ({ isOpen, onClose, initialData = null, onSuccess }) => {
         shopee: {
           isAvailable: data.shopeeIsAvailable || false,
           url: data.shopeeUrl || '',
-          packagePrice: data.shopeePackagePrice ? Number(data.shopeePackagePrice) : null,
+          packagePrice: data.shopeePackagePrice
+            ? Number(data.shopeePackagePrice)
+            : null,
         },
         officialPlatforms: officialPlatforms.filter((p) => p.platform && p.url),
         steamAppId: data.steamAppId || null,
@@ -482,7 +663,9 @@ const GameFormModal = ({ isOpen, onClose, initialData = null, onSuccess }) => {
         // Update both collections
         const batch = writeBatch(db);
         batch.update(doc(db, 'games', initialData.id), publicData);
-        batch.set(doc(db, 'gamesPrivate', initialData.id), privateData, { merge: true });
+        batch.set(doc(db, 'gamesPrivate', initialData.id), privateData, {
+          merge: true,
+        });
         await batch.commit();
       } else {
         // Create new — add createdAt only on create
@@ -525,7 +708,8 @@ const GameFormModal = ({ isOpen, onClose, initialData = null, onSuccess }) => {
               {isEditMode ? `Edit: ${initialData?.title}` : 'Tambah Game Baru'}
             </h2>
             <p className="text-xs text-slate-500 mt-0.5">
-              Menulis ke <code className="bg-slate-100 px-1 rounded">games/</code> +{' '}
+              Menulis ke{' '}
+              <code className="bg-slate-100 px-1 rounded">games/</code> +{' '}
               <code className="bg-slate-100 px-1 rounded">gamesPrivate/</code>
             </p>
           </div>
@@ -546,7 +730,7 @@ const GameFormModal = ({ isOpen, onClose, initialData = null, onSuccess }) => {
           </div>
         ) : (
           <form
-            onSubmit={handleSubmit(onSubmitHandler)}
+            onSubmit={handleSubmit(onSubmitHandler, onValidationError)}
             className="flex flex-col gap-4 p-6"
           >
             {/* ══ SECTION 1: INFORMASI FILE ══ */}
@@ -578,7 +762,8 @@ const GameFormModal = ({ isOpen, onClose, initialData = null, onSuccess }) => {
                       className={`${inputCls} font-mono text-xs`}
                     />
                     <p className="text-[10px] text-slate-400 mt-1">
-                      Auto-generated dari judul. URL akan jadi: <code>/game/{watchedSlug || '...'}</code>
+                      Auto-generated dari judul. URL akan jadi:{' '}
+                      <code>/game/{watchedSlug || '...'}</code>
                     </p>
                     <FieldError message={errors.slug?.message} />
                   </div>
@@ -706,7 +891,8 @@ const GameFormModal = ({ isOpen, onClose, initialData = null, onSuccess }) => {
                       colorClass="bg-emerald-100 text-emerald-800 border-emerald-300"
                     />
                     <p className="text-[10px] text-slate-400 mt-1">
-                      ⚠️ Pilih sesuai kemampuan FILE yang kamu sediakan (offline). Jangan pilih multiplayer-online.
+                      ⚠️ Pilih sesuai kemampuan FILE yang kamu sediakan
+                      (offline). Jangan pilih multiplayer-online.
                     </p>
                     <FieldError message={errors.playModes?.message} />
                   </div>
@@ -724,20 +910,80 @@ const GameFormModal = ({ isOpen, onClose, initialData = null, onSuccess }) => {
               {openSections.media && (
                 <div className="space-y-4 pt-1">
                   <div>
-                    <FieldLabel>URL Cover Image</FieldLabel>
-                    <input
-                      {...register('coverImageUrl')}
-                      placeholder="https://..."
-                      className={inputCls}
-                    />
-                    {watch('coverImageUrl') && (
-                      <img
-                        src={watch('coverImageUrl')}
-                        alt="cover preview"
-                        className="mt-2 h-24 object-contain rounded border border-slate-200"
-                        onError={(e) => (e.target.style.display = 'none')}
-                      />
-                    )}
+                    <FieldLabel>Cover Image</FieldLabel>
+                    {/* Upload area */}
+                    <div className="flex items-start gap-4">
+                      <div className="flex-1">
+                        <label
+                          className={`flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed px-4 py-6 cursor-pointer transition-colors ${
+                            uploadingCover
+                              ? 'border-blue-300 bg-blue-50'
+                              : 'border-slate-300 bg-slate-50 hover:border-blue-400 hover:bg-blue-50'
+                          }`}
+                        >
+                          {uploadingCover ? (
+                            <>
+                              <Loader2
+                                size={24}
+                                className="animate-spin text-blue-500"
+                              />
+                              <span className="text-xs text-blue-600 font-medium">
+                                Mengupload...
+                              </span>
+                            </>
+                          ) : (
+                            <>
+                              <Upload size={24} className="text-slate-400" />
+                              <span className="text-xs text-slate-500 font-medium">
+                                Klik untuk upload cover
+                              </span>
+                              <span className="text-[10px] text-slate-400">
+                                JPG, PNG, WebP · Max 5 MB · Auto-resize 600×450
+                              </span>
+                            </>
+                          )}
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={handleCoverUpload}
+                            disabled={uploadingCover}
+                            className="hidden"
+                          />
+                        </label>
+                        {/* Manual URL input */}
+                        <div className="mt-2">
+                          <p className="text-[10px] text-slate-400 mb-1">
+                            atau paste URL langsung:
+                          </p>
+                          <input
+                            {...register('coverImageUrl')}
+                            placeholder="https://..."
+                            className={inputCls}
+                          />
+                        </div>
+                      </div>
+                      {/* Preview */}
+                      {watch('coverImageUrl') && (
+                        <div className="flex-shrink-0">
+                          <div className="relative group">
+                            <img
+                              src={watch('coverImageUrl')}
+                              alt="cover preview"
+                              className="h-[120px] w-[160px] object-cover rounded-lg border border-slate-200 shadow-sm"
+                              onError={(e) => (e.target.style.display = 'none')}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setValue('coverImageUrl', '')}
+                              className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                              title="Hapus cover"
+                            >
+                              <X size={14} />
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
                   <div>
                     <FieldLabel>URL Video (YouTube)</FieldLabel>
@@ -768,7 +1014,8 @@ const GameFormModal = ({ isOpen, onClose, initialData = null, onSuccess }) => {
                       className={inputCls}
                     />
                     <p className="text-[10px] text-slate-400 mt-1">
-                      Kosongkan untuk auto-generate dari judul, genre, dan ukuran.
+                      Kosongkan untuk auto-generate dari judul, genre, dan
+                      ukuran.
                     </p>
                   </div>
                   <div>
@@ -845,14 +1092,17 @@ const GameFormModal = ({ isOpen, onClose, initialData = null, onSuccess }) => {
                     </div>
                     {officialPlatforms.length === 0 && (
                       <p className="text-xs text-slate-400 italic">
-                        Belum ada platform resmi. Klik "Tambah" untuk menambahkan.
+                        Belum ada platform resmi. Klik "Tambah" untuk
+                        menambahkan.
                       </p>
                     )}
                     {officialPlatforms.map((plat, i) => (
                       <div key={i} className="flex items-center gap-2 mb-2">
                         <select
                           value={plat.platform}
-                          onChange={(e) => updatePlatform(i, 'platform', e.target.value)}
+                          onChange={(e) =>
+                            updatePlatform(i, 'platform', e.target.value)
+                          }
                           className={`${inputCls} w-36 flex-shrink-0`}
                         >
                           <option value="">Pilih</option>
@@ -864,7 +1114,9 @@ const GameFormModal = ({ isOpen, onClose, initialData = null, onSuccess }) => {
                         </select>
                         <input
                           value={plat.url}
-                          onChange={(e) => updatePlatform(i, 'url', e.target.value)}
+                          onChange={(e) =>
+                            updatePlatform(i, 'url', e.target.value)
+                          }
                           placeholder="https://store.steampowered.com/..."
                           className={`${inputCls} flex-1`}
                         />
@@ -888,7 +1140,8 @@ const GameFormModal = ({ isOpen, onClose, initialData = null, onSuccess }) => {
                       className={inputCls}
                     />
                     <p className="text-[10px] text-slate-400 mt-1">
-                      Untuk version tracking otomatis. Ambil dari URL Steam: store.steampowered.com/app/
+                      Untuk version tracking otomatis. Ambil dari URL Steam:
+                      store.steampowered.com/app/
                       <strong>268910</strong>/Cuphead/
                     </p>
                   </div>
@@ -945,11 +1198,14 @@ const GameFormModal = ({ isOpen, onClose, initialData = null, onSuccess }) => {
                 <div className="space-y-4 pt-1">
                   {/* Storage Locations */}
                   <div>
-                    <FieldLabel required>Lokasi File (Storage Email)</FieldLabel>
+                    <FieldLabel required>
+                      Lokasi File (Storage Email)
+                    </FieldLabel>
                     <div className="flex flex-wrap gap-2 bg-slate-50 border border-slate-200 rounded-lg p-3">
                       {locationEmails.length === 0 && (
                         <p className="text-xs text-slate-400">
-                          Tidak ada lokasi ditemukan di emailLocations collection.
+                          Tidak ada lokasi ditemukan di emailLocations
+                          collection.
                         </p>
                       )}
                       {locationEmails.map((email) => {
@@ -982,7 +1238,10 @@ const GameFormModal = ({ isOpen, onClose, initialData = null, onSuccess }) => {
                     </div>
                     {watchedStorageEmails.length > 0 && (
                       <p className="text-[10px] text-slate-500 mt-1">
-                        Dipilih: {watchedStorageEmails.map((e) => e.split('@')[0]).join(', ')}
+                        Dipilih:{' '}
+                        {watchedStorageEmails
+                          .map((e) => e.split('@')[0])
+                          .join(', ')}
                       </p>
                     )}
                     <FieldError message={errors.storageEmails?.message} />
@@ -1050,8 +1309,8 @@ const GameFormModal = ({ isOpen, onClose, initialData = null, onSuccess }) => {
                 {isSubmitting
                   ? 'Menyimpan...'
                   : isEditMode
-                  ? 'Simpan Perubahan'
-                  : 'Tambah Game'}
+                    ? 'Simpan Perubahan'
+                    : 'Tambah Game'}
               </button>
             </div>
           </form>

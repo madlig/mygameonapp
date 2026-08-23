@@ -221,38 +221,65 @@ const HistoryTable = () => {
           })}
         </div>
 
-        {/* Polished Custom Date Range Picker (Only appears when Custom is selected) */}
+        {/* Polished Custom Date Range Picker with High-Visibility White Calendar Icons */}
         {dateFilter === 'CUSTOM' && (
-          <div className="p-3 bg-bg-primary/90 rounded-xl border border-border-default flex flex-wrap items-center gap-3 animate-slide-in">
-            <div className="flex items-center gap-2">
-              <span className="text-[11px] font-bold text-text-tertiary flex items-center gap-1">
-                <Calendar size={12} className="text-accent-cyan" />
-                <span>Dari:</span>
-              </span>
-              <input
-                type="date"
-                value={customStartDate}
-                onChange={(e) => setCustomStartDate(e.target.value)}
-                className="bg-bg-surface border border-border-default rounded-lg px-2.5 py-1.5 text-xs text-text-primary outline-none focus:border-accent-cyan/50 font-mono shadow-inner"
-              />
+          <div className="p-3.5 bg-bg-primary/95 rounded-xl border border-accent-purple/30 flex flex-wrap items-center gap-3 animate-slide-in shadow-inner">
+            {/* Start Date */}
+            <div 
+              onClick={(e) => {
+                const input = e.currentTarget.querySelector('input');
+                if (input && input.showPicker) input.showPicker();
+              }}
+              className="flex items-center gap-2 bg-bg-surface hover:bg-white/[0.04] border border-border-default hover:border-accent-cyan/50 rounded-xl px-3 py-2 transition-all cursor-pointer shadow-sm group"
+            >
+              <div className="w-6 h-6 rounded-lg bg-accent-cyan/15 border border-accent-cyan/30 flex items-center justify-center text-accent-cyan shrink-0">
+                <Calendar size={13} />
+              </div>
+              <div>
+                <div className="text-[10px] uppercase font-bold text-text-tertiary">Dari Tanggal:</div>
+                <input
+                  type="date"
+                  value={customStartDate}
+                  onChange={(e) => setCustomStartDate(e.target.value)}
+                  style={{ colorScheme: 'dark' }}
+                  className="bg-transparent text-xs text-text-primary font-bold font-mono outline-none cursor-pointer [color-scheme:dark] [&::-webkit-calendar-picker-indicator]:filter [&::-webkit-calendar-picker-indicator]:invert [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-90 hover:[&::-webkit-calendar-picker-indicator]:opacity-100"
+                />
+              </div>
             </div>
 
-            <div className="flex items-center gap-2">
-              <span className="text-[11px] font-bold text-text-tertiary">Sampai:</span>
-              <input
-                type="date"
-                value={customEndDate}
-                onChange={(e) => setCustomEndDate(e.target.value)}
-                className="bg-bg-surface border border-border-default rounded-lg px-2.5 py-1.5 text-xs text-text-primary outline-none focus:border-accent-cyan/50 font-mono shadow-inner"
-              />
+            <span className="text-text-dim font-bold text-xs">➔</span>
+
+            {/* End Date */}
+            <div 
+              onClick={(e) => {
+                const input = e.currentTarget.querySelector('input');
+                if (input && input.showPicker) input.showPicker();
+              }}
+              className="flex items-center gap-2 bg-bg-surface hover:bg-white/[0.04] border border-border-default hover:border-accent-cyan/50 rounded-xl px-3 py-2 transition-all cursor-pointer shadow-sm group"
+            >
+              <div className="w-6 h-6 rounded-lg bg-accent-purple/15 border border-accent-purple/30 flex items-center justify-center text-accent-purple-light shrink-0">
+                <Calendar size={13} />
+              </div>
+              <div>
+                <div className="text-[10px] uppercase font-bold text-text-tertiary">Sampai Tanggal:</div>
+                <input
+                  type="date"
+                  value={customEndDate}
+                  onChange={(e) => setCustomEndDate(e.target.value)}
+                  style={{ colorScheme: 'dark' }}
+                  className="bg-transparent text-xs text-text-primary font-bold font-mono outline-none cursor-pointer [color-scheme:dark] [&::-webkit-calendar-picker-indicator]:filter [&::-webkit-calendar-picker-indicator]:invert [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-90 hover:[&::-webkit-calendar-picker-indicator]:opacity-100"
+                />
+              </div>
             </div>
 
+            {/* Reset Button */}
             {(customStartDate || customEndDate) && (
               <button
+                type="button"
                 onClick={handleResetCustomDates}
-                className="flex items-center gap-1 text-[11px] font-bold text-text-dim hover:text-accent-red px-2 py-1 rounded-md hover:bg-accent-red/10 transition-colors ml-auto cursor-pointer"
+                className="flex items-center gap-1.5 text-xs font-bold text-text-dim hover:text-accent-red px-3 py-2 rounded-xl hover:bg-accent-red/10 border border-transparent hover:border-accent-red/20 transition-all ml-auto cursor-pointer"
               >
-                <RotateCcw size={11} />
+                <RotateCcw size={12} />
                 <span>Reset Tanggal</span>
               </button>
             )}

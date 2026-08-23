@@ -1,5 +1,6 @@
-import React from 'react';
-import { Bell, Check, Clock, User, Shield } from 'lucide-react';
+import React, { useEffect } from 'react';
+import { Bell, Check } from 'lucide-react';
+import { startPiercingAlarm, stopPiercingAlarm } from '../../utils/alarm';
 
 const formatDateTime = (timestamp) => {
   if (!timestamp) return '--';
@@ -24,6 +25,14 @@ const formatDuration = (hours) => {
 };
 
 const FinishedModal = ({ queue, onClose }) => {
+  // Start piercing looping alarm on mount & stop on unmount
+  useEffect(() => {
+    startPiercingAlarm();
+    return () => {
+      stopPiercingAlarm();
+    };
+  }, []);
+
   if (!queue || queue.length === 0) return null;
 
   const current = queue[0];
@@ -31,19 +40,24 @@ const FinishedModal = ({ queue, onClose }) => {
   const title = isStopped ? "BILLING DIHENTIKAN" : "BILLING SELESAI";
   const customerName = current.username || current.name;
 
+  const handleClose = () => {
+    stopPiercingAlarm();
+    onClose();
+  };
+
   return (
-    <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-[fadeIn_0.2s_ease]">
+    <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-[fadeIn_0.2s_ease]">
       <div 
-        className="w-full max-w-md bg-bg-surface border border-border-default rounded-2xl p-6 shadow-2xl animate-slide-in text-center relative"
+        className="w-full max-w-md bg-bg-surface border-2 border-accent-red/50 rounded-2xl p-6 shadow-2xl animate-slide-in text-center relative shadow-accent-red/20"
         style={{ background: '#111317' }}
       >
-        {/* Animated Bell Icon */}
-        <div className="w-14 h-14 mx-auto mb-3.5 rounded-2xl bg-accent-red/10 border border-accent-red/25 flex items-center justify-center text-accent-red animate-bounce">
-          <Bell size={28} />
+        {/* Ringing Alarm Icon with Animation */}
+        <div className="w-16 h-16 mx-auto mb-3.5 rounded-2xl bg-accent-red/15 border border-accent-red/35 flex items-center justify-center text-accent-red animate-bounce">
+          <Bell size={32} className="animate-pulse" />
         </div>
 
-        <h3 className="text-lg font-black text-accent-red tracking-tight mb-1">
-          {title}
+        <h3 className="text-xl font-black text-accent-red tracking-wide mb-1">
+          🔔 {title}!
         </h3>
         
         <div className="text-base font-extrabold text-text-primary mb-4">
@@ -54,7 +68,7 @@ const FinishedModal = ({ queue, onClose }) => {
         <div className="bg-bg-primary/90 border border-border-subtle rounded-xl p-4 text-left text-xs space-y-2 mb-4 font-mono">
           <div className="flex justify-between items-center text-text-secondary">
             <span className="text-text-tertiary">Username Roblox:</span>
-            <span className="font-bold text-text-primary">{customerName}</span>
+            <span className="font-bold text-text-primary text-sm">{customerName}</span>
           </div>
 
           {current.tiktokName && (
@@ -66,7 +80,7 @@ const FinishedModal = ({ queue, onClose }) => {
 
           <div className="flex justify-between items-center text-text-secondary">
             <span className="text-text-tertiary">Layanan / Slot:</span>
-            <span className="font-bold text-accent-purple-light">{current.service}</span>
+            <span className="font-bold text-accent-purple-light">{current.service} (Slot {current.slot || '-'})</span>
           </div>
 
           <div className="flex justify-between items-center text-text-secondary">
@@ -81,17 +95,17 @@ const FinishedModal = ({ queue, onClose }) => {
         </div>
 
         {queue.length > 1 && (
-          <div className="text-xs text-text-tertiary mb-4">
-            🔔 {queue.length - 1} customer lain menunggu notifikasi selesai.
+          <div className="text-xs text-accent-yellow mb-3 font-semibold">
+            🔔 {queue.length - 1} customer lain menunggu notifikasi alarm selesai.
           </div>
         )}
 
         <button 
-          onClick={onClose}
-          className="w-full py-3 rounded-xl text-xs font-extrabold text-white bg-accent-purple hover:bg-accent-purple-light active:scale-95 transition-all shadow-lg shadow-accent-purple/20 flex items-center justify-center gap-1.5"
+          onClick={handleClose}
+          className="w-full py-3.5 rounded-xl text-sm font-black text-white bg-accent-red hover:bg-accent-red/90 active:scale-95 transition-all shadow-lg shadow-accent-red/30 flex items-center justify-center gap-2 cursor-pointer"
         >
-          <Check size={16} />
-          <span>TUTUP NOTIFIKASI</span>
+          <Check size={18} />
+          <span>✓ TUTUP ALARM</span>
         </button>
       </div>
     </div>

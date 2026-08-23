@@ -36,7 +36,7 @@ export const JokiProvider = ({ children }) => {
   // Workspaces list
   const [workspaces, setWorkspaces] = useState(DEFAULT_WORKSPACES);
 
-  // Super Admin Check: madlighifari29@gmail.com (Akun Utama Anda)
+  // Super Admin Check: madlighifari29@gmail.com
   const userEmail = (currentUser?.email || '').toLowerCase();
   const isSuperAdmin = isAdmin && (
     userEmail.includes('madli') || 
@@ -67,15 +67,63 @@ export const JokiProvider = ({ children }) => {
   });
   
   const [searchQuery, setSearchQuery] = useState("");
-  const [filter, setFilter] = useState("ALL");
+  const [filter, setFilter] = useState("ALL"); // ALL, RUNNING, PAUSED
   const [toasts, setToasts] = useState([]);
+
+  // Date Filter for Omset & History: 'ALL' | 'TODAY' | 'YESTERDAY' | 'WEEK' | 'MONTH' | 'CUSTOM'
+  const [dateFilter, setDateFilter] = useState("ALL");
+  const [customStartDate, setCustomStartDate] = useState("");
+  const [customEndDate, setCustomEndDate] = useState("");
+
+  // Helper to check if a timestamp matches the active date filter
+  const isWithinDateFilter = (timestamp) => {
+    if (!timestamp) return false;
+    if (dateFilter === 'ALL') return true;
+
+    const recordDate = new Date(timestamp);
+    const now = new Date();
+
+    // Helper: start and end of a date
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    const endOfToday = startOfToday + 86400000 - 1;
+
+    if (dateFilter === 'TODAY') {
+      return timestamp >= startOfToday && timestamp <= endOfToday;
+    }
+
+    if (dateFilter === 'YESTERDAY') {
+      const startOfYesterday = startOfToday - 86400000;
+      const endOfYesterday = startOfToday - 1;
+      return timestamp >= startOfYesterday && timestamp <= endOfYesterday;
+    }
+
+    if (dateFilter === 'WEEK') {
+      const startOf7DaysAgo = startOfToday - (6 * 86400000);
+      return timestamp >= startOf7DaysAgo && timestamp <= endOfToday;
+    }
+
+    if (dateFilter === 'MONTH') {
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+      const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999).getTime();
+      return timestamp >= startOfMonth && timestamp <= endOfMonth;
+    }
+
+    if (dateFilter === 'CUSTOM') {
+      if (!customStartDate && !customEndDate) return true;
+      const start = customStartDate ? new Date(customStartDate + "T00:00:00").getTime() : 0;
+      const end = customEndDate ? new Date(customEndDate + "T23:59:59").getTime() : Infinity;
+      return timestamp >= start && timestamp <= end;
+    }
+
+    return true;
+  };
 
   // Auto-switch / create workspace based on logged in user's email
   useEffect(() => {
     if (currentUser?.email) {
       const email = currentUser.email.toLowerCase();
       
-      // 1. If Super Admin (madlighifari29@gmail.com or madli* / mygameon) -> lock to mygameon
+      // 1. If Super Admin -> lock to mygameon
       if (email.includes('madli') || email.includes('mygameon')) {
         changeWorkspace('mygameon');
         return;
@@ -88,18 +136,17 @@ export const JokiProvider = ({ children }) => {
         return;
       }
 
-      // 3. For any other friend/admin email (e.g. kadal@gmail.com, budi@gmail.com)
+      // 3. For any other friend/admin email
       const slug = email.split('@')[0].replace(/[^a-z0-9]/gi, '').toLowerCase();
       const rawName = email.split('@')[0];
       const displayName = rawName.charAt(0).toUpperCase() + rawName.slice(1) + ' Gaming Live';
 
-      // Create workspace dynamically in Firestore if not exists
       createWorkspaceIfNotExists(slug, displayName, email);
       changeWorkspace(slug);
     }
   }, [currentUser, workspaces]);
 
-  // Sync with URL param if changed externally (e.g. user clicks channel link or selector)
+  // Sync with URL param if changed externally
   useEffect(() => {
     if (channelParam && channelParam !== activeWorkspaceId) {
       setActiveWorkspaceIdState(channelParam);
@@ -171,7 +218,7 @@ export const JokiProvider = ({ children }) => {
     addToast(!streamerMode ? "Streamer mode aktif (Omset & data sensitif disensor)" : "Streamer mode dinonaktifkan", "info");
   };
 
-  // Helper to suggest the smallest available numeric slot for Basic
+  // Helper to suggest smallest free slot
   const suggestSlot = () => {
     const usedSlots = new Set();
     customers.forEach((c) => {
@@ -190,7 +237,7 @@ export const JokiProvider = ({ children }) => {
     return n;
   };
 
-  // Start billing directly from queue
+  // Start billing from queue
   const startBillingFromQueue = async (queueItem, selectedSlot) => {
     const now = Date.now();
     const duration = Number(queueItem.duration || 1);
@@ -265,6 +312,13 @@ export const JokiProvider = ({ children }) => {
     setSearchQuery,
     filter,
     setFilter,
+    dateFilter,
+    setDateFilter,
+    customStartDate,
+    setCustomStartDate,
+    customEndDate,
+    setCustomEndDate,
+    isWithinDateFilter,
     toasts,
     addToast,
     removeToast,

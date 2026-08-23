@@ -15,6 +15,7 @@ import FinishedModal from '../components/modals/FinishedModal';
 import ConfirmModal from '../components/modals/ConfirmModal';
 import JokiLoginModal from '../components/modals/JokiLoginModal';
 import ManageAdminsModal from '../components/modals/ManageAdminsModal';
+import JokiSettingsModal from '../components/modals/JokiSettingsModal';
 import Toast from '../components/ui/Toast';
 
 const JokiDashboard = () => {
@@ -37,6 +38,7 @@ const JokiDashboard = () => {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [isManageAdminsOpen, setIsManageAdminsOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [extendCustomer, setExtendCustomer] = useState(null);
   const [startQueueItem, setStartQueueItem] = useState(null);
   const [finishedQueue, setFinishedQueue] = useState([]);
@@ -331,9 +333,9 @@ const JokiDashboard = () => {
         onOpenAddModal={() => setIsAddModalOpen(true)}
         onOpenLoginModal={() => setIsLoginModalOpen(true)}
         onOpenManageAdminsModal={() => setIsManageAdminsOpen(true)}
+        onOpenSettingsModal={() => setIsSettingsOpen(true)}
         onRequestPauseAll={handleRequestPauseAll}
         onRequestResumeAll={handleRequestResumeAll}
-        onRequestClearTransactions={handleRequestClearTransactions}
       />
 
       {/* Stream Status Banners */}
@@ -351,7 +353,6 @@ const JokiDashboard = () => {
           <ActiveTable
             onOpenExtendModal={setExtendCustomer}
             onRequestStopCustomer={handleRequestStopCustomer}
-            onRequestDeleteCustomer={handleRequestDeleteCustomer}
             onRequestClearActiveBillings={handleRequestClearActiveBillings}
           />
           <HistoryTable />
@@ -389,6 +390,11 @@ const JokiDashboard = () => {
       <ManageAdminsModal
         isOpen={isManageAdminsOpen}
         onClose={() => setIsManageAdminsOpen(false)}
+      />
+
+      <JokiSettingsModal
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
       />
 
       <ConfirmModal

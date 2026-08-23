@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useJoki } from '../../contexts/JokiContext';
-import { Play, Pause, Plus, Square, Trash2, Clock } from 'lucide-react';
+import { Play, Pause, Plus, Square, Clock } from 'lucide-react';
 
 const formatTime = (seconds) => {
   seconds = Math.max(0, Math.floor(seconds));
@@ -45,7 +45,6 @@ const getCleanSlot = (customer) => {
 const ActiveTable = ({ 
   onOpenExtendModal, 
   onRequestStopCustomer, 
-  onRequestDeleteCustomer,
   onRequestClearActiveBillings
 }) => {
   const { 
@@ -54,7 +53,6 @@ const ActiveTable = ({
     searchQuery, 
     filter, 
     isAdmin,
-    streamerMode,
     addToast 
   } = useJoki();
   
@@ -129,17 +127,18 @@ const ActiveTable = ({
           <table className="w-full border-collapse text-left min-w-[950px]">
             <thead>
               <tr className="bg-bg-primary/90 border-b border-border-default text-text-tertiary text-[11px] font-extrabold uppercase tracking-wider">
-                <th className="py-3 px-3.5 text-center w-10">No</th>
-                <th className="py-3 px-3.5 text-center">Slot</th>
+                <th className="py-3 px-3 text-center w-10">No</th>
                 <th className="py-3 px-3.5">Username Roblox</th>
                 <th className="py-3 px-3.5">Akun TikTok</th>
-                <th className="py-3 px-3.5 text-center">Layanan</th>
-                <th className="py-3 px-3.5 text-center">Durasi</th>
-                <th className="py-3 px-3.5 text-center">Mulai</th>
+                {/* Layanan & Slot BERSEBELAHAN */}
+                <th className="py-3 px-3 text-center">Layanan</th>
+                <th className="py-3 px-3 text-center">Slot</th>
+                <th className="py-3 px-3 text-center">Durasi</th>
+                <th className="py-3 px-3 text-center">Mulai</th>
                 <th className="py-3 px-3.5 text-center">Sisa Waktu</th>
-                <th className="py-3 px-3.5 text-center">Jam Beres</th>
-                <th className="py-3 px-3.5 text-center">Status</th>
-                {isAdmin && <th className="py-3 px-3.5 text-center w-40">Aksi</th>}
+                <th className="py-3 px-3 text-center">Jam Beres</th>
+                <th className="py-3 px-3 text-center">Status</th>
+                {isAdmin && <th className="py-3 px-3 text-center w-36">Aksi</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-border-subtle text-xs font-medium">
@@ -148,7 +147,7 @@ const ActiveTable = ({
                   <td colSpan={isAdmin ? 11 : 10} className="py-12 text-center text-text-dim">
                     <div className="flex flex-col items-center gap-2">
                       <Clock size={26} className="text-text-ghost" />
-                      <span>Belum ada billing aktif. Pilih orang dari panel Antrian di kanan atau klik Tambah Billing.</span>
+                      <span>Belum ada billing aktif. Pilih orang dari panel Antrian di kanan atau klik Tambah Joki.</span>
                     </div>
                   </td>
                 </tr>
@@ -166,19 +165,8 @@ const ActiveTable = ({
                       className="hover:bg-white/[0.02] transition-colors"
                     >
                       {/* No */}
-                      <td className="py-3 px-3.5 text-center text-text-faint font-mono">
+                      <td className="py-3 px-3 text-center text-text-faint font-mono">
                         {index + 1}
-                      </td>
-
-                      {/* Slot Badge */}
-                      <td className="py-3 px-3.5 text-center">
-                        <span className={`inline-flex items-center justify-center min-w-[32px] px-2 py-0.5 rounded-lg text-xs font-extrabold font-mono tracking-tight ${
-                          isVIP
-                            ? 'bg-accent-yellow/15 text-accent-yellow border border-accent-yellow/35'
-                            : 'bg-accent-cyan/15 text-accent-cyan border border-accent-cyan/35'
-                        }`}>
-                          {cleanSlot === 'VIP' ? '👑 VIP' : `SLOT ${cleanSlot}`}
-                        </span>
                       </td>
 
                       {/* Roblox Username */}
@@ -199,8 +187,8 @@ const ActiveTable = ({
                         )}
                       </td>
 
-                      {/* Service (Strictly Basic or VIP) */}
-                      <td className="py-3 px-3.5 text-center">
+                      {/* Layanan */}
+                      <td className="py-3 px-3 text-center">
                         <span className={`inline-block px-2.5 py-0.5 rounded-full text-[10.5px] font-extrabold uppercase tracking-wide ${
                           isVIP 
                             ? 'text-accent-yellow bg-accent-yellow/15 border border-accent-yellow/30' 
@@ -210,13 +198,24 @@ const ActiveTable = ({
                         </span>
                       </td>
 
+                      {/* Slot (Bersebelahan dengan Layanan) */}
+                      <td className="py-3 px-3 text-center">
+                        <span className={`inline-flex items-center justify-center min-w-[32px] px-2 py-0.5 rounded-lg text-xs font-extrabold font-mono tracking-tight ${
+                          isVIP
+                            ? 'bg-accent-yellow/15 text-accent-yellow border border-accent-yellow/35'
+                            : 'bg-accent-cyan/15 text-accent-cyan border border-accent-cyan/35'
+                        }`}>
+                          {cleanSlot === 'VIP' ? '👑 VIP' : `SLOT ${cleanSlot}`}
+                        </span>
+                      </td>
+
                       {/* Duration */}
-                      <td className="py-3 px-3.5 text-center text-text-secondary font-mono">
+                      <td className="py-3 px-3 text-center text-text-secondary font-mono">
                         {formatDuration(customer.duration)}
                       </td>
 
                       {/* Start Time */}
-                      <td className="py-3 px-3.5 text-center text-text-tertiary font-mono">
+                      <td className="py-3 px-3 text-center text-text-tertiary font-mono">
                         {formatClock(customer.startTime)}
                       </td>
 
@@ -233,13 +232,13 @@ const ActiveTable = ({
                         </span>
                       </td>
 
-                      {/* Estimated Finish Time (Adjusted during resume) */}
-                      <td className="py-3 px-3.5 text-center font-mono font-bold text-text-primary">
+                      {/* Estimated Finish Time */}
+                      <td className="py-3 px-3 text-center font-mono font-bold text-text-primary">
                         {formatClock(getEndTime(customer))}
                       </td>
 
                       {/* Status Badge */}
-                      <td className="py-3 px-3.5 text-center">
+                      <td className="py-3 px-3 text-center">
                         <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase ${
                           customer.paused 
                             ? 'bg-accent-orange/15 text-accent-orange border border-accent-orange/30' 
@@ -250,17 +249,17 @@ const ActiveTable = ({
                         </span>
                       </td>
 
-                      {/* Admin Actions */}
+                      {/* Admin Actions (Tanpa Tombol Trash) */}
                       {isAdmin && (
-                        <td className="py-3 px-3.5 text-center">
-                          <div className="flex items-center justify-center gap-1">
+                        <td className="py-3 px-3 text-center">
+                          <div className="flex items-center justify-center gap-1.5">
                             {customer.paused ? (
                               <button
                                 onClick={() => handleResume(customer)}
-                                title="Resume billing (Waktu selesai disesuaikan maju)"
+                                title="Resume billing"
                                 className="p-1.5 rounded-lg bg-accent-green/15 text-accent-green hover:bg-accent-green/25 border border-accent-green/30 transition-all cursor-pointer"
                               >
-                                <Play size={12} />
+                                <Play size={13} />
                               </button>
                             ) : (
                               <button
@@ -268,7 +267,7 @@ const ActiveTable = ({
                                 title="Pause billing"
                                 className="p-1.5 rounded-lg bg-accent-orange/15 text-accent-orange hover:bg-accent-orange/25 border border-accent-orange/30 transition-all cursor-pointer"
                               >
-                                <Pause size={12} />
+                                <Pause size={13} />
                               </button>
                             )}
 
@@ -277,7 +276,7 @@ const ActiveTable = ({
                               title="Tambah waktu"
                               className="p-1.5 rounded-lg bg-accent-purple/15 text-accent-purple-light hover:bg-accent-purple/25 border border-accent-purple/30 transition-all cursor-pointer"
                             >
-                              <Plus size={12} />
+                              <Plus size={13} />
                             </button>
 
                             <button
@@ -285,15 +284,7 @@ const ActiveTable = ({
                               title="Hentikan billing"
                               className="p-1.5 rounded-lg bg-accent-red/15 text-accent-red hover:bg-accent-red/25 border border-accent-red/30 transition-all cursor-pointer"
                             >
-                              <Square size={12} />
-                            </button>
-
-                            <button
-                              onClick={() => onRequestDeleteCustomer(customer)}
-                              title="Hapus data"
-                              className="p-1.5 rounded-lg text-text-dim hover:text-accent-red hover:bg-accent-red/10 transition-all cursor-pointer"
-                            >
-                              <Trash2 size={12} />
+                              <Square size={13} />
                             </button>
                           </div>
                         </td>
@@ -307,13 +298,13 @@ const ActiveTable = ({
         </div>
       </div>
 
-      {/* Admin Action: Clear Active Billings Only */}
-      {isAdmin && !streamerMode && filteredCustomers.length > 0 && (
+      {/* Admin Action: Kosongkan Billing Aktif (TETAP MUNCUL WALAUPUN STREAMER MODE ON) */}
+      {isAdmin && filteredCustomers.length > 0 && (
         <div className="flex justify-end">
           <button
             type="button"
             onClick={onRequestClearActiveBillings}
-            className="text-xs font-bold text-accent-red/80 hover:text-accent-red hover:bg-accent-red/10 py-1.5 px-3 rounded-xl border border-transparent hover:border-accent-red/25 transition-all flex items-center gap-1.5 cursor-pointer"
+            className="text-xs font-bold text-accent-red/90 hover:text-accent-red hover:bg-accent-red/10 py-1.5 px-3 rounded-xl border border-border-subtle hover:border-accent-red/30 transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
           >
             <span>🧹 Kosongkan Semua Billing Aktif</span>
           </button>

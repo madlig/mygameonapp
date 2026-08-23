@@ -1,5 +1,6 @@
 // Impor modul-modul yang diperlukan
 const { onDocumentCreated, onDocumentUpdated, onDocumentDeleted } = require("firebase-functions/v2/firestore");
+const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { defineString } = require("firebase-functions/params");
 const logger = require("firebase-functions/logger");
 const admin = require("firebase-admin");
@@ -8,7 +9,9 @@ const admin = require("firebase-admin");
 const { algoliasearch } = require("algoliasearch");
 
 // Inisialisasi Firebase Admin SDK
-admin.initializeApp();
+if (!admin.apps.length) {
+  admin.initializeApp();
+}
 
 // Definisikan parameter lingkungan
 const ALGOLIA_APP_ID = defineString("ALGOLIA_APP_ID");
@@ -29,7 +32,6 @@ exports.onGameCreated = onDocumentCreated("games/{gameId}", async (event) => {
   const newGameData = snapshot.data();
   const gameId = event.params.gameId;
 
-  // FIX: Inisialisasi client di dalam fungsi, gunakan API v5 (tanpa initIndex)
   const algoliaClient = algoliasearch(
     ALGOLIA_APP_ID.value(),
     ALGOLIA_API_KEY.value()
@@ -40,7 +42,6 @@ exports.onGameCreated = onDocumentCreated("games/{gameId}", async (event) => {
   const record = { objectID: gameId, ...newGameData };
 
   try {
-    // FIX: saveObjects (v5) menggantikan index.saveObject (v4)
     await algoliaClient.saveObjects({
       indexName: ALGOLIA_INDEX_NAME.value(),
       objects: [record],
@@ -75,7 +76,6 @@ exports.onGameUpdated = onDocumentUpdated("games/{gameId}", async (event) => {
   const record = { objectID: gameId, ...updatedGameData };
 
   try {
-    // FIX: saveObjects (v5) menggantikan index.saveObject (v4)
     await algoliaClient.saveObjects({
       indexName: ALGOLIA_INDEX_NAME.value(),
       objects: [record],
@@ -101,7 +101,6 @@ exports.onGameDeleted = onDocumentDeleted("games/{gameId}", async (event) => {
   logger.info("Menghapus indeks game dari Algolia:", gameId);
 
   try {
-    // FIX: deleteObject (v5) menggunakan objek {indexName, objectID}
     await algoliaClient.deleteObject({
       indexName: ALGOLIA_INDEX_NAME.value(),
       objectID: gameId,
@@ -109,5 +108,127 @@ exports.onGameDeleted = onDocumentDeleted("games/{gameId}", async (event) => {
     logger.info("Sukses menghapus indeks:", gameId);
   } catch (error) {
     logger.error("Error saat menghapus indeks dari Algolia:", error);
+  }
+});
+
+// ========================================================
+// JOKI MULTI-TENANT: SUPER ADMIN FUNCTIONS
+// ========================================================
+
+/**
+ * CLOUD FUNCTION #4: createJokiAdminUser
+ * Super Admin creates a new admin user + assigns role + provisions workspace
+ */
+exports.createJokiAdminUser = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Harus login sebagai Super Admin.");
+  }
+
+  const callerEmail = (request.auth.token.email || "").toLowerCase();
+  const isSuperAdmin = callerEmail.includes("mygameon") || request.auth.token.role === "admin" || request.auth.token.admin === true;
+  
+  if (!isSuperAdmin) {
+    throw new HttpsError("permission-denied", "Hanya Super Admin yang berhak mendaftarkan akun admin baru.");
+  }
+
+  const { email, password, name, slug } = request.data || {};
+  if (!email || !password || !name || !slug) {
+    throw new HttpsError("invalid-argument", "Email, password, nama kanal, dan slug URL wajib diisi.");
+  }
+
+  try {
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanSlug = slug.trim().toLowerCase().replace(/[^a-z0-9_-]/g, "");
+    const cleanName = name.trim();
+
+    // 1. Create or fetch User in Firebase Authentication
+    let userRecord;
+    try {
+      userRecord = await admin.auth().getUserByEmail(cleanEmail);
+      if (password) {
+        await admin.auth().updateUser(userRecord.uid, { password: password.trim() });
+      }
+    } catch (err) {
+      userRecord = await admin.auth().createUser({
+        email: cleanEmail,
+        password: password.trim(),
+        displayName: cleanName,
+      });
+    }
+
+    // 2. Set Admin Custom Claims
+    await admin.auth().setCustomUserClaims(userRecord.uid, {
+      admin: true,
+      role: "admin",
+    });
+
+    // 3. Create or update Workspace Document in Firestore
+    await admin.firestore().doc(`joki_workspaces/${cleanSlug}`).set({
+      id: cleanSlug,
+      name: cleanName,
+      slug: cleanSlug,
+      ownerEmail: cleanEmail,
+      ownerUid: userRecord.uid,
+      createdAt: Date.now(),
+    }, { merge: true });
+
+    // 4. Initialize global settings for workspace
+    await admin.firestore().doc(`joki_workspaces/${cleanSlug}/settings/global`).set({
+      globalPaused: false,
+      globalPauseStarted: null,
+      updatedAt: Date.now(),
+    }, { merge: true });
+
+    return {
+      success: true,
+      uid: userRecord.uid,
+      email: cleanEmail,
+      slug: cleanSlug,
+      name: cleanName,
+    };
+  } catch (error) {
+    logger.error("Error creating joki admin:", error);
+    throw new HttpsError("internal", error.message || "Gagal membuat akun admin joki.");
+  }
+});
+
+/**
+ * CLOUD FUNCTION #5: deleteJokiAdminUser
+ * Super Admin deletes a workspace and revokes user access
+ */
+exports.deleteJokiAdminUser = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Harus login sebagai Super Admin.");
+  }
+
+  const callerEmail = (request.auth.token.email || "").toLowerCase();
+  const isSuperAdmin = callerEmail.includes("mygameon") || request.auth.token.role === "admin" || request.auth.token.admin === true;
+  
+  if (!isSuperAdmin) {
+    throw new HttpsError("permission-denied", "Hanya Super Admin yang berhak menghapus akun admin.");
+  }
+
+  const { slug, uid } = request.data || {};
+  if (!slug || slug === "mygameon") {
+    throw new HttpsError("invalid-argument", "Kanal utama tidak dapat dihapus.");
+  }
+
+  try {
+    // Delete workspace document
+    await admin.firestore().doc(`joki_workspaces/${slug}`).delete();
+
+    // If UID is provided and not primary admin, delete user from Auth
+    if (uid) {
+      try {
+        await admin.auth().deleteUser(uid);
+      } catch (e) {
+        logger.warn("User already removed or not found:", uid);
+      }
+    }
+
+    return { success: true, slug };
+  } catch (error) {
+    logger.error("Error deleting joki admin:", error);
+    throw new HttpsError("internal", error.message || "Gagal menghapus admin joki.");
   }
 });

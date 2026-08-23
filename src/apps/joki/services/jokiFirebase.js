@@ -1,4 +1,4 @@
-import { collection, doc, setDoc, updateDoc, deleteDoc, onSnapshot, query, orderBy } from "firebase/firestore";
+import { collection, doc, setDoc, updateDoc, deleteDoc, onSnapshot, query, orderBy, getDoc } from "firebase/firestore";
 import { db } from "../../../config/firebaseConfig";
 
 export const DEFAULT_WORKSPACE_ID = "mygameon";
@@ -12,6 +12,32 @@ export const subscribeJokiWorkspaces = (callback) => {
   }, (error) => {
     console.error("Error subscribing to joki workspaces:", error);
   });
+};
+
+// ── Create Workspace if Not Exists ──
+export const createWorkspaceIfNotExists = async (workspaceId, name, ownerEmail) => {
+  try {
+    const docRef = doc(db, "joki_workspaces", workspaceId);
+    const docSnap = await getDoc(docRef);
+    if (!docSnap.exists()) {
+      await setDoc(docRef, {
+        id: workspaceId,
+        name: name,
+        slug: workspaceId,
+        ownerEmail: ownerEmail || '',
+        createdAt: Date.now()
+      });
+
+      // Initialize default settings doc
+      await setDoc(doc(db, "joki_workspaces", workspaceId, "settings", "global"), {
+        globalPaused: false,
+        globalPauseStarted: null,
+        updatedAt: Date.now()
+      });
+    }
+  } catch (err) {
+    console.error(`Error creating workspace ${workspaceId}:`, err);
+  }
 };
 
 // ── Customers Subscription per Workspace ──

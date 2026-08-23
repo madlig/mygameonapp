@@ -6,6 +6,7 @@ import {
   subscribeJokiCustomers, 
   subscribeJokiQueue,
   subscribeJokiSettings, 
+  createWorkspaceIfNotExists,
   addJokiCustomer as fbAddCustomer, 
   updateJokiCustomer as fbUpdateCustomer, 
   deleteJokiCustomer as fbDeleteCustomer,
@@ -35,11 +36,19 @@ export const JokiProvider = ({ children }) => {
   // Workspaces list
   const [workspaces, setWorkspaces] = useState(DEFAULT_WORKSPACES);
 
+  // Super Admin Check (MyGameON Main Account)
+  const userEmail = (currentUser?.email || '').toLowerCase();
+  const isSuperAdmin = isAdmin && (
+    userEmail.includes('mygameon') || 
+    userEmail === 'admin@mygameon.store' ||
+    userEmail.includes('madli')
+  );
+
   // Determine initial workspace from URL param or default
   const channelParam = searchParams.get('c') || searchParams.get('channel') || searchParams.get('streamer');
   
   const [activeWorkspaceId, setActiveWorkspaceIdState] = useState(() => {
-    if (channelParam && (channelParam === 'kadal' || channelParam === 'mygameon')) {
+    if (channelParam) {
       return channelParam;
     }
     return DEFAULT_WORKSPACE_ID;
@@ -60,19 +69,36 @@ export const JokiProvider = ({ children }) => {
   const [filter, setFilter] = useState("ALL");
   const [toasts, setToasts] = useState([]);
 
-  // Auto-switch workspace if admin logs in with matching email
+  // Auto-switch / create workspace based on logged in user's email
   useEffect(() => {
     if (currentUser?.email) {
       const email = currentUser.email.toLowerCase();
-      if (email.includes('kadal')) {
-        changeWorkspace('kadal');
-      } else if (email.includes('mygameon') || email.includes('admin')) {
-        changeWorkspace('mygameon');
+      
+      // 1. Check if email matches ownerEmail of an existing workspace in workspaces
+      const matched = workspaces.find(w => w.ownerEmail && w.ownerEmail.toLowerCase() === email);
+      if (matched) {
+        changeWorkspace(matched.id);
+        return;
       }
-    }
-  }, [currentUser]);
 
-  // Sync with URL param if changed externally
+      // 2. Check if email is main admin
+      if (email.includes('mygameon') || email === 'admin@mygameon.store') {
+        changeWorkspace('mygameon');
+        return;
+      }
+
+      // 3. For any other friend/admin email (e.g. kadal@gmail.com, budi@gmail.com)
+      const slug = email.split('@')[0].replace(/[^a-z0-9]/gi, '').toLowerCase();
+      const rawName = email.split('@')[0];
+      const displayName = rawName.charAt(0).toUpperCase() + rawName.slice(1) + ' Gaming Live';
+
+      // Create workspace dynamically in Firestore if not exists
+      createWorkspaceIfNotExists(slug, displayName, email);
+      changeWorkspace(slug);
+    }
+  }, [currentUser, workspaces]);
+
+  // Sync with URL param if changed externally (e.g. user clicks channel link or selector)
   useEffect(() => {
     if (channelParam && channelParam !== activeWorkspaceId) {
       setActiveWorkspaceIdState(channelParam);
@@ -215,11 +241,12 @@ export const JokiProvider = ({ children }) => {
 
   const activeWorkspace = workspaces.find(w => w.id === activeWorkspaceId) || {
     id: activeWorkspaceId,
-    name: activeWorkspaceId === 'kadal' ? 'Kadal Gaming' : 'MyGameON AFK'
+    name: activeWorkspaceId === 'kadal' ? 'Kadal Gaming' : (activeWorkspaceId === 'mygameon' ? 'MyGameON AFK' : `${activeWorkspaceId.toUpperCase()} Live`)
   };
 
   const value = {
     isAdmin,
+    isSuperAdmin,
     currentUser,
     logout,
     workspaces,

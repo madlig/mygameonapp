@@ -14,6 +14,7 @@ import StartBillingModal from '../components/modals/StartBillingModal';
 import FinishedModal from '../components/modals/FinishedModal';
 import ConfirmModal from '../components/modals/ConfirmModal';
 import JokiLoginModal from '../components/modals/JokiLoginModal';
+import ManageAdminsModal from '../components/modals/ManageAdminsModal';
 import Toast from '../components/ui/Toast';
 
 const JokiDashboard = () => {
@@ -28,12 +29,14 @@ const JokiDashboard = () => {
     toasts,
     addToast,
     removeToast,
-    isAdmin
+    isAdmin,
+    isSuperAdmin
   } = useJoki();
 
   // Modals state
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  const [isManageAdminsOpen, setIsManageAdminsOpen] = useState(false);
   const [extendCustomer, setExtendCustomer] = useState(null);
   const [startQueueItem, setStartQueueItem] = useState(null);
   const [finishedQueue, setFinishedQueue] = useState([]);
@@ -322,6 +325,7 @@ const JokiDashboard = () => {
       <JokiHeader
         onOpenAddModal={() => setIsAddModalOpen(true)}
         onOpenLoginModal={() => setIsLoginModalOpen(true)}
+        onOpenManageAdminsModal={() => setIsManageAdminsOpen(true)}
         onRequestPauseAll={handleRequestPauseAll}
         onRequestResumeAll={handleRequestResumeAll}
         onRequestClearTransactions={handleRequestClearTransactions}
@@ -375,6 +379,11 @@ const JokiDashboard = () => {
         isOpen={isLoginModalOpen}
         onClose={() => setIsLoginModalOpen(false)}
         onSuccess={() => addToast('Berhasil login sebagai Admin!', 'success')}
+      />
+
+      <ManageAdminsModal
+        isOpen={isManageAdminsOpen}
+        onClose={() => setIsManageAdminsOpen(false)}
       />
 
       <ConfirmModal

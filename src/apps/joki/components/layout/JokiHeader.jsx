@@ -13,18 +13,21 @@ import {
   ShieldCheck,
   Radio,
   Share2,
-  Check
+  Check,
+  Crown
 } from 'lucide-react';
 
 const JokiHeader = ({ 
   onOpenAddModal, 
   onOpenLoginModal,
+  onOpenManageAdminsModal,
   onRequestPauseAll, 
   onRequestResumeAll, 
   onRequestClearTransactions
 }) => {
   const { 
     isAdmin, 
+    isSuperAdmin,
     currentUser,
     logout,
     workspaces,
@@ -87,8 +90,13 @@ const JokiHeader = ({
                 Steal an Egg <span className="text-accent-purple">—</span> Joki Billing
               </h1>
               {isAdmin ? (
-                <span className="inline-flex items-center gap-1 text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-accent-purple/15 text-accent-purple-light border border-accent-purple/30">
-                  <ShieldCheck size={12} /> Admin Mode
+                <span className={`inline-flex items-center gap-1 text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full ${
+                  isSuperAdmin 
+                    ? 'bg-accent-yellow/15 text-accent-yellow border border-accent-yellow/30' 
+                    : 'bg-accent-purple/15 text-accent-purple-light border border-accent-purple/30'
+                }`}>
+                  {isSuperAdmin ? <Crown size={12} /> : <ShieldCheck size={12} />}
+                  {isSuperAdmin ? 'Super Admin' : 'Admin Mode'}
                 </span>
               ) : (
                 <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-accent-green/15 text-accent-green border border-accent-green/30 animate-pulse">
@@ -143,6 +151,17 @@ const JokiHeader = ({
       <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto justify-start lg:justify-end">
         {isAdmin ? (
           <>
+            {/* Super Admin Manage Admins Button */}
+            {isSuperAdmin && (
+              <button
+                onClick={onOpenManageAdminsModal}
+                className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl text-xs font-extrabold text-bg-primary bg-accent-yellow hover:bg-accent-yellow-light active:scale-95 transition-all shadow-lg shadow-accent-yellow/20 cursor-pointer"
+              >
+                <Crown size={14} />
+                <span>Kelola Admin</span>
+              </button>
+            )}
+
             {/* Primary Action */}
             <button
               onClick={onOpenAddModal}
@@ -186,7 +205,7 @@ const JokiHeader = ({
             {!streamerMode && (
               <button
                 onClick={onRequestClearTransactions}
-                title="Hapus seluruh data kanal ini"
+                title="Hapus seluruh data transaksi di kanal ini"
                 className="flex items-center gap-1 px-3 py-2.5 rounded-xl text-xs font-bold text-accent-red hover:bg-accent-red/10 border border-transparent hover:border-accent-red/20 transition-all cursor-pointer"
               >
                 <Trash2 size={14} />

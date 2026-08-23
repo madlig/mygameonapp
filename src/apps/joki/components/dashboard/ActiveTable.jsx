@@ -50,7 +50,6 @@ const ActiveTable = ({
   const { 
     customers, 
     updateJokiCustomer, 
-    searchQuery, 
     filter, 
     isAdmin,
     addToast 
@@ -103,21 +102,9 @@ const ActiveTable = ({
 
   const filteredCustomers = customers.filter(c => {
     if (c.finished) return false;
-    const query = searchQuery.toLowerCase().trim();
-    const cleanService = getCleanService(c.service);
-    const cleanSlot = getCleanSlot(c);
-
-    const matchesSearch = 
-      (c.username && c.username.toLowerCase().includes(query)) ||
-      (c.tiktokName && c.tiktokName.toLowerCase().includes(query)) ||
-      (c.name && c.name.toLowerCase().includes(query)) ||
-      (cleanSlot && cleanSlot.toString().toLowerCase().includes(query)) ||
-      (cleanService && cleanService.toLowerCase().includes(query));
-
-    let matchesFilter = true;
-    if (filter === 'RUNNING') matchesFilter = !c.paused;
-    if (filter === 'PAUSED') matchesFilter = c.paused;
-    return matchesSearch && matchesFilter;
+    if (filter === 'RUNNING') return !c.paused;
+    if (filter === 'PAUSED') return c.paused;
+    return true;
   });
 
   return (
@@ -249,7 +236,7 @@ const ActiveTable = ({
                         </span>
                       </td>
 
-                      {/* Admin Actions (Tanpa Tombol Trash) */}
+                      {/* Admin Actions */}
                       {isAdmin && (
                         <td className="py-3 px-3 text-center">
                           <div className="flex items-center justify-center gap-1.5">

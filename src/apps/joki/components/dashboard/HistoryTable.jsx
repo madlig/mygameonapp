@@ -1,8 +1,18 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useJoki } from '../../contexts/JokiContext';
-import { CheckCircle2, History, Download, Calendar, Filter } from 'lucide-react';
+import { 
+  CheckCircle2, 
+  History, 
+  Download, 
+  Calendar, 
+  Filter, 
+  Search, 
+  X, 
+  RotateCcw, 
+  DollarSign 
+} from 'lucide-react';
 
-// Format date ONLY (Tanpa waktu/jam) sesuai permintaan user
+// Format date ONLY (Tanpa waktu/jam)
 const formatDateOnly = (timestamp) => {
   if (!timestamp) return '--';
   return new Date(timestamp).toLocaleDateString("id-ID", {
@@ -63,12 +73,38 @@ const HistoryTable = () => {
     addToast
   } = useJoki();
 
+  const [historySearch, setHistorySearch] = useState('');
+
   if (!isAdmin || streamerMode) return null;
 
-  // Filter finished transactions by date range
+  // Filter finished transactions by Search Query & Date Filter
   const filteredFinished = customers
-    .filter(c => c.finished && isWithinDateFilter(c.finishedTime || c.createdAt))
+    .filter(c => {
+      if (!c.finished) return false;
+      
+      // Date filter check
+      const dateMatch = isWithinDateFilter(c.finishedTime || c.createdAt);
+      if (!dateMatch) return false;
+
+      // Search query check
+      if (!historySearch.trim()) return true;
+      const q = historySearch.toLowerCase().trim();
+      const cleanService = getCleanService(c.service).toLowerCase();
+      const cleanSlot = getCleanSlot(c).toString().toLowerCase();
+      const username = (c.username || c.name || '').toLowerCase();
+      const tiktok = (c.tiktokName || '').toLowerCase();
+
+      return (
+        username.includes(q) ||
+        tiktok.includes(q) ||
+        cleanService.includes(q) ||
+        cleanSlot.includes(q)
+      );
+    })
     .sort((a, b) => (b.finishedTime || b.createdAt || 0) - (a.finishedTime || a.createdAt || 0));
+
+  // Calculate subtotal for filtered history records
+  const subtotalFiltered = filteredFinished.reduce((sum, c) => sum + Number(c.price || 0), 0);
 
   // CSV Export Function
   const handleExportCSV = () => {
@@ -119,38 +155,53 @@ const HistoryTable = () => {
     addToast('File CSV berhasil didownload!', 'success');
   };
 
+  const handleResetCustomDates = () => {
+    setCustomStartDate('');
+    setCustomEndDate('');
+  };
+
   return (
-    <div className="mt-7">
-      {/* Header & Date Filters Bar */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-3.5">
+    <div className="mt-8">
+      {/* Title & Search Bar */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-3">
         <div className="flex items-center gap-2">
           <div className="w-2 h-4 rounded-full bg-accent-purple" />
           <h3 className="text-sm font-extrabold uppercase tracking-wider text-text-primary m-0 flex items-center gap-1.5">
             <History size={16} className="text-accent-purple" />
-            <span>Riwayat Joki Selesai (Lunas)</span>
+            <span>Riwayat Transaksi Joki Selesai</span>
           </h3>
-          <span className="text-xs font-semibold text-text-faint ml-2">
+          <span className="text-xs font-semibold text-text-faint ml-1">
             ({filteredFinished.length} data)
           </span>
         </div>
 
-        {/* Action: Export CSV Button */}
-        <button
-          onClick={handleExportCSV}
-          title="Download laporan riwayat transaksi ke file CSV/Excel"
-          className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-accent-cyan/15 hover:bg-accent-cyan/25 border border-accent-cyan/30 text-accent-cyan font-bold text-xs transition-all cursor-pointer shadow-sm w-fit"
-        >
-          <Download size={13} />
-          <span>Export CSV</span>
-        </button>
+        {/* Search Input on History Table */}
+        <div className="relative w-full md:w-[280px]">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-faint" />
+          <input
+            type="text"
+            className="w-full bg-bg-surface border border-border-default rounded-xl py-2 pl-9 pr-8 text-xs text-text-primary placeholder:text-text-faint outline-none focus:border-accent-purple/50 transition-colors shadow-sm"
+            placeholder="Cari di riwayat transaksi..."
+            value={historySearch}
+            onChange={(e) => setHistorySearch(e.target.value)}
+          />
+          {historySearch && (
+            <button
+              onClick={() => setHistorySearch('')}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-text-dim hover:text-text-primary p-0.5"
+            >
+              <X size={13} />
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* Date Range Filter Bar */}
-      <div className="bg-bg-surface/80 border border-border-default rounded-xl p-2.5 mb-3 flex flex-wrap items-center justify-between gap-2 text-xs">
+      {/* Date Range Presets Toolbar */}
+      <div className="bg-bg-surface/90 border border-border-default rounded-xl p-3 mb-3 space-y-2.5 shadow-md">
         <div className="flex items-center gap-1.5 flex-wrap">
-          <span className="text-[11px] font-bold text-text-tertiary px-1 flex items-center gap-1">
-            <Filter size={12} className="text-accent-purple" />
-            <span>Filter Tanggal:</span>
+          <span className="text-[11px] font-extrabold text-text-tertiary px-1 flex items-center gap-1">
+            <Filter size={13} className="text-accent-purple" />
+            <span>Filter Periode:</span>
           </span>
           {DATE_PRESETS.map((preset) => {
             const isSelected = dateFilter === preset.id;
@@ -158,10 +209,10 @@ const HistoryTable = () => {
               <button
                 key={preset.id}
                 onClick={() => setDateFilter(preset.id)}
-                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                   isSelected
-                    ? 'bg-accent-purple text-white shadow-sm shadow-accent-purple/20'
-                    : 'text-text-muted hover:text-text-primary hover:bg-white/5'
+                    ? 'bg-accent-purple text-white shadow-md shadow-accent-purple/20 scale-105'
+                    : 'text-text-muted hover:text-text-primary hover:bg-white/5 border border-border-subtle hover:border-border-muted'
                 }`}
               >
                 {preset.label}
@@ -170,23 +221,41 @@ const HistoryTable = () => {
           })}
         </div>
 
-        {/* Custom Date Range Picker */}
+        {/* Polished Custom Date Range Picker (Only appears when Custom is selected) */}
         {dateFilter === 'CUSTOM' && (
-          <div className="flex items-center gap-1.5 bg-bg-primary p-1.5 rounded-lg border border-border-subtle">
-            <Calendar size={12} className="text-accent-cyan" />
-            <input
-              type="date"
-              value={customStartDate}
-              onChange={(e) => setCustomStartDate(e.target.value)}
-              className="bg-bg-surface border border-border-default rounded px-2 py-0.5 text-xs text-text-primary outline-none"
-            />
-            <span className="text-text-dim">s/d</span>
-            <input
-              type="date"
-              value={customEndDate}
-              onChange={(e) => setCustomEndDate(e.target.value)}
-              className="bg-bg-surface border border-border-default rounded px-2 py-0.5 text-xs text-text-primary outline-none"
-            />
+          <div className="p-3 bg-bg-primary/90 rounded-xl border border-border-default flex flex-wrap items-center gap-3 animate-slide-in">
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-bold text-text-tertiary flex items-center gap-1">
+                <Calendar size={12} className="text-accent-cyan" />
+                <span>Dari:</span>
+              </span>
+              <input
+                type="date"
+                value={customStartDate}
+                onChange={(e) => setCustomStartDate(e.target.value)}
+                className="bg-bg-surface border border-border-default rounded-lg px-2.5 py-1.5 text-xs text-text-primary outline-none focus:border-accent-cyan/50 font-mono shadow-inner"
+              />
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-bold text-text-tertiary">Sampai:</span>
+              <input
+                type="date"
+                value={customEndDate}
+                onChange={(e) => setCustomEndDate(e.target.value)}
+                className="bg-bg-surface border border-border-default rounded-lg px-2.5 py-1.5 text-xs text-text-primary outline-none focus:border-accent-cyan/50 font-mono shadow-inner"
+              />
+            </div>
+
+            {(customStartDate || customEndDate) && (
+              <button
+                onClick={handleResetCustomDates}
+                className="flex items-center gap-1 text-[11px] font-bold text-text-dim hover:text-accent-red px-2 py-1 rounded-md hover:bg-accent-red/10 transition-colors ml-auto cursor-pointer"
+              >
+                <RotateCcw size={11} />
+                <span>Reset Tanggal</span>
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -198,7 +267,7 @@ const HistoryTable = () => {
             <thead>
               <tr className="bg-bg-primary/90 border-b border-border-default text-text-tertiary text-[11px] font-extrabold uppercase tracking-wider">
                 <th className="py-3 px-3 text-center w-10">No</th>
-                {/* TANGGAL SELESAI DI PALING KIRI SETELAH NO (HANYA TANGGAL TANPA JAM) */}
+                {/* TANGGAL SELESAI DI PALING KIRI SETELAH NO (HANYA TANGGAL) */}
                 <th className="py-3 px-3.5">Tanggal Selesai</th>
                 <th className="py-3 px-3.5">Username Roblox</th>
                 <th className="py-3 px-3.5">Akun TikTok</th>
@@ -214,7 +283,9 @@ const HistoryTable = () => {
               {filteredFinished.length === 0 ? (
                 <tr>
                   <td colSpan="9" className="py-10 text-center text-text-dim">
-                    Belum ada riwayat joki pada rentang tanggal ini.
+                    {historySearch 
+                      ? `Tidak ditemukan transaksi dengan kata kunci "${historySearch}".`
+                      : 'Belum ada riwayat transaksi pada filter tanggal ini.'}
                   </td>
                 </tr>
               ) : (
@@ -233,7 +304,7 @@ const HistoryTable = () => {
                         {index + 1}
                       </td>
 
-                      {/* Tanggal Selesai (HANYA TANGGAL) */}
+                      {/* Tanggal Selesai (HANYA TANGGAL TANPA WAKTU/JAM) */}
                       <td className="py-3 px-3.5 text-text-secondary font-mono font-bold">
                         {formatDateOnly(customer.finishedTime || customer.createdAt)}
                       </td>
@@ -300,6 +371,27 @@ const HistoryTable = () => {
             </tbody>
           </table>
         </div>
+      </div>
+
+      {/* FOOTER: Subtotal Terfilter & Tombol Export CSV di Bawah Tabel */}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mt-3.5 pt-1">
+        <div className="text-xs text-text-muted flex items-center gap-1.5">
+          <span>Subtotal Riwayat Terfilter:</span>
+          <strong className="text-accent-yellow font-mono text-sm font-black">{formatRupiah(subtotalFiltered)}</strong>
+          <span className="text-text-faint font-mono">({filteredFinished.length} transaksi)</span>
+        </div>
+
+        {/* Export CSV Button (Posisi di Bawah Tabel Riwayat) */}
+        {filteredFinished.length > 0 && (
+          <button
+            onClick={handleExportCSV}
+            title="Download riwayat transaksi terfilter ke format CSV"
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-accent-cyan/15 hover:bg-accent-cyan/25 border border-accent-cyan/35 text-accent-cyan font-extrabold text-xs transition-all active:scale-95 cursor-pointer shadow-md shadow-accent-cyan/10"
+          >
+            <Download size={14} />
+            <span>Export CSV</span>
+          </button>
+        )}
       </div>
     </div>
   );

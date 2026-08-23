@@ -258,6 +258,22 @@ service cloud.firestore {
     }
 
     // ========================================================
+    // JOKI AFK ROBLOX (SUBDOMAIN)
+    // ========================================================
+    // Public can read to view live queue & status countdown
+    // Only admin can create, update, or delete
+
+    match /joki_customers/{customerId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /joki_settings/{settingId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // ========================================================
     // CONFIG (NEW — for future Google login flow)
     // ========================================================
     // Stores admin email whitelist — referenced by auth Cloud Function

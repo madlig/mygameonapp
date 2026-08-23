@@ -13,7 +13,6 @@ import FinishedModal from '../components/modals/FinishedModal';
 import ConfirmModal from '../components/modals/ConfirmModal';
 import JokiLoginModal from '../components/modals/JokiLoginModal';
 import Toast from '../components/ui/Toast';
-import { seedGSheetsData } from '../services/jokiMigration';
 
 const JokiDashboard = () => {
   const { 
@@ -263,29 +262,6 @@ const JokiDashboard = () => {
     });
   };
 
-  // 6. Migration GSheets Data
-  const handleRequestMigration = () => {
-    setConfirmConfig({
-      isOpen: true,
-      title: 'Import Data dari Google Sheets?',
-      message: 'Sistem akan memasukkan 6 data antrean joki yang belum selesai (dengan countdown live) dan 21 data riwayat yang sudah selesai berstatus Lunas ke Firestore.',
-      detail: '• 6 Pesanan Aktif (Ozann11223344, Zzeeaaa80, inception526, renfir50, tom97737, kitiaxi)\n• 21 Riwayat Transaksi Selesai (Semua status Lunas)',
-      confirmText: 'Mulai Migrasi Data',
-      variant: 'info',
-      onConfirm: async () => {
-        closeConfirm();
-        try {
-          addToast('Sedang memproses migrasi data Google Sheets...', 'info');
-          const total = await seedGSheetsData();
-          addToast(`Berhasil mengimpor ${total} data transaksi Google Sheets!`, 'success');
-        } catch (err) {
-          console.error('Migration error:', err);
-          addToast('Gagal memproses migrasi data.', 'error');
-        }
-      }
-    });
-  };
-
   return (
     <JokiLayout>
       {/* Header with Role based actions */}
@@ -295,7 +271,6 @@ const JokiDashboard = () => {
         onRequestPauseAll={handleRequestPauseAll}
         onRequestResumeAll={handleRequestResumeAll}
         onRequestClearTransactions={handleRequestClearTransactions}
-        onRequestMigration={handleRequestMigration}
       />
 
       {/* Stream Status Banners */}

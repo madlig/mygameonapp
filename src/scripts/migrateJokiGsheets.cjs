@@ -1,6 +1,30 @@
-import { addJokiCustomer } from './jokiFirebase';
+/**
+ * Standalone One-time Migration Script:
+ * Seed Google Sheets Joki AFK Roblox data into Firestore.
+ * 
+ * All history data are seeded as Lunas (finished: true, paymentStatus: 'Lunas').
+ * 
+ * Run from project root:
+ *   node src/scripts/migrateJokiGsheets.cjs
+ */
 
-export const INITIAL_ACTIVE_ORDERS = [
+const admin = require('firebase-admin');
+const path = require('path');
+
+// ── Init Firebase Admin ──
+const serviceAccountPath = path.join(__dirname, 'serviceAccountKey.json');
+const serviceAccount = require(serviceAccountPath);
+
+if (!admin.apps.length) {
+  admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount),
+  });
+}
+
+const db = admin.firestore();
+
+// ── 6 Active Orders ──
+const ACTIVE_ORDERS = [
   {
     username: 'Ozann11223344',
     tiktokName: 'my idol plado',
@@ -51,7 +75,8 @@ export const INITIAL_ACTIVE_ORDERS = [
   },
 ];
 
-export const INITIAL_DONE_ORDERS = [
+// ── 21 Completed (DONE) Orders ──
+const DONE_ORDERS = [
   { username: 'Ropzjiee', tiktokName: 'Ropzjiee', service: 'VIP', duration: 3.5, price: 21000 },
   { username: 'sadat', tiktokName: 'sadat', service: 'Basic (AFK)', duration: 0.75, price: 3000 },
   { username: 'zenxy', tiktokName: 'zenxy', service: 'Basic (AFK)', duration: 0.25, price: 1000 },
@@ -75,16 +100,29 @@ export const INITIAL_DONE_ORDERS = [
   { username: 'inception526', tiktokName: 'inception526', service: 'Basic (AFK1)', duration: 1.0, price: 4000 },
 ];
 
-export const seedGSheetsData = async () => {
+async function runMigration() {
+  console.log('🚀 Starting Joki GSheets Migration...\n');
   const now = Date.now();
-  let count = 0;
+  const customersCol = db.collection('joki_customers');
 
-  // 1. Seed Active Orders
-  for (const active of INITIAL_ACTIVE_ORDERS) {
+  // 1. Seed Global Settings
+  const settingsDoc = db.doc('joki_settings/global');
+  await settingsDoc.set({
+    globalPaused: false,
+    globalPauseStarted: null,
+    updatedAt: now,
+  }, { merge: true });
+  console.log('✅ Initialized joki_settings/global');
+
+  // 2. Seed 6 Active Orders
+  console.log('\n📥 Seeding 6 Active Orders:');
+  for (const active of ACTIVE_ORDERS) {
     const durationSeconds = active.remainingMinutes * 60;
-    await addJokiCustomer({
+    const docRef = customersCol.doc();
+    await docRef.set({
       username: active.username,
       tiktokName: active.tiktokName,
+      name: active.username,
       service: active.service,
       duration: active.duration,
       price: active.price,
@@ -99,20 +137,24 @@ export const seedGSheetsData = async () => {
       stopped: false,
       stopTime: null,
       finishedTime: null,
+      createdAt: now,
     });
-    count++;
+    console.log(`  + [ACTIVE] ${active.username} (@${active.tiktokName}) - Sisa ${active.remainingMinutes} mnt`);
   }
 
-  // 2. Seed History (DONE) Orders
-  for (let i = 0; i < INITIAL_DONE_ORDERS.length; i++) {
-    const item = INITIAL_DONE_ORDERS[i];
-    const offsetMs = (INITIAL_DONE_ORDERS.length - i) * 15 * 60 * 1000;
+  // 3. Seed 21 Completed Orders
+  console.log('\n📥 Seeding 21 Completed (History) Orders:');
+  for (let i = 0; i < DONE_ORDERS.length; i++) {
+    const item = DONE_ORDERS[i];
+    const offsetMs = (DONE_ORDERS.length - i) * 15 * 60 * 1000;
     const itemStartTime = now - offsetMs - item.duration * 3600 * 1000;
     const itemFinishedTime = now - offsetMs;
 
-    await addJokiCustomer({
+    const docRef = customersCol.doc();
+    await docRef.set({
       username: item.username,
       tiktokName: item.tiktokName,
+      name: item.username,
       service: item.service,
       duration: item.duration,
       price: item.price,
@@ -127,9 +169,16 @@ export const seedGSheetsData = async () => {
       stopped: false,
       stopTime: null,
       finishedTime: itemFinishedTime,
+      createdAt: itemStartTime,
     });
-    count++;
+    console.log(`  + [DONE] ${item.username} - Rp ${item.price.toLocaleString('id-ID')} (Lunas)`);
   }
 
-  return count;
-};
+  console.log(`\n🎉 Migration finished successfully! Total seeded: ${ACTIVE_ORDERS.length + DONE_ORDERS.length} records.`);
+  process.exit(0);
+}
+
+runMigration().catch((err) => {
+  console.error('❌ Migration failed:', err);
+  process.exit(1);
+});

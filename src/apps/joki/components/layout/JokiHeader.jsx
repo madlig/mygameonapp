@@ -9,7 +9,6 @@ import {
   Trash2, 
   LogIn, 
   LogOut, 
-  Database, 
   Clock, 
   Sparkles,
   ShieldCheck
@@ -20,8 +19,7 @@ const JokiHeader = ({
   onOpenLoginModal,
   onRequestPauseAll, 
   onRequestResumeAll, 
-  onRequestClearTransactions,
-  onRequestMigration
+  onRequestClearTransactions
 }) => {
   const { 
     isAdmin, 
@@ -137,16 +135,6 @@ const JokiHeader = ({
             >
               {streamerMode ? <VideoOff size={14} /> : <Video size={14} />}
               <span>{streamerMode ? 'Streamer ON' : 'Streamer Mode'}</span>
-            </button>
-
-            {/* Seed / Migration Data Button */}
-            <button
-              onClick={onRequestMigration}
-              title="Import data aktif & riwayat dari Google Sheets"
-              className="flex items-center gap-1 px-3 py-2.5 rounded-xl text-xs font-bold text-accent-yellow bg-accent-yellow/10 hover:bg-accent-yellow/20 border border-accent-yellow/20 active:scale-95 transition-all cursor-pointer"
-            >
-              <Database size={14} />
-              <span className="hidden sm:inline">Migrasi GSheets</span>
             </button>
 
             {/* Clear Transactions (Hidden in Streamer Mode) */}

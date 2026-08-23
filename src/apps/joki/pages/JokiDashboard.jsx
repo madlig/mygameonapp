@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useJoki } from '../contexts/JokiContext';
 import JokiLayout from '../components/layout/JokiLayout';
 import JokiHeader from '../components/layout/JokiHeader';
@@ -10,72 +10,53 @@ import HistoryTable from '../components/dashboard/HistoryTable';
 import AddJokiModal from '../components/modals/AddJokiModal';
 import ExtendModal from '../components/modals/ExtendModal';
 import FinishedModal from '../components/modals/FinishedModal';
+import ConfirmModal from '../components/modals/ConfirmModal';
+import JokiLoginModal from '../components/modals/JokiLoginModal';
+import Toast from '../components/ui/Toast';
+import { seedGSheetsData } from '../services/jokiMigration';
 
 const JokiDashboard = () => {
   const { 
     customers, 
     updateJokiCustomer, 
-    globalPaused, 
+    deleteJokiCustomer,
     updateJokiSettings, 
-    deleteJokiCustomer 
+    globalPaused, 
+    toasts,
+    addToast,
+    removeToast,
+    isAdmin
   } = useJoki();
 
+  // Modals state
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [extendCustomer, setExtendCustomer] = useState(null);
   const [finishedQueue, setFinishedQueue] = useState([]);
   const [popupShowing, setPopupShowing] = useState(false);
 
-  useEffect(() => {
-    const timer = setInterval(() => {
-      checkFinished();
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [customers, globalPaused, popupShowing, finishedQueue]);
+  // Confirm Modal state
+  const [confirmConfig, setConfirmConfig] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    detail: null,
+    confirmText: 'Konfirmasi',
+    cancelText: 'Batal',
+    variant: 'danger',
+    onConfirm: () => {},
+  });
 
-  const getRemaining = (customer) => {
-    if (customer.finished) return 0;
-    if (customer.paused) return Math.max(0, customer.remainingAtPause || 0);
-    return Math.max(0, Math.floor((customer.endTime - Date.now()) / 1000));
+  const closeConfirm = () => {
+    setConfirmConfig(prev => ({ ...prev, isOpen: false }));
   };
 
-  const checkFinished = () => {
-    const newlyFinished = [];
-
-    customers.forEach(customer => {
-      if (customer.finished || customer.paused) return;
-
-      const remaining = getRemaining(customer);
-      if (remaining <= 0) {
-        newlyFinished.push(customer);
-      }
-    });
-
-    if (newlyFinished.length > 0) {
-      newlyFinished.forEach(async (customer) => {
-        await updateJokiCustomer(customer.id, {
-          finished: true,
-          stopped: false,
-          finishedTime: Date.now(),
-          paused: false,
-          pauseStarted: null,
-          remainingAtPause: null
-        });
-        
-        setFinishedQueue(prev => [...prev, { ...customer, finishType: "EXPIRED" }]);
-      });
-    }
-
-    if (!popupShowing && finishedQueue.length > 0) {
-      setPopupShowing(true);
-      playNotificationSound();
-    }
-  };
-
+  // Sound Player
   const playNotificationSound = () => {
     try {
-      const AudioContext = window.AudioContext || window.webkitAudioContext;
-      if (!AudioContext) return;
-      const audioContext = new AudioContext();
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtx) return;
+      const audioContext = new AudioCtx();
       const oscillator = audioContext.createOscillator();
       const gain = audioContext.createGain();
       
@@ -91,99 +72,288 @@ const JokiDashboard = () => {
       oscillator.start();
       oscillator.stop(audioContext.currentTime + 0.6);
     } catch (error) {
-      console.log("Audio notification tidak tersedia.");
+      console.log("Audio notification tidak tersedia:", error);
     }
   };
 
-  const handleStopCustomer = async (customer) => {
-    if (!window.confirm(`STOP BILLING?\n\nCustomer: ${customer.name}\n\nBilling akan dihentikan.`)) {
-      return;
-    }
-    
-    await updateJokiCustomer(customer.id, {
-      finished: true,
-      stopped: true,
-      stopTime: Date.now(),
-      finishedTime: Date.now(),
-      paused: false,
-      pauseStarted: null,
-      remainingAtPause: null
-    });
-    
-    setFinishedQueue(prev => [...prev, { ...customer, finishType: "STOPPED" }]);
-    if (!popupShowing) {
+  // Timer: Check for Finished Billing
+  useEffect(() => {
+    const timer = setInterval(() => {
+      const newlyFinished = [];
+
+      customers.forEach(customer => {
+        if (customer.finished || customer.paused) return;
+
+        const remaining = Math.max(0, Math.floor((customer.endTime - Date.now()) / 1000));
+        if (remaining <= 0) {
+          newlyFinished.push(customer);
+        }
+      });
+
+      if (newlyFinished.length > 0) {
+        newlyFinished.forEach(async (customer) => {
+          await updateJokiCustomer(customer.id, {
+            finished: true,
+            stopped: false,
+            finishedTime: Date.now(),
+            paused: false,
+            pauseStarted: null,
+            remainingAtPause: null
+          });
+          
+          setFinishedQueue(prev => [...prev, { ...customer, finishType: "EXPIRED" }]);
+        });
+      }
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [customers]);
+
+  // Process Finished Popups
+  useEffect(() => {
+    if (!popupShowing && finishedQueue.length > 0) {
       setPopupShowing(true);
       playNotificationSound();
     }
-  };
-
-  const handleDeleteCustomer = async (customer) => {
-    if (!window.confirm(`Hapus data ${customer.name}?`)) {
-      return;
-    }
-    await deleteJokiCustomer(customer.id);
-  };
-
-  const handleClearTransactions = async () => {
-    if (customers.length === 0) {
-      alert("Tidak ada transaksi yang bisa dihapus.");
-      return;
-    }
-    
-    if (!window.confirm("⚠️ CLEAR SEMUA TRANSAKSI?\n\nSemua data transaksi akan dihapus dari Firestore.\nTindakan ini TIDAK BISA dibatalkan.")) {
-      return;
-    }
-
-    await updateJokiSettings({ globalPaused: false, globalPauseStarted: null });
-    
-    for (const c of customers) {
-      await deleteJokiCustomer(c.id);
-    }
-    
-    setFinishedQueue([]);
-    setPopupShowing(false);
-    alert("✅ Semua transaksi berhasil dibersihkan.");
-  };
+  }, [finishedQueue, popupShowing]);
 
   const handleCloseFinishedModal = () => {
     setFinishedQueue(prev => prev.slice(1));
     setPopupShowing(false);
   };
 
+  // ── Actions with Custom Confirmation Modals ──
+
+  // 1. Pause All
+  const handleRequestPauseAll = () => {
+    const active = customers.filter(c => !c.finished && !c.paused);
+    if (active.length === 0) {
+      addToast('Tidak ada billing aktif yang sedang berjalan.', 'info');
+      return;
+    }
+
+    setConfirmConfig({
+      isOpen: true,
+      title: 'Jeda Semua Billing (PAUSE ALL)?',
+      message: `Semua ${active.length} customer aktif akan dihentikan sementara. Sisa durasi waktu customer tidak akan berkurang.`,
+      detail: active.map(c => `• ${c.username || c.name} (${c.service})`).join('\n'),
+      confirmText: 'Jeda Semua',
+      variant: 'warning',
+      onConfirm: async () => {
+        closeConfirm();
+        const now = Date.now();
+        await updateJokiSettings({ globalPaused: true, globalPauseStarted: now });
+        
+        for (const customer of active) {
+          const remaining = Math.max(0, Math.floor((customer.endTime - now) / 1000));
+          await updateJokiCustomer(customer.id, {
+            remainingAtPause: remaining,
+            pauseStarted: now,
+            paused: true
+          });
+        }
+        addToast('Semua billing berhasil di-pause!', 'success');
+      }
+    });
+  };
+
+  // 2. Resume All
+  const handleRequestResumeAll = () => {
+    const paused = customers.filter(c => c.paused && !c.finished);
+    if (paused.length === 0) {
+      addToast('Tidak ada billing yang sedang di-pause.', 'info');
+      return;
+    }
+
+    setConfirmConfig({
+      isOpen: true,
+      title: 'Lanjutkan Semua Billing (RESUME ALL)?',
+      message: `${paused.length} customer yang dijeda akan mulai dihitung kembali durasi waktunya.`,
+      detail: paused.map(c => `• ${c.username || c.name} (${c.service})`).join('\n'),
+      confirmText: 'Lanjutkan Semua',
+      variant: 'info',
+      onConfirm: async () => {
+        closeConfirm();
+        const now = Date.now();
+        await updateJokiSettings({ globalPaused: false, globalPauseStarted: null });
+
+        for (const customer of paused) {
+          const pauseDuration = Math.max(0, Math.floor((now - (customer.pauseStarted || now)) / 1000));
+          await updateJokiCustomer(customer.id, {
+            totalPausedSeconds: (customer.totalPausedSeconds || 0) + pauseDuration,
+            endTime: now + ((customer.remainingAtPause || 0) * 1000),
+            paused: false,
+            pauseStarted: null,
+            remainingAtPause: null
+          });
+        }
+        addToast('Semua billing berhasil dilanjutkan!', 'success');
+      }
+    });
+  };
+
+  // 3. Stop Customer
+  const handleRequestStopCustomer = (customer) => {
+    const custName = customer.username || customer.name;
+    setConfirmConfig({
+      isOpen: true,
+      title: `Hentikan Billing ${custName}?`,
+      message: `Billing untuk akun ${custName} (${customer.service}) akan diselesaikan sekarang juga.`,
+      confirmText: 'Hentikan Sekarang',
+      variant: 'danger',
+      onConfirm: async () => {
+        closeConfirm();
+        const now = Date.now();
+        await updateJokiCustomer(customer.id, {
+          finished: true,
+          stopped: true,
+          stopTime: now,
+          finishedTime: now,
+          paused: false,
+          pauseStarted: null,
+          remainingAtPause: null
+        });
+
+        setFinishedQueue(prev => [...prev, { ...customer, finishType: "STOPPED" }]);
+        addToast(`Billing ${custName} dihentikan.`, 'info');
+      }
+    });
+  };
+
+  // 4. Delete Customer
+  const handleRequestDeleteCustomer = (customer) => {
+    const custName = customer.username || customer.name;
+    setConfirmConfig({
+      isOpen: true,
+      title: `Hapus Data ${custName}?`,
+      message: `Data transaksi ini akan dihapus permanen dari sistem database Firestore.`,
+      confirmText: 'Hapus Data',
+      variant: 'danger',
+      onConfirm: async () => {
+        closeConfirm();
+        await deleteJokiCustomer(customer.id);
+        addToast(`Data ${custName} berhasil dihapus.`, 'success');
+      }
+    });
+  };
+
+  // 5. Clear All Transactions
+  const handleRequestClearTransactions = () => {
+    if (customers.length === 0) {
+      addToast('Tidak ada transaksi di database.', 'info');
+      return;
+    }
+
+    setConfirmConfig({
+      isOpen: true,
+      title: 'HAPUS SEMUA DATA TRANSAKSI?',
+      message: `Tindakan ini akan menghapus SELURUH ${customers.length} data joki (baik antrean aktif maupun riwayat selesai) dari database Firestore. Tindakan ini TIDAK BISA dibatalkan.`,
+      confirmText: 'Hapus Seluruh Database',
+      variant: 'danger',
+      onConfirm: async () => {
+        closeConfirm();
+        await updateJokiSettings({ globalPaused: false, globalPauseStarted: null });
+        for (const c of customers) {
+          await deleteJokiCustomer(c.id);
+        }
+        setFinishedQueue([]);
+        setPopupShowing(false);
+        addToast('Seluruh data transaksi berhasil dibersihkan.', 'success');
+      }
+    });
+  };
+
+  // 6. Migration GSheets Data
+  const handleRequestMigration = () => {
+    setConfirmConfig({
+      isOpen: true,
+      title: 'Import Data dari Google Sheets?',
+      message: 'Sistem akan memasukkan 6 data antrean joki yang belum selesai (dengan countdown live) dan 21 data riwayat yang sudah selesai berstatus Lunas ke Firestore.',
+      detail: '• 6 Pesanan Aktif (Ozann11223344, Zzeeaaa80, inception526, renfir50, tom97737, kitiaxi)\n• 21 Riwayat Transaksi Selesai (Semua status Lunas)',
+      confirmText: 'Mulai Migrasi Data',
+      variant: 'info',
+      onConfirm: async () => {
+        closeConfirm();
+        try {
+          addToast('Sedang memproses migrasi data Google Sheets...', 'info');
+          const total = await seedGSheetsData();
+          addToast(`Berhasil mengimpor ${total} data transaksi Google Sheets!`, 'success');
+        } catch (err) {
+          console.error('Migration error:', err);
+          addToast('Gagal memproses migrasi data.', 'error');
+        }
+      }
+    });
+  };
+
   return (
     <JokiLayout>
-      <JokiHeader 
-        onOpenAddModal={() => setIsAddModalOpen(true)} 
-        onClearTransactions={handleClearTransactions}
+      {/* Header with Role based actions */}
+      <JokiHeader
+        onOpenAddModal={() => setIsAddModalOpen(true)}
+        onOpenLoginModal={() => setIsLoginModalOpen(true)}
+        onRequestPauseAll={handleRequestPauseAll}
+        onRequestResumeAll={handleRequestResumeAll}
+        onRequestClearTransactions={handleRequestClearTransactions}
+        onRequestMigration={handleRequestMigration}
       />
+
+      {/* Stream Status Banners */}
       <StreamerBanner />
       <StreamStatus />
+
+      {/* Metric Summary Cards (Admin Only) */}
       <JokiSummary />
-      
+
+      {/* Main Table Section */}
       <JokiToolbar />
-      <ActiveTable 
+      <ActiveTable
         onOpenExtendModal={setExtendCustomer}
-        onStopCustomer={handleStopCustomer}
-        onDeleteCustomer={handleDeleteCustomer}
+        onRequestStopCustomer={handleRequestStopCustomer}
+        onRequestDeleteCustomer={handleRequestDeleteCustomer}
       />
+
+      {/* History Table (Admin Only) */}
       <HistoryTable />
 
-      <AddJokiModal 
-        isOpen={isAddModalOpen} 
-        onClose={() => setIsAddModalOpen(false)} 
+      {/* Modals */}
+      <AddJokiModal
+        isOpen={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
       />
-      
-      <ExtendModal 
-        customer={extendCustomer} 
-        onClose={() => setExtendCustomer(null)} 
+
+      <ExtendModal
+        customer={extendCustomer}
+        onClose={() => setExtendCustomer(null)}
       />
-      
+
+      <JokiLoginModal
+        isOpen={isLoginModalOpen}
+        onClose={() => setIsLoginModalOpen(false)}
+        onSuccess={() => addToast('Berhasil login sebagai Admin!', 'success')}
+      />
+
+      <ConfirmModal
+        isOpen={confirmConfig.isOpen}
+        title={confirmConfig.title}
+        message={confirmConfig.message}
+        detail={confirmConfig.detail}
+        confirmText={confirmConfig.confirmText}
+        cancelText={confirmConfig.cancelText}
+        variant={confirmConfig.variant}
+        onConfirm={confirmConfig.onConfirm}
+        onCancel={closeConfirm}
+      />
+
       {popupShowing && (
-        <FinishedModal 
-          queue={finishedQueue} 
-          onClose={handleCloseFinishedModal} 
+        <FinishedModal
+          queue={finishedQueue}
+          onClose={handleCloseFinishedModal}
         />
       )}
+
+      {/* Custom Toast System */}
+      <Toast toasts={toasts} onDismiss={removeToast} />
     </JokiLayout>
   );
 };

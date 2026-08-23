@@ -15,14 +15,16 @@ const App = () => {
   const hostname = window.location.hostname;
   const isJokiSubdomain = hostname.startsWith('joki.');
 
-  if (isJokiSubdomain) {
-    return <JokiAppRouter />;
-  }
-
   return (
     <AuthProvider>
-      <AppRouter />
-      <FloatingWhatsApp />
+      {isJokiSubdomain ? (
+        <JokiAppRouter />
+      ) : (
+        <>
+          <AppRouter />
+          <FloatingWhatsApp />
+        </>
+      )}
     </AuthProvider>
   );
 };

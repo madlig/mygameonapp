@@ -105,6 +105,20 @@ const NavBar = () => {
         {/* Right buttons */}
         <div className="flex items-center gap-2">
           <a
+            href="https://joki.mygameon.store"
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={() => trackCustomEvent('JokiRobloxClick')}
+            className="hidden sm:inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10.5px] font-bold no-underline transition-opacity hover:opacity-75"
+            style={{
+              background: 'rgba(139,92,246,0.12)',
+              border: '1px solid rgba(139,92,246,0.3)',
+              color: '#A78BFA',
+            }}
+          >
+            🎮 Joki Roblox
+          </a>
+          <a
             href="https://portfolio.mygameon.store"
             target="_blank"
             rel="noopener noreferrer"

@@ -1,10 +1,17 @@
 import React from 'react';
 import { useJoki } from '../../contexts/JokiContext';
+import { CheckCircle2, History } from 'lucide-react';
 
 const formatDateTime = (timestamp) => {
+  if (!timestamp) return '--';
   return new Date(timestamp).toLocaleString("id-ID", {
-    day: "2-digit", month: "2-digit", year: "numeric",
-    hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false
+    day: "2-digit", 
+    month: "2-digit", 
+    year: "numeric",
+    hour: "2-digit", 
+    minute: "2-digit", 
+    second: "2-digit", 
+    hour12: false
   });
 };
 
@@ -12,66 +19,116 @@ const formatDuration = (hours) => {
   const totalMinutes = Math.round(Number(hours) * 60);
   const h = Math.floor(totalMinutes / 60);
   const m = totalMinutes % 60;
-  if (h > 0 && m > 0) return `${h} Jam ${m} Menit`;
+  if (h > 0 && m > 0) return `${h}j ${m}m`;
   if (h > 0) return `${h} Jam`;
   return `${m} Menit`;
 };
 
 const formatRupiah = (value) => {
-  return "Rp" + Number(value).toLocaleString("id-ID");
+  return "Rp " + Number(value || 0).toLocaleString("id-ID");
 };
 
 const HistoryTable = () => {
-  const { customers, streamerMode } = useJoki();
+  const { customers, streamerMode, isAdmin } = useJoki();
 
-  if (streamerMode) return null;
+  if (!isAdmin || streamerMode) return null;
 
   const finished = customers
     .filter(c => c.finished)
-    .sort((a, b) => (b.finishedTime || 0) - (a.finishedTime || 0));
+    .sort((a, b) => (b.finishedTime || b.createdAt || 0) - (a.finishedTime || a.createdAt || 0));
 
   return (
-    <div className="mt-6">
-      <div className="font-bold text-lg mb-3">📋 Riwayat Joki</div>
-      <div className="bg-white border border-gray-300 overflow-x-auto">
-        <table className="w-full border-collapse min-w-[1250px]">
-          <thead>
-            <tr>
-              <th className="bg-gray-200 border border-slate-300 p-3 text-center text-[13px] whitespace-nowrap">No</th>
-              <th className="bg-gray-200 border border-slate-300 p-3 text-center text-[13px] whitespace-nowrap">Nama</th>
-              <th className="bg-gray-200 border border-slate-300 p-3 text-center text-[13px] whitespace-nowrap">Layanan</th>
-              <th className="bg-gray-200 border border-slate-300 p-3 text-center text-[13px] whitespace-nowrap">Durasi</th>
-              <th className="bg-gray-200 border border-slate-300 p-3 text-center text-[13px] whitespace-nowrap">Harga</th>
-              <th className="bg-gray-200 border border-slate-300 p-3 text-center text-[13px] whitespace-nowrap">Mulai</th>
-              <th className="bg-gray-200 border border-slate-300 p-3 text-center text-[13px] whitespace-nowrap">Jam Selesai / Stop</th>
-              <th className="bg-gray-200 border border-slate-300 p-3 text-center text-[13px] whitespace-nowrap">Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {finished.length === 0 ? (
-              <tr>
-                <td colSpan="8" className="p-11 text-center text-gray-500">Belum ada riwayat joki.</td>
+    <div className="mt-7">
+      <div className="flex items-center gap-2 mb-3.5">
+        <div className="w-2 h-4 rounded-full bg-accent-purple" />
+        <h3 className="text-sm font-extrabold uppercase tracking-wider text-text-primary m-0 flex items-center gap-1.5">
+          <History size={16} className="text-accent-purple" />
+          <span>Riwayat Joki Selesai (Lunas)</span>
+        </h3>
+        <span className="text-xs font-semibold text-text-faint ml-auto">
+          {finished.length} transaksi selesai
+        </span>
+      </div>
+
+      <div className="bg-bg-surface border border-border-default rounded-2xl overflow-hidden shadow-2xl">
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse text-left min-w-[1000px]">
+            <thead>
+              <tr className="bg-bg-primary/90 border-b border-border-default text-text-tertiary text-[11px] font-extrabold uppercase tracking-wider">
+                <th className="py-3 px-4 text-center w-12">No</th>
+                <th className="py-3 px-4">Username Roblox</th>
+                <th className="py-3 px-4">Akun TikTok</th>
+                <th className="py-3 px-4 text-center">Layanan</th>
+                <th className="py-3 px-4 text-center">Durasi</th>
+                <th className="py-3 px-4 text-center">Harga (Lunas)</th>
+                <th className="py-3 px-4 text-center">Mulai</th>
+                <th className="py-3 px-4 text-center">Selesai / Stop</th>
+                <th className="py-3 px-4 text-center">Status</th>
               </tr>
-            ) : (
-              finished.map((customer, index) => (
-                <tr key={customer.id} className="hover:bg-gray-50">
-                  <td className="border border-gray-300 p-2.5 text-center bg-white">{index + 1}</td>
-                  <td className="border border-gray-300 p-2.5 text-left font-bold bg-white">{customer.name}</td>
-                  <td className="border border-gray-300 p-2.5 text-center bg-white">{customer.service}</td>
-                  <td className="border border-gray-300 p-2.5 text-center bg-white">{formatDuration(customer.duration)}</td>
-                  <td className="border border-gray-300 p-2.5 text-center bg-white">{formatRupiah(customer.price)}</td>
-                  <td className="border border-gray-300 p-2.5 text-center bg-white">{formatDateTime(customer.startTime)}</td>
-                  <td className="border border-gray-300 p-2.5 text-center bg-white">{formatDateTime(customer.finishedTime)}</td>
-                  <td className="border border-gray-300 p-2.5 text-center bg-white">
-                    <span className="inline-block px-2.5 py-1 rounded-full text-[11px] font-bold bg-red-100 text-red-800">
-                      {customer.stopped ? 'STOPPED' : 'SELESAI'}
-                    </span>
+            </thead>
+            <tbody className="divide-y divide-border-subtle text-xs font-medium">
+              {finished.length === 0 ? (
+                <tr>
+                  <td colSpan="9" className="py-10 text-center text-text-dim">
+                    Belum ada riwayat joki yang selesai.
                   </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+              ) : (
+                finished.map((customer, index) => {
+                  return (
+                    <tr 
+                      key={customer.id} 
+                      className="hover:bg-white/[0.02] transition-colors"
+                    >
+                      <td className="py-3 px-4 text-center text-text-faint font-mono">
+                        {index + 1}
+                      </td>
+                      
+                      <td className="py-3 px-4 font-bold text-text-primary">
+                        {customer.username || customer.name}
+                      </td>
+
+                      <td className="py-3 px-4 text-text-muted">
+                        {customer.tiktokName ? `@${customer.tiktokName}` : '-'}
+                      </td>
+
+                      <td className="py-3 px-4 text-center text-text-secondary">
+                        {customer.service}
+                      </td>
+
+                      <td className="py-3 px-4 text-center text-text-secondary font-mono">
+                        {formatDuration(customer.duration)}
+                      </td>
+
+                      <td className="py-3 px-4 text-center font-bold text-accent-yellow font-mono">
+                        {formatRupiah(customer.price)}
+                      </td>
+
+                      <td className="py-3 px-4 text-center text-text-tertiary font-mono">
+                        {formatDateTime(customer.startTime)}
+                      </td>
+
+                      <td className="py-3 px-4 text-center text-text-tertiary font-mono">
+                        {formatDateTime(customer.finishedTime)}
+                      </td>
+
+                      <td className="py-3 px-4 text-center">
+                        <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase ${
+                          customer.stopped 
+                            ? 'bg-accent-red/15 text-accent-red border border-accent-red/30' 
+                            : 'bg-accent-green/15 text-accent-green border border-accent-green/30'
+                        }`}>
+                          <CheckCircle2 size={11} />
+                          {customer.stopped ? 'STOPPED' : 'SELESAI (LUNAS)'}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );

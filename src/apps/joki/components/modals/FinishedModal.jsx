@@ -1,9 +1,16 @@
 import React from 'react';
+import { Bell, Check, Clock, User, Shield } from 'lucide-react';
 
 const formatDateTime = (timestamp) => {
+  if (!timestamp) return '--';
   return new Date(timestamp).toLocaleString("id-ID", {
-    day: "2-digit", month: "2-digit", year: "numeric",
-    hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false
+    day: "2-digit", 
+    month: "2-digit", 
+    year: "numeric",
+    hour: "2-digit", 
+    minute: "2-digit", 
+    second: "2-digit", 
+    hour12: false
   });
 };
 
@@ -22,34 +29,70 @@ const FinishedModal = ({ queue, onClose }) => {
   const current = queue[0];
   const isStopped = current.finishType === "STOPPED";
   const title = isStopped ? "BILLING DIHENTIKAN" : "BILLING SELESAI";
-  const message = isStopped ? `${current.name} SUDAH DI-STOP!` : `${current.name} SUDAH HABIS!`;
+  const customerName = current.username || current.name;
 
   return (
-    <div className="fixed inset-0 bg-black/45 flex items-center justify-center z-[1000]">
-      <div className="bg-white w-[430px] max-w-[92%] rounded-xl p-6 shadow-2xl text-center animate-[popupShow_0.25s_ease]">
-        <div className="text-5xl mb-2">🔔</div>
-        <h2 className="text-red-600 mb-2.5 text-2xl font-bold">{title}</h2>
-        <div className="text-xl font-bold mb-4">{message}</div>
-
-        <div className="bg-gray-100 rounded-lg p-4 leading-[1.8] text-left">
-          <strong>Layanan:</strong> {current.service} <br/>
-          <strong>Durasi:</strong> {formatDuration(current.duration)} <br/>
-          <strong>Mulai:</strong> {formatDateTime(current.startTime)} <br/>
-          <strong>Jam selesai:</strong> {formatDateTime(current.finishedTime)}
+    <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-[fadeIn_0.2s_ease]">
+      <div 
+        className="w-full max-w-md bg-bg-surface border border-border-default rounded-2xl p-6 shadow-2xl animate-slide-in text-center relative"
+        style={{ background: '#111317' }}
+      >
+        {/* Animated Bell Icon */}
+        <div className="w-14 h-14 mx-auto mb-3.5 rounded-2xl bg-accent-red/10 border border-accent-red/25 flex items-center justify-center text-accent-red animate-bounce">
+          <Bell size={28} />
         </div>
 
-        <div className="mt-3 text-gray-500 text-sm">
-          {queue.length > 1 ? `${queue.length - 1} customer lain menunggu notifikasi.` : ""}
+        <h3 className="text-lg font-black text-accent-red tracking-tight mb-1">
+          {title}
+        </h3>
+        
+        <div className="text-base font-extrabold text-text-primary mb-4">
+          Slot <span className="text-accent-yellow">{customerName}</span> {isStopped ? 'telah dihentikan.' : 'waktunya sudah habis!'}
         </div>
 
-        <div className="flex justify-end gap-2 mt-5">
-          <button 
-            onClick={onClose}
-            className="bg-blue-600 text-white px-4 py-2 rounded-md font-bold hover:opacity-85"
-          >
-            ✓ TUTUP
-          </button>
+        {/* Detail Box */}
+        <div className="bg-bg-primary/90 border border-border-subtle rounded-xl p-4 text-left text-xs space-y-2 mb-4 font-mono">
+          <div className="flex justify-between items-center text-text-secondary">
+            <span className="text-text-tertiary">Username Roblox:</span>
+            <span className="font-bold text-text-primary">{customerName}</span>
+          </div>
+
+          {current.tiktokName && (
+            <div className="flex justify-between items-center text-text-secondary">
+              <span className="text-text-tertiary">Akun TikTok:</span>
+              <span className="text-accent-cyan">@{current.tiktokName}</span>
+            </div>
+          )}
+
+          <div className="flex justify-between items-center text-text-secondary">
+            <span className="text-text-tertiary">Layanan / Slot:</span>
+            <span className="font-bold text-accent-purple-light">{current.service}</span>
+          </div>
+
+          <div className="flex justify-between items-center text-text-secondary">
+            <span className="text-text-tertiary">Total Durasi:</span>
+            <span>{formatDuration(current.duration)}</span>
+          </div>
+
+          <div className="flex justify-between items-center text-text-secondary border-t border-border-subtle pt-1.5">
+            <span className="text-text-tertiary">Waktu Selesai:</span>
+            <span className="text-accent-yellow">{formatDateTime(current.finishedTime || Date.now())}</span>
+          </div>
         </div>
+
+        {queue.length > 1 && (
+          <div className="text-xs text-text-tertiary mb-4">
+            🔔 {queue.length - 1} customer lain menunggu notifikasi selesai.
+          </div>
+        )}
+
+        <button 
+          onClick={onClose}
+          className="w-full py-3 rounded-xl text-xs font-extrabold text-white bg-accent-purple hover:bg-accent-purple-light active:scale-95 transition-all shadow-lg shadow-accent-purple/20 flex items-center justify-center gap-1.5"
+        >
+          <Check size={16} />
+          <span>TUTUP NOTIFIKASI</span>
+        </button>
       </div>
     </div>
   );

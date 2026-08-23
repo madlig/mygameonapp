@@ -9,6 +9,8 @@ export const subscribeJokiCustomers = (callback) => {
   return onSnapshot(q, (snapshot) => {
     const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     callback(data);
+  }, (error) => {
+    console.error("Error subscribing to joki customers:", error);
   });
 };
 
@@ -20,12 +22,18 @@ export const subscribeJokiSettings = (callback) => {
     } else {
       callback({ globalPaused: false, globalPauseStarted: null });
     }
+  }, (error) => {
+    console.error("Error subscribing to joki settings:", error);
   });
 };
 
 export const addJokiCustomer = async (customerData) => {
   const newDocRef = doc(collection(db, JOKI_CUSTOMERS_COL));
-  await setDoc(newDocRef, { ...customerData, createdAt: Date.now() });
+  await setDoc(newDocRef, { 
+    ...customerData, 
+    createdAt: Date.now() 
+  });
+  return newDocRef.id;
 };
 
 export const updateJokiCustomer = async (id, data) => {

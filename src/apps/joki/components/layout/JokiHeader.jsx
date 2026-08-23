@@ -11,10 +11,10 @@ import {
   LogOut, 
   Clock, 
   ShieldCheck,
-  Radio,
   Share2,
   Check,
-  Crown
+  Crown,
+  Gamepad2
 } from 'lucide-react';
 
 const JokiHeader = ({ 
@@ -78,19 +78,22 @@ const JokiHeader = ({
 
   return (
     <header className="bg-bg-surface/80 backdrop-blur-xl border border-border-default rounded-2xl p-5 md:p-6 mb-4 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-5 shadow-2xl transition-all">
-      {/* Brand, Channel Badge & Live Clock */}
-      <div className="flex flex-col gap-2">
-        <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-accent-purple/20 to-accent-yellow/10 border border-accent-purple/30 flex items-center justify-center text-lg shadow-inner">
+      {/* Brand, Penjoki Identity & Live Clock */}
+      <div className="flex flex-col gap-2.5">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-accent-purple/20 to-accent-yellow/10 border border-accent-purple/30 flex items-center justify-center text-xl shadow-inner shrink-0">
             🥚
           </div>
           <div>
             <div className="flex items-center gap-2 flex-wrap">
               <h1 className="text-xl md:text-2xl font-black text-text-primary tracking-tight m-0">
-                Steal an Egg <span className="text-accent-purple">—</span> Joki Billing
+                Dashboard Joki{' '}
+                <span className="bg-gradient-to-r from-accent-cyan via-accent-purple-light to-accent-green bg-clip-text text-transparent">
+                  Steal an Egg
+                </span>
               </h1>
               {isAdmin ? (
-                <span className={`inline-flex items-center gap-1 text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full ${
+                <span className={`inline-flex items-center gap-1 text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full ${
                   isSuperAdmin 
                     ? 'bg-accent-yellow/15 text-accent-yellow border border-accent-yellow/30' 
                     : 'bg-accent-purple/15 text-accent-purple-light border border-accent-purple/30'
@@ -99,48 +102,67 @@ const JokiHeader = ({
                   {isSuperAdmin ? 'Super Admin' : 'Admin Mode'}
                 </span>
               ) : (
-                <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-accent-green/15 text-accent-green border border-accent-green/30 animate-pulse">
+                <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase px-2.5 py-0.5 rounded-full bg-accent-green/15 text-accent-green border border-accent-green/30 animate-pulse">
                   ● Live Monitor
                 </span>
               )}
             </div>
-            <p className="text-xs text-text-tertiary mt-0.5 m-0 font-medium">
-              Dashboard Realtime Monitoring Jasa Joki Roblox AFK
+            <p className="text-xs font-black text-accent-yellow tracking-widest mt-0.5 m-0 uppercase font-mono">
+              BY PT.KADAL GAMING
             </p>
           </div>
         </div>
 
-        {/* Channel Selector & Live Clock Bar */}
-        <div className="flex items-center gap-2 flex-wrap mt-1">
-          {/* Workspace / Channel Switcher */}
-          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-bg-primary border border-border-default text-xs">
-            <Radio size={13} className="text-accent-cyan animate-pulse" />
-            <span className="text-text-dim text-[11px] font-semibold">Kanal:</span>
-            <select
-              value={activeWorkspaceId}
-              onChange={(e) => changeWorkspace(e.target.value)}
-              className="bg-transparent text-text-primary font-bold text-xs outline-none cursor-pointer pr-1"
-            >
-              {workspaces.map((w) => (
-                <option key={w.id} value={w.id} className="bg-bg-surface text-text-primary">
-                  {w.name}
-                </option>
-              ))}
-            </select>
-          </div>
+        {/* Bocil-Friendly Penjoki Selector & Live Clock Bar */}
+        <div className="flex items-center gap-2 flex-wrap mt-0.5">
+          {/* Admin vs Viewer Mode */}
+          {isAdmin ? (
+            /* ADMIN: Static Locked Badge (Admins cannot switch to other admins' sessions) */
+            <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-accent-purple/15 border border-accent-purple/30 text-xs text-white font-extrabold shadow-sm">
+              <Gamepad2 size={14} className="text-accent-cyan" />
+              <span className="text-text-tertiary font-medium">Penjoki:</span>
+              <span className="text-accent-cyan font-black">{activeWorkspace.name}</span>
+            </div>
+          ) : (
+            /* VIEWER: Bocil-friendly Tab Pills to switch between Penjoki */
+            <div className="inline-flex items-center gap-1.5 p-1 rounded-xl bg-bg-primary border border-border-default text-xs flex-wrap">
+              <span className="text-[11px] font-bold text-text-tertiary px-2 flex items-center gap-1 shrink-0">
+                <Gamepad2 size={13} className="text-accent-cyan" />
+                <span>Pilih Penjoki:</span>
+              </span>
+              <div className="flex items-center gap-1 flex-wrap">
+                {workspaces.map((w) => {
+                  const isSelected = activeWorkspaceId === w.id;
+                  return (
+                    <button
+                      key={w.id}
+                      onClick={() => changeWorkspace(w.id)}
+                      className={`px-3 py-1 rounded-lg text-xs font-black transition-all cursor-pointer ${
+                        isSelected
+                          ? 'bg-accent-cyan text-bg-primary shadow-md shadow-accent-cyan/20 scale-105'
+                          : 'text-text-muted hover:text-text-primary hover:bg-white/5'
+                      }`}
+                    >
+                      {w.name}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Copy Share Link */}
           <button
             onClick={handleCopyShareLink}
-            title="Salin link live board kanal ini untuk dibagikan ke penonton live"
-            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-bg-primary hover:bg-white/5 border border-border-default text-text-muted hover:text-text-primary text-xs font-semibold transition-all cursor-pointer"
+            title="Salin link live board penjoki ini untuk dibagikan ke penonton live"
+            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-bg-primary hover:bg-white/5 border border-border-default text-text-muted hover:text-text-primary text-xs font-bold transition-all cursor-pointer"
           >
-            {copied ? <Check size={12} className="text-accent-green" /> : <Share2 size={12} />}
+            {copied ? <Check size={13} className="text-accent-green" /> : <Share2 size={13} />}
             <span className="text-[11px]">{copied ? 'Tersalin!' : 'Bagi Link'}</span>
           </button>
 
           {/* Clock */}
-          <div className="inline-flex items-center gap-1.5 text-xs font-mono text-text-muted px-2.5 py-1 rounded-lg bg-bg-primary/80 border border-border-subtle">
+          <div className="inline-flex items-center gap-1.5 text-xs font-mono text-text-muted px-3 py-1.5 rounded-xl bg-bg-primary/80 border border-border-subtle">
             <Clock size={12} className="text-accent-yellow" />
             <span>Jam: <strong className="text-text-primary">{currentTime || '--:--:--'}</strong></span>
           </div>
@@ -205,7 +227,7 @@ const JokiHeader = ({
             {!streamerMode && (
               <button
                 onClick={onRequestClearTransactions}
-                title="Hapus seluruh data transaksi di kanal ini"
+                title="Hapus seluruh data transaksi di live penjoki ini"
                 className="flex items-center gap-1 px-3 py-2.5 rounded-xl text-xs font-bold text-accent-red hover:bg-accent-red/10 border border-transparent hover:border-accent-red/20 transition-all cursor-pointer"
               >
                 <Trash2 size={14} />

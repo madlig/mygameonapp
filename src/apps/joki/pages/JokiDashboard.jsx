@@ -42,6 +42,11 @@ const JokiDashboard = () => {
   const [finishedQueue, setFinishedQueue] = useState([]);
   const [popupShowing, setPopupShowing] = useState(false);
 
+  // Set Document Title
+  useEffect(() => {
+    document.title = "Dashboard Joki Steal an Egg — BY PT.KADAL GAMING";
+  }, []);
+
   // Confirm Modal state
   const [confirmConfig, setConfirmConfig] = useState({
     isOpen: false,

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useJoki } from '../../contexts/JokiContext';
-import { Play, Pause, Plus, Square, Trash2, Clock, Layers } from 'lucide-react';
+import { Play, Pause, Plus, Square, Trash2, Clock } from 'lucide-react';
 
 const formatTime = (seconds) => {
   seconds = Math.max(0, Math.floor(seconds));
@@ -27,6 +27,19 @@ const formatDuration = (hours) => {
   if (h > 0 && m > 0) return `${h}j ${m}m`;
   if (h > 0) return `${h} Jam`;
   return `${m} Menit`;
+};
+
+// Clean helper to strictly display Basic or VIP
+const getCleanService = (service) => {
+  if (!service) return 'Basic';
+  return service.toString().toUpperCase().includes('VIP') ? 'VIP' : 'Basic';
+};
+
+// Clean helper to strictly display Slot Badge
+const getCleanSlot = (customer) => {
+  const isVIP = getCleanService(customer.service) === 'VIP' || customer.slot === 'VIP';
+  if (isVIP) return 'VIP';
+  return customer.slot || '1';
 };
 
 const ActiveTable = ({ 
@@ -93,12 +106,15 @@ const ActiveTable = ({
   const filteredCustomers = customers.filter(c => {
     if (c.finished) return false;
     const query = searchQuery.toLowerCase().trim();
+    const cleanService = getCleanService(c.service);
+    const cleanSlot = getCleanSlot(c);
+
     const matchesSearch = 
       (c.username && c.username.toLowerCase().includes(query)) ||
       (c.tiktokName && c.tiktokName.toLowerCase().includes(query)) ||
       (c.name && c.name.toLowerCase().includes(query)) ||
-      (c.slot && c.slot.toString().toLowerCase().includes(query)) ||
-      (c.service && c.service.toLowerCase().includes(query));
+      (cleanSlot && cleanSlot.toString().toLowerCase().includes(query)) ||
+      (cleanService && cleanService.toLowerCase().includes(query));
 
     let matchesFilter = true;
     if (filter === 'RUNNING') matchesFilter = !c.paused;
@@ -140,8 +156,9 @@ const ActiveTable = ({
                 filteredCustomers.map((customer, index) => {
                   const remaining = getRemaining(customer);
                   const isWarning = !customer.paused && remaining <= 300; // <= 5 menit
-                  const isVIP = customer.service === 'VIP' || customer.slot === 'VIP';
-                  const slotLabel = customer.slot || (isVIP ? 'VIP' : '-');
+                  const cleanService = getCleanService(customer.service);
+                  const isVIP = cleanService === 'VIP';
+                  const cleanSlot = getCleanSlot(customer);
                   
                   return (
                     <tr 
@@ -160,17 +177,15 @@ const ActiveTable = ({
                             ? 'bg-accent-yellow/15 text-accent-yellow border border-accent-yellow/35'
                             : 'bg-accent-cyan/15 text-accent-cyan border border-accent-cyan/35'
                         }`}>
-                          {slotLabel === 'VIP' ? '👑 VIP' : `SLOT ${slotLabel}`}
+                          {cleanSlot === 'VIP' ? '👑 VIP' : `SLOT ${cleanSlot}`}
                         </span>
                       </td>
 
                       {/* Roblox Username */}
                       <td className="py-3 px-3.5 font-bold text-text-primary">
-                        <div className="flex items-center gap-2">
-                          <span className="font-extrabold text-sm tracking-tight text-white">
-                            {customer.username || customer.name}
-                          </span>
-                        </div>
+                        <span className="font-extrabold text-sm tracking-tight text-white">
+                          {customer.username || customer.name}
+                        </span>
                       </td>
 
                       {/* TikTok Account */}
@@ -184,14 +199,14 @@ const ActiveTable = ({
                         )}
                       </td>
 
-                      {/* Service */}
+                      {/* Service (Strictly Basic or VIP) */}
                       <td className="py-3 px-3.5 text-center">
-                        <span className={`inline-block px-2 py-0.5 rounded-md text-[10.5px] font-bold ${
+                        <span className={`inline-block px-2.5 py-0.5 rounded-full text-[10.5px] font-extrabold uppercase tracking-wide ${
                           isVIP 
-                            ? 'text-accent-yellow bg-accent-yellow/10' 
-                            : 'text-text-secondary bg-white/5'
+                            ? 'text-accent-yellow bg-accent-yellow/15 border border-accent-yellow/30' 
+                            : 'text-accent-purple-light bg-accent-purple/15 border border-accent-purple/30'
                         }`}>
-                          {customer.service}
+                          {cleanService}
                         </span>
                       </td>
 
@@ -225,7 +240,7 @@ const ActiveTable = ({
 
                       {/* Status Badge */}
                       <td className="py-3 px-3.5 text-center">
-                        <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase ${
+                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase ${
                           customer.paused 
                             ? 'bg-accent-orange/15 text-accent-orange border border-accent-orange/30' 
                             : 'bg-accent-green/15 text-accent-green border border-accent-green/30'
@@ -298,7 +313,7 @@ const ActiveTable = ({
           <button
             type="button"
             onClick={onRequestClearActiveBillings}
-            className="text-xs font-bold text-accent-red/80 hover:text-accent-red hover:bg-accent-red/10 py-1.5 px-3 rounded-xl border border-transparent hover:border-accent-red/20 transition-all flex items-center gap-1.5 cursor-pointer"
+            className="text-xs font-bold text-accent-red/80 hover:text-accent-red hover:bg-accent-red/10 py-1.5 px-3 rounded-xl border border-transparent hover:border-accent-red/25 transition-all flex items-center gap-1.5 cursor-pointer"
           >
             <span>🧹 Kosongkan Semua Billing Aktif</span>
           </button>

@@ -28,6 +28,19 @@ const formatRupiah = (value) => {
   return "Rp " + Number(value || 0).toLocaleString("id-ID");
 };
 
+// Clean helper to strictly display Basic or VIP
+const getCleanService = (service) => {
+  if (!service) return 'Basic';
+  return service.toString().toUpperCase().includes('VIP') ? 'VIP' : 'Basic';
+};
+
+// Clean helper to strictly display Slot Badge
+const getCleanSlot = (customer) => {
+  const isVIP = getCleanService(customer.service) === 'VIP' || customer.slot === 'VIP';
+  if (isVIP) return 'VIP';
+  return customer.slot || '1';
+};
+
 const HistoryTable = () => {
   const { customers, streamerMode, isAdmin } = useJoki();
 
@@ -76,8 +89,9 @@ const HistoryTable = () => {
                 </tr>
               ) : (
                 finished.map((customer, index) => {
-                  const isVIP = customer.service === 'VIP' || customer.slot === 'VIP';
-                  const slotLabel = customer.slot || (isVIP ? 'VIP' : '-');
+                  const cleanService = getCleanService(customer.service);
+                  const isVIP = cleanService === 'VIP';
+                  const cleanSlot = getCleanSlot(customer);
 
                   return (
                     <tr 
@@ -95,7 +109,7 @@ const HistoryTable = () => {
                             ? 'bg-accent-yellow/10 text-accent-yellow border border-accent-yellow/30'
                             : 'bg-accent-cyan/10 text-accent-cyan border border-accent-cyan/30'
                         }`}>
-                          {slotLabel === 'VIP' ? 'VIP' : `#${slotLabel}`}
+                          {cleanSlot === 'VIP' ? '👑 VIP' : `SLOT ${cleanSlot}`}
                         </span>
                       </td>
                       
@@ -107,8 +121,14 @@ const HistoryTable = () => {
                         {customer.tiktokName ? `@${customer.tiktokName}` : '-'}
                       </td>
 
-                      <td className="py-3 px-3.5 text-center text-text-secondary">
-                        {customer.service}
+                      <td className="py-3 px-3.5 text-center">
+                        <span className={`inline-block px-2.5 py-0.5 rounded-full text-[10.5px] font-extrabold uppercase ${
+                          isVIP 
+                            ? 'text-accent-yellow bg-accent-yellow/15 border border-accent-yellow/30' 
+                            : 'text-accent-purple-light bg-accent-purple/15 border border-accent-purple/30'
+                        }`}>
+                          {cleanService}
+                        </span>
                       </td>
 
                       <td className="py-3 px-3.5 text-center text-text-secondary font-mono">

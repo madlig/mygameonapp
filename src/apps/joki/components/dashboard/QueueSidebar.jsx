@@ -11,17 +11,34 @@ import {
   Crown, 
   Gamepad2, 
   Clock, 
-  User 
+  Sparkles,
+  ArrowRight
 } from 'lucide-react';
+
+const PRICE_BASIC = 4000;
+const PRICE_VIP = 6000;
 
 const formatDuration = (hours) => {
   const totalMinutes = Math.round(Number(hours) * 60);
   const h = Math.floor(totalMinutes / 60);
   const m = totalMinutes % 60;
-  if (h > 0 && m > 0) return `${h}j ${m}m`;
+  if (h > 0 && m > 0) return `${h} Jam ${m} Menit`;
   if (h > 0) return `${h} Jam`;
   return `${m} Menit`;
 };
+
+const formatRupiah = (value) => {
+  return "Rp " + Number(value || 0).toLocaleString("id-ID");
+};
+
+const PRESETS = [
+  { label: '15m', amount: 15, unit: 'minute' },
+  { label: '30m', amount: 30, unit: 'minute' },
+  { label: '45m', amount: 45, unit: 'minute' },
+  { label: '1 Jam', amount: 1, unit: 'hour' },
+  { label: '2 Jam', amount: 2, unit: 'hour' },
+  { label: '3 Jam', amount: 3, unit: 'hour' },
+];
 
 const QueueSidebar = ({ onStartFromQueue, onRequestClearQueue }) => {
   const { 
@@ -36,12 +53,24 @@ const QueueSidebar = ({ onStartFromQueue, onRequestClearQueue }) => {
   const [qUsername, setQUsername] = useState('');
   const [qTiktok, setQTiktok] = useState('');
   const [qService, setQService] = useState('Basic');
-  const [qDuration, setQDuration] = useState(1);
+  const [qAmount, setQAmount] = useState(1);
+  const [qUnit, setQUnit] = useState('hour');
+
   const [editingId, setEditingId] = useState(null);
   const [editUsername, setEditUsername] = useState('');
   const [editTiktok, setEditTiktok] = useState('');
   const [editService, setEditService] = useState('Basic');
   const [editDuration, setEditDuration] = useState(1);
+
+  // Calculate actual duration in hours
+  const calculatedHours = qUnit === 'hour' ? Number(qAmount || 0) : Number(qAmount || 0) / 60;
+  const pricePerHour = qService === 'VIP' ? PRICE_VIP : PRICE_BASIC;
+  const calculatedPrice = calculatedHours * pricePerHour;
+
+  const handleApplyPreset = (preset) => {
+    setQAmount(preset.amount);
+    setQUnit(preset.unit);
+  };
 
   const handleAddQueue = async (e) => {
     if (e) e.preventDefault();
@@ -49,19 +78,26 @@ const QueueSidebar = ({ onStartFromQueue, onRequestClearQueue }) => {
       addToast('Username Roblox wajib diisi.', 'error');
       return;
     }
+    if (calculatedHours <= 0) {
+      addToast('Durasi harus lebih dari 0.', 'error');
+      return;
+    }
 
     try {
       await addJokiQueue({
         username: qUsername.trim(),
         tiktokName: qTiktok.trim().replace(/^@/, ''),
-        service: qService,
-        duration: Number(qDuration) || 1,
+        service: qService === 'VIP' ? 'VIP' : 'Basic',
+        duration: calculatedHours,
+        price: calculatedPrice,
+        paymentStatus: 'Lunas'
       });
 
       setQUsername('');
       setQTiktok('');
-      setQDuration(1);
-      addToast(`Customer ${qUsername} berhasil masuk antrian!`, 'success');
+      setQAmount(1);
+      setQUnit('hour');
+      addToast(`Customer ${qUsername} berhasil masuk daftar antrian!`, 'success');
     } catch (err) {
       console.error(err);
       addToast('Gagal menambahkan ke antrian.', 'error');
@@ -72,7 +108,7 @@ const QueueSidebar = ({ onStartFromQueue, onRequestClearQueue }) => {
     setEditingId(item.id);
     setEditUsername(item.username);
     setEditTiktok(item.tiktokName || '');
-    setEditService(item.service);
+    setEditService(item.service === 'VIP' ? 'VIP' : 'Basic');
     setEditDuration(item.duration);
   };
 
@@ -86,11 +122,14 @@ const QueueSidebar = ({ onStartFromQueue, onRequestClearQueue }) => {
       return;
     }
     try {
+      const numDur = Number(editDuration) || 1;
+      const rate = editService === 'VIP' ? PRICE_VIP : PRICE_BASIC;
       await updateJokiQueue(id, {
         username: editUsername.trim(),
         tiktokName: editTiktok.trim().replace(/^@/, ''),
-        service: editService,
-        duration: Number(editDuration) || 1,
+        service: editService === 'VIP' ? 'VIP' : 'Basic',
+        duration: numDur,
+        price: numDur * rate,
       });
       setEditingId(null);
       addToast('Data antrian diperbarui.', 'success');
@@ -114,7 +153,7 @@ const QueueSidebar = ({ onStartFromQueue, onRequestClearQueue }) => {
   const basicQueue = queue.filter(q => q.service !== 'VIP');
 
   return (
-    <aside className="w-full lg:w-[340px] shrink-0 flex flex-col gap-3.5">
+    <aside className="w-full lg:w-[350px] shrink-0 flex flex-col gap-3.5">
       <div className="bg-bg-surface/90 backdrop-blur-xl border border-border-default rounded-2xl p-4 md:p-5 shadow-2xl">
         {/* Header */}
         <div className="flex items-center justify-between gap-2 mb-4 pb-3 border-b border-border-default">
@@ -129,7 +168,7 @@ const QueueSidebar = ({ onStartFromQueue, onRequestClearQueue }) => {
 
         {/* Quick Add Form (Admin Only) */}
         {isAdmin && (
-          <form onSubmit={handleAddQueue} className="space-y-2 mb-4 p-3 rounded-xl bg-bg-primary/90 border border-border-subtle">
+          <form onSubmit={handleAddQueue} className="space-y-2.5 mb-4 p-3 rounded-xl bg-bg-primary/90 border border-border-subtle">
             <div className="text-[10.5px] font-extrabold uppercase tracking-wider text-text-tertiary">
               Tambah ke Antrian
             </div>
@@ -137,10 +176,10 @@ const QueueSidebar = ({ onStartFromQueue, onRequestClearQueue }) => {
             <input
               type="text"
               required
-              placeholder="Username Roblox"
+              placeholder="Username Roblox *"
               value={qUsername}
               onChange={(e) => setQUsername(e.target.value)}
-              className="w-full bg-bg-surface border border-border-default rounded-lg py-1.5 px-2.5 text-xs text-text-primary placeholder:text-text-faint outline-none focus:border-accent-cyan/50 transition-colors"
+              className="w-full bg-bg-surface border border-border-default rounded-lg py-2 px-2.5 text-xs text-text-primary placeholder:text-text-faint outline-none focus:border-accent-cyan/50 transition-colors"
             />
 
             <input
@@ -148,45 +187,75 @@ const QueueSidebar = ({ onStartFromQueue, onRequestClearQueue }) => {
               placeholder="Akun TikTok (opsional)"
               value={qTiktok}
               onChange={(e) => setQTiktok(e.target.value)}
-              className="w-full bg-bg-surface border border-border-default rounded-lg py-1.5 px-2.5 text-xs text-text-primary placeholder:text-text-faint outline-none focus:border-accent-cyan/50 transition-colors"
+              className="w-full bg-bg-surface border border-border-default rounded-lg py-2 px-2.5 text-xs text-text-primary placeholder:text-text-faint outline-none focus:border-accent-cyan/50 transition-colors"
             />
 
-            <div className="grid grid-cols-2 gap-1.5">
-              <select
-                value={qService}
-                onChange={(e) => setQService(e.target.value)}
-                className="bg-bg-surface border border-border-default rounded-lg py-1.5 px-2 text-xs text-text-primary outline-none focus:border-accent-cyan/50 transition-colors cursor-pointer"
-              >
-                <option value="Basic" className="bg-bg-surface">Basic</option>
-                <option value="VIP" className="bg-bg-surface">VIP</option>
-              </select>
+            {/* Service & Duration Grid */}
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="block text-[10px] uppercase font-bold text-text-dim mb-1">Layanan</label>
+                <select
+                  value={qService}
+                  onChange={(e) => setQService(e.target.value)}
+                  className="w-full bg-bg-surface border border-border-default rounded-lg py-2 px-2 text-xs text-text-primary outline-none focus:border-accent-cyan/50 transition-colors cursor-pointer"
+                >
+                  <option value="Basic" className="bg-bg-surface">Basic (4k/j)</option>
+                  <option value="VIP" className="bg-bg-surface">VIP (6k/j)</option>
+                </select>
+              </div>
 
-              <input
-                type="number"
-                min="0.01"
-                step="0.25"
-                required
-                placeholder="Durasi (jam)"
-                value={qDuration}
-                onChange={(e) => setQDuration(e.target.value)}
-                className="bg-bg-surface border border-border-default rounded-lg py-1.5 px-2 text-xs text-text-primary outline-none focus:border-accent-cyan/50 transition-colors font-mono"
-              />
+              <div>
+                <label className="block text-[10px] uppercase font-bold text-text-dim mb-1">Durasi</label>
+                <div className="flex gap-1">
+                  <input
+                    type="number"
+                    min="1"
+                    step="1"
+                    required
+                    value={qAmount}
+                    onChange={(e) => setQAmount(e.target.value)}
+                    className="w-full bg-bg-surface border border-border-default rounded-lg py-2 px-2 text-xs text-text-primary font-mono outline-none focus:border-accent-cyan/50 transition-colors"
+                  />
+                  <select
+                    value={qUnit}
+                    onChange={(e) => setQUnit(e.target.value)}
+                    className="bg-bg-surface border border-border-default rounded-lg py-2 px-1.5 text-xs text-text-primary outline-none focus:border-accent-cyan/50 transition-colors cursor-pointer"
+                  >
+                    <option value="minute" className="bg-bg-surface">Mnt</option>
+                    <option value="hour" className="bg-bg-surface">Jam</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* Quick Presets */}
+            <div className="flex flex-wrap gap-1 pt-1">
+              {PRESETS.map((preset) => (
+                <button
+                  key={preset.label}
+                  type="button"
+                  onClick={() => handleApplyPreset(preset)}
+                  className="px-2 py-1 rounded-md text-[10.5px] font-bold bg-bg-surface hover:bg-accent-cyan/15 hover:text-accent-cyan border border-border-default hover:border-accent-cyan/30 text-text-tertiary transition-all"
+                >
+                  {preset.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Calculation Preview */}
+            <div className="bg-bg-surface/80 rounded-lg p-2 border border-border-subtle text-[11px] flex justify-between items-center text-text-muted">
+              <span>Estimasi: <strong className="text-text-primary">{formatDuration(calculatedHours)}</strong></span>
+              <span className="font-bold text-accent-yellow">{formatRupiah(calculatedPrice)}</span>
             </div>
 
             <button
               type="submit"
-              className="w-full mt-1 flex items-center justify-center gap-1 py-2 rounded-lg text-xs font-extrabold text-bg-primary bg-accent-cyan hover:brightness-110 active:scale-95 transition-all shadow-md shadow-accent-cyan/15 cursor-pointer"
+              className="w-full mt-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-xs font-extrabold text-bg-primary bg-accent-cyan hover:brightness-110 active:scale-95 transition-all shadow-md shadow-accent-cyan/15 cursor-pointer"
             >
               <Plus size={14} />
               <span>Tambah ke Antrian</span>
             </button>
           </form>
-        )}
-
-        {isAdmin && (
-          <p className="text-[11px] text-text-dim leading-relaxed mb-3.5 px-1">
-            💡 <strong className="text-text-muted">Klik nama di antrian</strong> untuk mulai billing dan memasukkan customer ke slot game live.
-          </p>
         )}
 
         {/* VIP Queue Group */}
@@ -281,7 +350,7 @@ const QueueSidebar = ({ onStartFromQueue, onRequestClearQueue }) => {
               step="0.25"
               value={editDuration}
               onChange={(e) => setEditDuration(e.target.value)}
-              className="w-20 bg-bg-surface border border-border-default rounded py-1 px-1.5 text-xs text-text-primary"
+              className="w-20 bg-bg-surface border border-border-default rounded py-1 px-1.5 text-xs text-text-primary font-mono"
             />
             <button
               onClick={() => saveEdit(item.id)}
@@ -303,50 +372,53 @@ const QueueSidebar = ({ onStartFromQueue, onRequestClearQueue }) => {
     return (
       <div
         key={item.id}
-        onClick={() => isAdmin && onStartFromQueue(item)}
-        className={`p-2.5 flex items-center justify-between gap-2 transition-all ${
-          isAdmin ? 'hover:bg-white/[0.04] cursor-pointer group' : ''
-        }`}
+        className="p-3 flex flex-col gap-2 bg-bg-surface/60 hover:bg-bg-surface transition-all"
       >
-        <div className="flex items-center gap-2.5 min-w-0">
-          <span className="w-5 h-5 rounded-full bg-bg-surface border border-border-default text-text-tertiary text-[10px] font-mono font-bold flex items-center justify-center shrink-0">
-            {index + 1}
-          </span>
-          <div className="min-w-0">
-            <div className="font-extrabold text-xs text-text-primary truncate">
-              {item.username}
-            </div>
-            <div className="text-[11px] text-text-dim flex items-center gap-1 truncate">
-              {item.tiktokName && <span className="text-accent-cyan">@{item.tiktokName} ·</span>}
-              <span className="font-mono">{formatDuration(item.duration)}</span>
+        <div className="flex items-center justify-between gap-2 min-w-0">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="w-5 h-5 rounded-full bg-bg-primary border border-border-default text-text-tertiary text-[10px] font-mono font-bold flex items-center justify-center shrink-0">
+              {index + 1}
+            </span>
+            <div className="min-w-0">
+              <div className="font-extrabold text-xs text-text-primary truncate">
+                {item.username}
+              </div>
+              <div className="text-[11px] text-text-dim flex items-center gap-1 truncate">
+                {item.tiktokName && <span className="text-accent-cyan">@{item.tiktokName} ·</span>}
+                <span className="font-mono">{formatDuration(item.duration)}</span>
+              </div>
             </div>
           </div>
+
+          {isAdmin && (
+            <div className="flex items-center gap-1 shrink-0">
+              <button
+                onClick={() => startEdit(item)}
+                title="Edit"
+                className="p-1 rounded-lg text-text-dim hover:text-text-primary hover:bg-white/5 transition-colors"
+              >
+                <Pencil size={12} />
+              </button>
+              <button
+                onClick={() => handleDeleteItem(item)}
+                title="Hapus"
+                className="p-1 rounded-lg text-text-dim hover:text-accent-red hover:bg-accent-red/10 transition-colors"
+              >
+                <Trash2 size={12} />
+              </button>
+            </div>
+          )}
         </div>
 
+        {/* Prominent Action Button: Move from Queue to Live Slot */}
         {isAdmin && (
-          <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
-            <button
-              onClick={() => onStartFromQueue(item)}
-              title="Mulai Billing"
-              className="p-1 rounded-lg bg-accent-green/15 text-accent-green hover:bg-accent-green/30 transition-colors"
-            >
-              <Play size={12} />
-            </button>
-            <button
-              onClick={() => startEdit(item)}
-              title="Edit"
-              className="p-1 rounded-lg text-text-dim hover:text-text-primary hover:bg-white/5 transition-colors"
-            >
-              <Pencil size={12} />
-            </button>
-            <button
-              onClick={() => handleDeleteItem(item)}
-              title="Hapus"
-              className="p-1 rounded-lg text-text-dim hover:text-accent-red hover:bg-accent-red/10 transition-colors"
-            >
-              <Trash2 size={12} />
-            </button>
-          </div>
+          <button
+            onClick={() => onStartFromQueue(item)}
+            className="w-full mt-0.5 flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-lg text-xs font-extrabold text-white bg-accent-green hover:bg-accent-green-dark active:scale-95 transition-all shadow-md shadow-accent-green/15 cursor-pointer"
+          >
+            <Play size={12} />
+            <span>🎮 Masuk Slot Live</span>
+          </button>
         )}
       </div>
     );

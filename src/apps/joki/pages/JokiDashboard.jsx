@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useJoki } from '../contexts/JokiContext';
 import JokiLayout from '../components/layout/JokiLayout';
 import JokiHeader from '../components/layout/JokiHeader';
@@ -7,8 +7,10 @@ import JokiSummary from '../components/dashboard/JokiSummary';
 import JokiToolbar from '../components/dashboard/JokiToolbar';
 import ActiveTable from '../components/dashboard/ActiveTable';
 import HistoryTable from '../components/dashboard/HistoryTable';
+import QueueSidebar from '../components/dashboard/QueueSidebar';
 import AddJokiModal from '../components/modals/AddJokiModal';
 import ExtendModal from '../components/modals/ExtendModal';
+import StartBillingModal from '../components/modals/StartBillingModal';
 import FinishedModal from '../components/modals/FinishedModal';
 import ConfirmModal from '../components/modals/ConfirmModal';
 import JokiLoginModal from '../components/modals/JokiLoginModal';
@@ -17,8 +19,10 @@ import Toast from '../components/ui/Toast';
 const JokiDashboard = () => {
   const { 
     customers, 
+    queue,
     updateJokiCustomer, 
     deleteJokiCustomer,
+    deleteJokiQueue,
     updateJokiSettings, 
     globalPaused, 
     toasts,
@@ -31,6 +35,7 @@ const JokiDashboard = () => {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [extendCustomer, setExtendCustomer] = useState(null);
+  const [startQueueItem, setStartQueueItem] = useState(null);
   const [finishedQueue, setFinishedQueue] = useState([]);
   const [popupShowing, setPopupShowing] = useState(false);
 
@@ -135,7 +140,7 @@ const JokiDashboard = () => {
       isOpen: true,
       title: 'Jeda Semua Billing (PAUSE ALL)?',
       message: `Semua ${active.length} customer aktif akan dihentikan sementara. Sisa durasi waktu customer tidak akan berkurang.`,
-      detail: active.map(c => `• ${c.username || c.name} (${c.service})`).join('\n'),
+      detail: active.map(c => `• ${c.username || c.name} (Slot: ${c.slot || '-'} | ${c.service})`).join('\n'),
       confirmText: 'Jeda Semua',
       variant: 'warning',
       onConfirm: async () => {
@@ -167,8 +172,8 @@ const JokiDashboard = () => {
     setConfirmConfig({
       isOpen: true,
       title: 'Lanjutkan Semua Billing (RESUME ALL)?',
-      message: `${paused.length} customer yang dijeda akan mulai dihitung kembali durasi waktunya.`,
-      detail: paused.map(c => `• ${c.username || c.name} (${c.service})`).join('\n'),
+      message: `${paused.length} customer yang dijeda akan mulai dihitung kembali durasi waktunya dan jam selesai akan disesuaikan maju.`,
+      detail: paused.map(c => `• ${c.username || c.name} (Slot: ${c.slot || '-'} | ${c.service})`).join('\n'),
       confirmText: 'Lanjutkan Semua',
       variant: 'info',
       onConfirm: async () => {
@@ -178,15 +183,16 @@ const JokiDashboard = () => {
 
         for (const customer of paused) {
           const pauseDuration = Math.max(0, Math.floor((now - (customer.pauseStarted || now)) / 1000));
+          const newEndTime = now + ((customer.remainingAtPause || 0) * 1000);
           await updateJokiCustomer(customer.id, {
             totalPausedSeconds: (customer.totalPausedSeconds || 0) + pauseDuration,
-            endTime: now + ((customer.remainingAtPause || 0) * 1000),
+            endTime: newEndTime,
             paused: false,
             pauseStarted: null,
             remainingAtPause: null
           });
         }
-        addToast('Semua billing berhasil dilanjutkan!', 'success');
+        addToast('Semua billing berhasil dilanjutkan! Jam selesai telah diperbarui.', 'success');
       }
     });
   };
@@ -197,7 +203,7 @@ const JokiDashboard = () => {
     setConfirmConfig({
       isOpen: true,
       title: `Hentikan Billing ${custName}?`,
-      message: `Billing untuk akun ${custName} (${customer.service}) akan diselesaikan sekarang juga.`,
+      message: `Billing untuk akun ${custName} (Slot ${customer.slot || '-'}) akan diselesaikan sekarang.`,
       confirmText: 'Hentikan Sekarang',
       variant: 'danger',
       onConfirm: async () => {
@@ -236,7 +242,32 @@ const JokiDashboard = () => {
     });
   };
 
-  // 5. Clear All Transactions
+  // 5. Clear Active Billings Only
+  const handleRequestClearActiveBillings = () => {
+    const active = customers.filter(c => !c.finished);
+    if (active.length === 0) {
+      addToast('Tidak ada billing aktif yang bisa dikosongkan.', 'info');
+      return;
+    }
+
+    setConfirmConfig({
+      isOpen: true,
+      title: 'Kosongkan Semua Billing Aktif?',
+      message: `Tindakan ini akan menghapus ${active.length} customer yang sedang berjalan / pause. Riwayat joki selesai & data omzet TETAP aman tersimpan.`,
+      confirmText: 'Kosongkan Billing Aktif',
+      variant: 'warning',
+      onConfirm: async () => {
+        closeConfirm();
+        await updateJokiSettings({ globalPaused: false, globalPauseStarted: null });
+        for (const c of active) {
+          await deleteJokiCustomer(c.id);
+        }
+        addToast('Billing aktif berhasil dikosongkan. Riwayat tetap tersimpan aman.', 'success');
+      }
+    });
+  };
+
+  // 6. Clear All Transactions
   const handleRequestClearTransactions = () => {
     if (customers.length === 0) {
       addToast('Tidak ada transaksi di database.', 'info');
@@ -262,9 +293,32 @@ const JokiDashboard = () => {
     });
   };
 
+  // 7. Clear All Queue
+  const handleRequestClearQueue = () => {
+    if (queue.length === 0) {
+      addToast('Antrian sudah kosong.', 'info');
+      return;
+    }
+
+    setConfirmConfig({
+      isOpen: true,
+      title: 'Kosongkan Semua Antrian?',
+      message: `Semua ${queue.length} customer di daftar antrian akan dihapus.`,
+      confirmText: 'Kosongkan Antrian',
+      variant: 'danger',
+      onConfirm: async () => {
+        closeConfirm();
+        for (const item of queue) {
+          await deleteJokiQueue(item.id);
+        }
+        addToast('Daftar antrian berhasil dikosongkan.', 'success');
+      }
+    });
+  };
+
   return (
     <JokiLayout>
-      {/* Header with Role based actions */}
+      {/* Header */}
       <JokiHeader
         onOpenAddModal={() => setIsAddModalOpen(true)}
         onOpenLoginModal={() => setIsLoginModalOpen(true)}
@@ -280,16 +334,26 @@ const JokiDashboard = () => {
       {/* Metric Summary Cards (Admin Only) */}
       <JokiSummary />
 
-      {/* Main Table Section */}
-      <JokiToolbar />
-      <ActiveTable
-        onOpenExtendModal={setExtendCustomer}
-        onRequestStopCustomer={handleRequestStopCustomer}
-        onRequestDeleteCustomer={handleRequestDeleteCustomer}
-      />
+      {/* Main 2-Column Grid: Billing Tables (Left) + Queue Sidebar (Right) */}
+      <div className="flex flex-col lg:flex-row gap-4 items-start">
+        {/* Left Column: Tables */}
+        <div className="w-full lg:flex-1 min-w-0">
+          <JokiToolbar />
+          <ActiveTable
+            onOpenExtendModal={setExtendCustomer}
+            onRequestStopCustomer={handleRequestStopCustomer}
+            onRequestDeleteCustomer={handleRequestDeleteCustomer}
+            onRequestClearActiveBillings={handleRequestClearActiveBillings}
+          />
+          <HistoryTable />
+        </div>
 
-      {/* History Table (Admin Only) */}
-      <HistoryTable />
+        {/* Right Column: Queue Sidebar */}
+        <QueueSidebar
+          onStartFromQueue={setStartQueueItem}
+          onRequestClearQueue={handleRequestClearQueue}
+        />
+      </div>
 
       {/* Modals */}
       <AddJokiModal
@@ -300,6 +364,11 @@ const JokiDashboard = () => {
       <ExtendModal
         customer={extendCustomer}
         onClose={() => setExtendCustomer(null)}
+      />
+
+      <StartBillingModal
+        queueItem={startQueueItem}
+        onClose={() => setStartQueueItem(null)}
       />
 
       <JokiLoginModal

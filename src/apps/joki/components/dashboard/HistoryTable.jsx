@@ -52,67 +52,82 @@ const HistoryTable = () => {
 
       <div className="bg-bg-surface border border-border-default rounded-2xl overflow-hidden shadow-2xl">
         <div className="overflow-x-auto">
-          <table className="w-full border-collapse text-left min-w-[1000px]">
+          <table className="w-full border-collapse text-left min-w-[950px]">
             <thead>
               <tr className="bg-bg-primary/90 border-b border-border-default text-text-tertiary text-[11px] font-extrabold uppercase tracking-wider">
-                <th className="py-3 px-4 text-center w-12">No</th>
-                <th className="py-3 px-4">Username Roblox</th>
-                <th className="py-3 px-4">Akun TikTok</th>
-                <th className="py-3 px-4 text-center">Layanan</th>
-                <th className="py-3 px-4 text-center">Durasi</th>
-                <th className="py-3 px-4 text-center">Harga (Lunas)</th>
-                <th className="py-3 px-4 text-center">Mulai</th>
-                <th className="py-3 px-4 text-center">Selesai / Stop</th>
-                <th className="py-3 px-4 text-center">Status</th>
+                <th className="py-3 px-3.5 text-center w-10">No</th>
+                <th className="py-3 px-3.5 text-center">Slot</th>
+                <th className="py-3 px-3.5">Username Roblox</th>
+                <th className="py-3 px-3.5">Akun TikTok</th>
+                <th className="py-3 px-3.5 text-center">Layanan</th>
+                <th className="py-3 px-3.5 text-center">Durasi</th>
+                <th className="py-3 px-3.5 text-center">Harga (Lunas)</th>
+                <th className="py-3 px-3.5 text-center">Mulai</th>
+                <th className="py-3 px-3.5 text-center">Selesai / Stop</th>
+                <th className="py-3 px-3.5 text-center">Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border-subtle text-xs font-medium">
               {finished.length === 0 ? (
                 <tr>
-                  <td colSpan="9" className="py-10 text-center text-text-dim">
+                  <td colSpan="10" className="py-10 text-center text-text-dim">
                     Belum ada riwayat joki yang selesai.
                   </td>
                 </tr>
               ) : (
                 finished.map((customer, index) => {
+                  const isVIP = customer.service === 'VIP' || customer.slot === 'VIP';
+                  const slotLabel = customer.slot || (isVIP ? 'VIP' : '-');
+
                   return (
                     <tr 
                       key={customer.id} 
                       className="hover:bg-white/[0.02] transition-colors"
                     >
-                      <td className="py-3 px-4 text-center text-text-faint font-mono">
+                      <td className="py-3 px-3.5 text-center text-text-faint font-mono">
                         {index + 1}
                       </td>
+
+                      {/* Slot */}
+                      <td className="py-3 px-3.5 text-center">
+                        <span className={`inline-flex items-center justify-center min-w-[28px] px-1.5 py-0.5 rounded text-[10.5px] font-extrabold font-mono ${
+                          isVIP
+                            ? 'bg-accent-yellow/10 text-accent-yellow border border-accent-yellow/30'
+                            : 'bg-accent-cyan/10 text-accent-cyan border border-accent-cyan/30'
+                        }`}>
+                          {slotLabel === 'VIP' ? 'VIP' : `#${slotLabel}`}
+                        </span>
+                      </td>
                       
-                      <td className="py-3 px-4 font-bold text-text-primary">
+                      <td className="py-3 px-3.5 font-bold text-text-primary">
                         {customer.username || customer.name}
                       </td>
 
-                      <td className="py-3 px-4 text-text-muted">
+                      <td className="py-3 px-3.5 text-text-muted">
                         {customer.tiktokName ? `@${customer.tiktokName}` : '-'}
                       </td>
 
-                      <td className="py-3 px-4 text-center text-text-secondary">
+                      <td className="py-3 px-3.5 text-center text-text-secondary">
                         {customer.service}
                       </td>
 
-                      <td className="py-3 px-4 text-center text-text-secondary font-mono">
+                      <td className="py-3 px-3.5 text-center text-text-secondary font-mono">
                         {formatDuration(customer.duration)}
                       </td>
 
-                      <td className="py-3 px-4 text-center font-bold text-accent-yellow font-mono">
+                      <td className="py-3 px-3.5 text-center font-bold text-accent-yellow font-mono">
                         {formatRupiah(customer.price)}
                       </td>
 
-                      <td className="py-3 px-4 text-center text-text-tertiary font-mono">
+                      <td className="py-3 px-3.5 text-center text-text-tertiary font-mono">
                         {formatDateTime(customer.startTime)}
                       </td>
 
-                      <td className="py-3 px-4 text-center text-text-tertiary font-mono">
+                      <td className="py-3 px-3.5 text-center text-text-tertiary font-mono">
                         {formatDateTime(customer.finishedTime)}
                       </td>
 
-                      <td className="py-3 px-4 text-center">
+                      <td className="py-3 px-3.5 text-center">
                         <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase ${
                           customer.stopped 
                             ? 'bg-accent-red/15 text-accent-red border border-accent-red/30' 

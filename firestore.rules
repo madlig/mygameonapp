@@ -268,6 +268,11 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    match /joki_queue/{queueId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
     match /joki_settings/{settingId} {
       allow read: if true;
       allow write: if isAdmin();

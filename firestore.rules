@@ -258,11 +258,32 @@ service cloud.firestore {
     }
 
     // ========================================================
-    // JOKI AFK ROBLOX (SUBDOMAIN)
+    // JOKI AFK ROBLOX (MULTI-TENANT WORKSPACES)
     // ========================================================
     // Public can read to view live queue & status countdown
     // Only admin can create, update, or delete
 
+    match /joki_workspaces/{workspaceId} {
+      allow read: if true;
+      allow write: if isAdmin();
+
+      match /customers/{customerId} {
+        allow read: if true;
+        allow write: if isAdmin();
+      }
+
+      match /queue/{queueId} {
+        allow read: if true;
+        allow write: if isAdmin();
+      }
+
+      match /settings/{settingId} {
+        allow read: if true;
+        allow write: if isAdmin();
+      }
+    }
+
+    // Legacy fallback for backward compatibility
     match /joki_customers/{customerId} {
       allow read: if true;
       allow write: if isAdmin();

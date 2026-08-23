@@ -10,8 +10,10 @@ import {
   LogIn, 
   LogOut, 
   Clock, 
-  Sparkles,
-  ShieldCheck
+  ShieldCheck,
+  Radio,
+  Share2,
+  Check
 } from 'lucide-react';
 
 const JokiHeader = ({ 
@@ -25,6 +27,10 @@ const JokiHeader = ({
     isAdmin, 
     currentUser,
     logout,
+    workspaces,
+    activeWorkspaceId,
+    activeWorkspace,
+    changeWorkspace,
     globalPaused, 
     streamerMode, 
     toggleStreamerMode,
@@ -32,6 +38,7 @@ const JokiHeader = ({
   } = useJoki();
   
   const [currentTime, setCurrentTime] = useState('');
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     const updateTime = () => {
@@ -58,25 +65,33 @@ const JokiHeader = ({
     }
   };
 
+  const handleCopyShareLink = () => {
+    const url = `${window.location.origin}${window.location.pathname}?c=${activeWorkspaceId}`;
+    navigator.clipboard.writeText(url);
+    setCopied(true);
+    addToast(`Link live board untuk ${activeWorkspace.name} berhasil disalin!`, 'success');
+    setTimeout(() => setCopied(false), 2500);
+  };
+
   return (
     <header className="bg-bg-surface/80 backdrop-blur-xl border border-border-default rounded-2xl p-5 md:p-6 mb-4 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-5 shadow-2xl transition-all">
-      {/* Brand & Live Clock */}
-      <div className="flex flex-col gap-1.5">
+      {/* Brand, Channel Badge & Live Clock */}
+      <div className="flex flex-col gap-2">
         <div className="flex items-center gap-2.5">
           <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-accent-purple/20 to-accent-yellow/10 border border-accent-purple/30 flex items-center justify-center text-lg shadow-inner">
             🥚
           </div>
           <div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <h1 className="text-xl md:text-2xl font-black text-text-primary tracking-tight m-0">
                 Steal an Egg <span className="text-accent-purple">—</span> Joki Billing
               </h1>
               {isAdmin ? (
-                <span className="hidden sm:inline-flex items-center gap-1 text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-accent-purple/15 text-accent-purple-light border border-accent-purple/30">
+                <span className="inline-flex items-center gap-1 text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-accent-purple/15 text-accent-purple-light border border-accent-purple/30">
                   <ShieldCheck size={12} /> Admin Mode
                 </span>
               ) : (
-                <span className="hidden sm:inline-flex items-center gap-1 text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-accent-green/15 text-accent-green border border-accent-green/30 animate-pulse">
+                <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-accent-green/15 text-accent-green border border-accent-green/30 animate-pulse">
                   ● Live Monitor
                 </span>
               )}
@@ -87,10 +102,40 @@ const JokiHeader = ({
           </div>
         </div>
 
-        {/* Live Clock Bar */}
-        <div className="inline-flex items-center gap-2 text-xs font-mono text-text-muted mt-1 px-2.5 py-1 rounded-lg bg-bg-primary/80 border border-border-subtle w-fit">
-          <Clock size={13} className="text-accent-yellow" />
-          <span>Waktu Sekarang: <strong className="text-text-primary">{currentTime || '--:--:--'}</strong></span>
+        {/* Channel Selector & Live Clock Bar */}
+        <div className="flex items-center gap-2 flex-wrap mt-1">
+          {/* Workspace / Channel Switcher */}
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-bg-primary border border-border-default text-xs">
+            <Radio size={13} className="text-accent-cyan animate-pulse" />
+            <span className="text-text-dim text-[11px] font-semibold">Kanal:</span>
+            <select
+              value={activeWorkspaceId}
+              onChange={(e) => changeWorkspace(e.target.value)}
+              className="bg-transparent text-text-primary font-bold text-xs outline-none cursor-pointer pr-1"
+            >
+              {workspaces.map((w) => (
+                <option key={w.id} value={w.id} className="bg-bg-surface text-text-primary">
+                  {w.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Copy Share Link */}
+          <button
+            onClick={handleCopyShareLink}
+            title="Salin link live board kanal ini untuk dibagikan ke penonton live"
+            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-bg-primary hover:bg-white/5 border border-border-default text-text-muted hover:text-text-primary text-xs font-semibold transition-all cursor-pointer"
+          >
+            {copied ? <Check size={12} className="text-accent-green" /> : <Share2 size={12} />}
+            <span className="text-[11px]">{copied ? 'Tersalin!' : 'Bagi Link'}</span>
+          </button>
+
+          {/* Clock */}
+          <div className="inline-flex items-center gap-1.5 text-xs font-mono text-text-muted px-2.5 py-1 rounded-lg bg-bg-primary/80 border border-border-subtle">
+            <Clock size={12} className="text-accent-yellow" />
+            <span>Jam: <strong className="text-text-primary">{currentTime || '--:--:--'}</strong></span>
+          </div>
         </div>
       </div>
 
@@ -141,7 +186,7 @@ const JokiHeader = ({
             {!streamerMode && (
               <button
                 onClick={onRequestClearTransactions}
-                title="Hapus semua transaksi aktif dan riwayat"
+                title="Hapus seluruh data kanal ini"
                 className="flex items-center gap-1 px-3 py-2.5 rounded-xl text-xs font-bold text-accent-red hover:bg-accent-red/10 border border-transparent hover:border-accent-red/20 transition-all cursor-pointer"
               >
                 <Trash2 size={14} />

@@ -1,20 +1,28 @@
 import React, { createContext, useState, useEffect, useContext } from "react";
+import { useSearchParams } from "react-router-dom";
 import { 
+  DEFAULT_WORKSPACE_ID,
+  subscribeJokiWorkspaces,
   subscribeJokiCustomers, 
   subscribeJokiQueue,
   subscribeJokiSettings, 
-  addJokiCustomer, 
-  updateJokiCustomer, 
-  deleteJokiCustomer,
-  addJokiQueue,
-  updateJokiQueue,
-  deleteJokiQueue,
-  updateJokiSettings 
+  addJokiCustomer as fbAddCustomer, 
+  updateJokiCustomer as fbUpdateCustomer, 
+  deleteJokiCustomer as fbDeleteCustomer,
+  addJokiQueue as fbAddQueue,
+  updateJokiQueue as fbUpdateQueue,
+  deleteJokiQueue as fbDeleteQueue,
+  updateJokiSettings as fbUpdateSettings 
 } from "../services/jokiFirebase";
 import { useAuth } from "../../../contexts/AuthContext";
 
 const PRICE_BASIC = 4000;
 const PRICE_VIP = 6000;
+
+const DEFAULT_WORKSPACES = [
+  { id: 'mygameon', name: 'MyGameON AFK', slug: 'mygameon', ownerEmail: 'admin@mygameon.store' },
+  { id: 'kadal', name: 'Kadal Gaming', slug: 'kadal', ownerEmail: 'kadal@gmail.com' },
+];
 
 const JokiContext = createContext();
 
@@ -22,13 +30,28 @@ export const useJoki = () => useContext(JokiContext);
 
 export const JokiProvider = ({ children }) => {
   const { isAdmin, currentUser, logout } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Workspaces list
+  const [workspaces, setWorkspaces] = useState(DEFAULT_WORKSPACES);
+
+  // Determine initial workspace from URL param or default
+  const channelParam = searchParams.get('c') || searchParams.get('channel') || searchParams.get('streamer');
+  
+  const [activeWorkspaceId, setActiveWorkspaceIdState] = useState(() => {
+    if (channelParam && (channelParam === 'kadal' || channelParam === 'mygameon')) {
+      return channelParam;
+    }
+    return DEFAULT_WORKSPACE_ID;
+  });
+
   const [customers, setCustomers] = useState([]);
   const [queue, setQueue] = useState([]);
   const [globalPaused, setGlobalPaused] = useState(false);
   const [globalPauseStarted, setGlobalPauseStarted] = useState(null);
   const [loading, setLoading] = useState(true);
   
-  // Streamer Mode is stored in localStorage per device
+  // Streamer Mode per device
   const [streamerMode, setStreamerMode] = useState(() => {
     return localStorage.getItem("jokiStreamerMode") === "true";
   });
@@ -36,6 +59,34 @@ export const JokiProvider = ({ children }) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [filter, setFilter] = useState("ALL");
   const [toasts, setToasts] = useState([]);
+
+  // Auto-switch workspace if admin logs in with matching email
+  useEffect(() => {
+    if (currentUser?.email) {
+      const email = currentUser.email.toLowerCase();
+      if (email.includes('kadal')) {
+        changeWorkspace('kadal');
+      } else if (email.includes('mygameon') || email.includes('admin')) {
+        changeWorkspace('mygameon');
+      }
+    }
+  }, [currentUser]);
+
+  // Sync with URL param if changed externally
+  useEffect(() => {
+    if (channelParam && channelParam !== activeWorkspaceId) {
+      setActiveWorkspaceIdState(channelParam);
+    }
+  }, [channelParam]);
+
+  const changeWorkspace = (newId) => {
+    setActiveWorkspaceIdState(newId);
+    setSearchParams((prev) => {
+      const p = new URLSearchParams(prev);
+      p.set('c', newId);
+      return p;
+    }, { replace: true });
+  };
 
   const addToast = (message, type = 'success') => {
     const id = Date.now() + Math.random();
@@ -49,17 +100,30 @@ export const JokiProvider = ({ children }) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   };
 
+  // Subscribe to Workspaces list
   useEffect(() => {
-    const unsubCustomers = subscribeJokiCustomers((data) => {
+    const unsub = subscribeJokiWorkspaces((data) => {
+      if (data && data.length > 0) {
+        setWorkspaces(data);
+      }
+    });
+    return () => unsub();
+  }, []);
+
+  // Subscribe to active workspace subcollections
+  useEffect(() => {
+    setLoading(true);
+
+    const unsubCustomers = subscribeJokiCustomers(activeWorkspaceId, (data) => {
       setCustomers(data);
       setLoading(false);
     });
 
-    const unsubQueue = subscribeJokiQueue((data) => {
+    const unsubQueue = subscribeJokiQueue(activeWorkspaceId, (data) => {
       setQueue(data);
     });
     
-    const unsubSettings = subscribeJokiSettings((data) => {
+    const unsubSettings = subscribeJokiSettings(activeWorkspaceId, (data) => {
       setGlobalPaused(data.globalPaused || false);
       setGlobalPauseStarted(data.globalPauseStarted || null);
     });
@@ -69,7 +133,7 @@ export const JokiProvider = ({ children }) => {
       unsubQueue();
       unsubSettings();
     };
-  }, []);
+  }, [activeWorkspaceId]);
 
   const toggleStreamerMode = () => {
     setStreamerMode((prev) => {
@@ -104,7 +168,7 @@ export const JokiProvider = ({ children }) => {
     const now = Date.now();
     const duration = Number(queueItem.duration || 1);
     const durationSeconds = duration * 3600;
-    const isVIP = queueItem.service === 'VIP';
+    const isVIP = queueItem.service === 'VIP' || selectedSlot === 'VIP';
     const finalSlot = isVIP ? 'VIP' : (selectedSlot || suggestSlot());
     const pricePerHour = isVIP ? PRICE_VIP : PRICE_BASIC;
     const price = duration * pricePerHour;
@@ -113,7 +177,7 @@ export const JokiProvider = ({ children }) => {
       username: queueItem.username,
       tiktokName: queueItem.tiktokName || '',
       name: queueItem.username,
-      service: queueItem.service || 'Basic',
+      service: isVIP ? 'VIP' : 'Basic',
       slot: finalSlot,
       duration: duration,
       price: price,
@@ -136,14 +200,32 @@ export const JokiProvider = ({ children }) => {
       customerData.remainingAtPause = durationSeconds;
     }
 
-    await addJokiCustomer(customerData);
-    await deleteJokiQueue(queueItem.id);
+    await fbAddCustomer(activeWorkspaceId, customerData);
+    await fbDeleteQueue(activeWorkspaceId, queueItem.id);
+  };
+
+  // Workspace-aware CRUD functions
+  const addJokiCustomer = (data) => fbAddCustomer(activeWorkspaceId, data);
+  const updateJokiCustomer = (id, data) => fbUpdateCustomer(activeWorkspaceId, id, data);
+  const deleteJokiCustomer = (id) => fbDeleteCustomer(activeWorkspaceId, id);
+  const addJokiQueue = (data) => fbAddQueue(activeWorkspaceId, data);
+  const updateJokiQueue = (id, data) => fbUpdateQueue(activeWorkspaceId, id, data);
+  const deleteJokiQueue = (id) => fbDeleteQueue(activeWorkspaceId, id);
+  const updateJokiSettings = (data) => fbUpdateSettings(activeWorkspaceId, data);
+
+  const activeWorkspace = workspaces.find(w => w.id === activeWorkspaceId) || {
+    id: activeWorkspaceId,
+    name: activeWorkspaceId === 'kadal' ? 'Kadal Gaming' : 'MyGameON AFK'
   };
 
   const value = {
     isAdmin,
     currentUser,
     logout,
+    workspaces,
+    activeWorkspaceId,
+    activeWorkspace,
+    changeWorkspace,
     customers,
     queue,
     loading,

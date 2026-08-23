@@ -1,35 +1,46 @@
 import { collection, doc, setDoc, updateDoc, deleteDoc, onSnapshot, query, orderBy } from "firebase/firestore";
 import { db } from "../../../config/firebaseConfig";
 
-export const JOKI_CUSTOMERS_COL = "joki_customers";
-export const JOKI_QUEUE_COL = "joki_queue";
-export const JOKI_SETTINGS_COL = "joki_settings";
+export const DEFAULT_WORKSPACE_ID = "mygameon";
 
-// ── Customers Subscription ──
-export const subscribeJokiCustomers = (callback) => {
-  const q = query(collection(db, JOKI_CUSTOMERS_COL), orderBy("createdAt", "desc"));
+// ── Workspaces List Subscription ──
+export const subscribeJokiWorkspaces = (callback) => {
+  const q = query(collection(db, "joki_workspaces"), orderBy("createdAt", "asc"));
   return onSnapshot(q, (snapshot) => {
     const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     callback(data);
   }, (error) => {
-    console.error("Error subscribing to joki customers:", error);
+    console.error("Error subscribing to joki workspaces:", error);
   });
 };
 
-// ── Queue Subscription ──
-export const subscribeJokiQueue = (callback) => {
-  const q = query(collection(db, JOKI_QUEUE_COL), orderBy("createdAt", "asc"));
+// ── Customers Subscription per Workspace ──
+export const subscribeJokiCustomers = (workspaceId = DEFAULT_WORKSPACE_ID, callback) => {
+  const colRef = collection(db, "joki_workspaces", workspaceId, "customers");
+  const q = query(colRef, orderBy("createdAt", "desc"));
   return onSnapshot(q, (snapshot) => {
     const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     callback(data);
   }, (error) => {
-    console.error("Error subscribing to joki queue:", error);
+    console.error(`Error subscribing to customers for workspace ${workspaceId}:`, error);
   });
 };
 
-// ── Settings Subscription ──
-export const subscribeJokiSettings = (callback) => {
-  const docRef = doc(db, JOKI_SETTINGS_COL, "global");
+// ── Queue Subscription per Workspace ──
+export const subscribeJokiQueue = (workspaceId = DEFAULT_WORKSPACE_ID, callback) => {
+  const colRef = collection(db, "joki_workspaces", workspaceId, "queue");
+  const q = query(colRef, orderBy("createdAt", "asc"));
+  return onSnapshot(q, (snapshot) => {
+    const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    callback(data);
+  }, (error) => {
+    console.error(`Error subscribing to queue for workspace ${workspaceId}:`, error);
+  });
+};
+
+// ── Settings Subscription per Workspace ──
+export const subscribeJokiSettings = (workspaceId = DEFAULT_WORKSPACE_ID, callback) => {
+  const docRef = doc(db, "joki_workspaces", workspaceId, "settings", "global");
   return onSnapshot(docRef, (docSnap) => {
     if (docSnap.exists()) {
       callback(docSnap.data());
@@ -37,52 +48,56 @@ export const subscribeJokiSettings = (callback) => {
       callback({ globalPaused: false, globalPauseStarted: null });
     }
   }, (error) => {
-    console.error("Error subscribing to joki settings:", error);
+    console.error(`Error subscribing to settings for workspace ${workspaceId}:`, error);
   });
 };
 
-// ── Customer CRUD ──
-export const addJokiCustomer = async (customerData) => {
-  const newDocRef = doc(collection(db, JOKI_CUSTOMERS_COL));
+// ── Customer CRUD per Workspace ──
+export const addJokiCustomer = async (workspaceId = DEFAULT_WORKSPACE_ID, customerData) => {
+  const colRef = collection(db, "joki_workspaces", workspaceId, "customers");
+  const newDocRef = doc(colRef);
   await setDoc(newDocRef, { 
     ...customerData, 
+    workspaceId,
     createdAt: customerData.createdAt || Date.now() 
   });
   return newDocRef.id;
 };
 
-export const updateJokiCustomer = async (id, data) => {
-  const docRef = doc(db, JOKI_CUSTOMERS_COL, id);
+export const updateJokiCustomer = async (workspaceId = DEFAULT_WORKSPACE_ID, id, data) => {
+  const docRef = doc(db, "joki_workspaces", workspaceId, "customers", id);
   await updateDoc(docRef, data);
 };
 
-export const deleteJokiCustomer = async (id) => {
-  const docRef = doc(db, JOKI_CUSTOMERS_COL, id);
+export const deleteJokiCustomer = async (workspaceId = DEFAULT_WORKSPACE_ID, id) => {
+  const docRef = doc(db, "joki_workspaces", workspaceId, "customers", id);
   await deleteDoc(docRef);
 };
 
-// ── Queue CRUD ──
-export const addJokiQueue = async (queueData) => {
-  const newDocRef = doc(collection(db, JOKI_QUEUE_COL));
+// ── Queue CRUD per Workspace ──
+export const addJokiQueue = async (workspaceId = DEFAULT_WORKSPACE_ID, queueData) => {
+  const colRef = collection(db, "joki_workspaces", workspaceId, "queue");
+  const newDocRef = doc(colRef);
   await setDoc(newDocRef, {
     ...queueData,
+    workspaceId,
     createdAt: Date.now()
   });
   return newDocRef.id;
 };
 
-export const updateJokiQueue = async (id, data) => {
-  const docRef = doc(db, JOKI_QUEUE_COL, id);
+export const updateJokiQueue = async (workspaceId = DEFAULT_WORKSPACE_ID, id, data) => {
+  const docRef = doc(db, "joki_workspaces", workspaceId, "queue", id);
   await updateDoc(docRef, data);
 };
 
-export const deleteJokiQueue = async (id) => {
-  const docRef = doc(db, JOKI_QUEUE_COL, id);
+export const deleteJokiQueue = async (workspaceId = DEFAULT_WORKSPACE_ID, id) => {
+  const docRef = doc(db, "joki_workspaces", workspaceId, "queue", id);
   await deleteDoc(docRef);
 };
 
-// ── Settings Update ──
-export const updateJokiSettings = async (data) => {
-  const docRef = doc(db, JOKI_SETTINGS_COL, "global");
+// ── Settings Update per Workspace ──
+export const updateJokiSettings = async (workspaceId = DEFAULT_WORKSPACE_ID, data) => {
+  const docRef = doc(db, "joki_workspaces", workspaceId, "settings", "global");
   await setDoc(docRef, data, { merge: true });
 };

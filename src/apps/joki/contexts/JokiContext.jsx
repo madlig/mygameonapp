@@ -21,7 +21,7 @@ const PRICE_BASIC = 4000;
 const PRICE_VIP = 6000;
 
 const DEFAULT_WORKSPACES = [
-  { id: 'mygameon', name: 'MyGameON AFK', slug: 'mygameon', ownerEmail: 'admin@mygameon.store' },
+  { id: 'mygameon', name: 'MyGameON AFK', slug: 'mygameon', ownerEmail: 'madlighifari29@gmail.com' },
   { id: 'kadal', name: 'Kadal Gaming', slug: 'kadal', ownerEmail: 'kadal@gmail.com' },
 ];
 
@@ -36,12 +36,13 @@ export const JokiProvider = ({ children }) => {
   // Workspaces list
   const [workspaces, setWorkspaces] = useState(DEFAULT_WORKSPACES);
 
-  // Super Admin Check (MyGameON Main Account)
+  // Super Admin Check: madlighifari29@gmail.com (Akun Utama Anda)
   const userEmail = (currentUser?.email || '').toLowerCase();
   const isSuperAdmin = isAdmin && (
-    userEmail.includes('mygameon') || 
-    userEmail === 'admin@mygameon.store' ||
-    userEmail.includes('madli')
+    userEmail.includes('madli') || 
+    userEmail === 'madlighifari29@gmail.com' ||
+    userEmail === 'madlighifari@gmail.com' ||
+    userEmail.includes('mygameon')
   );
 
   // Determine initial workspace from URL param or default
@@ -74,16 +75,16 @@ export const JokiProvider = ({ children }) => {
     if (currentUser?.email) {
       const email = currentUser.email.toLowerCase();
       
-      // 1. Check if email matches ownerEmail of an existing workspace in workspaces
-      const matched = workspaces.find(w => w.ownerEmail && w.ownerEmail.toLowerCase() === email);
-      if (matched) {
-        changeWorkspace(matched.id);
+      // 1. If Super Admin (madlighifari29@gmail.com or madli* / mygameon) -> lock to mygameon
+      if (email.includes('madli') || email.includes('mygameon')) {
+        changeWorkspace('mygameon');
         return;
       }
 
-      // 2. Check if email is main admin
-      if (email.includes('mygameon') || email === 'admin@mygameon.store') {
-        changeWorkspace('mygameon');
+      // 2. Check if email matches ownerEmail of an existing workspace
+      const matched = workspaces.find(w => w.ownerEmail && w.ownerEmail.toLowerCase() === email);
+      if (matched) {
+        changeWorkspace(matched.id);
         return;
       }
 

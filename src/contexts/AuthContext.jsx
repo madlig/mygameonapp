@@ -1,11 +1,12 @@
 /* eslint-disable react-refresh/only-export-components */
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { auth } from '../config/firebaseConfig';
+import { auth, db } from '../config/firebaseConfig';
 import {
   signInWithEmailAndPassword,
   signOut,
   onAuthStateChanged,
 } from 'firebase/auth';
+import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 
 // ── Context ──────────────────────────────────────────────────
 const AuthContext = createContext();
@@ -31,7 +32,7 @@ export function AuthProvider({ children }) {
     return signOut(auth);
   }
 
-  // Pantau auth state + baca custom claims
+  // Pantau auth state + verifikasi hak akses admin
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setCurrentUser(user);
@@ -43,15 +44,41 @@ export function AuthProvider({ children }) {
       }
 
       try {
-        // Force-refresh token supaya claims selalu fresh
+        // 1. Cek Custom Claims dari token Firebase
         const tokenResult = await user.getIdTokenResult(true);
         const claims = tokenResult?.claims || {};
-        const hasAdminClaim = claims.admin === true || claims.role === 'admin';
-        setIsAdmin(hasAdminClaim);
+        let hasAdminAccess = claims.admin === true || claims.role === 'admin';
 
-        // Jika user login tapi bukan admin → auto sign-out
-        // Ini mencegah non-admin session bertahan di browser
-        if (!hasAdminClaim) {
+        // 2. Cek Whitelist Firestore (Jika custom claims belum ter-set di token)
+        if (!hasAdminAccess && user.email) {
+          const email = user.email.toLowerCase();
+          
+          if (email === 'madlighifari29@gmail.com' || email === 'madlighifari@gmail.com' || email.includes('mygameon')) {
+            hasAdminAccess = true;
+          } else {
+            try {
+              // Cek dokumen di joki_admin_emails
+              const adminDoc = await getDoc(doc(db, 'joki_admin_emails', email));
+              if (adminDoc.exists()) {
+                hasAdminAccess = true;
+              } else {
+                // Cek kepemilikan workspace di joki_workspaces
+                const q = query(collection(db, 'joki_workspaces'), where('ownerEmail', '==', email));
+                const snap = await getDocs(q);
+                if (!snap.empty) {
+                  hasAdminAccess = true;
+                }
+              }
+            } catch (err) {
+              console.error('Error verifying admin whitelist in Firestore:', err);
+            }
+          }
+        }
+
+        setIsAdmin(hasAdminAccess);
+
+        // Jika user login tapi bukan admin terdaftar → auto sign-out
+        if (!hasAdminAccess) {
           await signOut(auth);
           setCurrentUser(null);
           setIsAdmin(false);
@@ -59,7 +86,6 @@ export function AuthProvider({ children }) {
       } catch (error) {
         console.error('Failed to verify auth claims:', error);
         setIsAdmin(false);
-        // Token gagal di-refresh → sign out for safety
         try {
           await signOut(auth);
         } catch {

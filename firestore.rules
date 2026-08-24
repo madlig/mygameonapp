@@ -257,46 +257,62 @@ service cloud.firestore {
       allow read, write: if isAdmin();
     }
 
+    // Helper for Joki AFK Roblox Admin validation
+    function isJokiAdmin() {
+      return isSignedIn() && (
+        request.auth.token.role == 'admin' ||
+        request.auth.token.admin == true ||
+        request.auth.token.email == 'madlighifari29@gmail.com' ||
+        request.auth.token.email == 'madlighifari@gmail.com' ||
+        (request.auth.token.email != null && exists(/databases/$(database)/documents/joki_admin_emails/$(request.auth.token.email)))
+      );
+    }
+
     // ========================================================
     // JOKI AFK ROBLOX (MULTI-TENANT WORKSPACES)
     // ========================================================
     // Public can read to view live queue & status countdown
     // Only admin can create, update, or delete
 
+    match /joki_admin_emails/{email} {
+      allow read: if true;
+      allow write: if isJokiAdmin();
+    }
+
     match /joki_workspaces/{workspaceId} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow write: if isJokiAdmin();
 
       match /customers/{customerId} {
         allow read: if true;
-        allow write: if isAdmin();
+        allow write: if isJokiAdmin();
       }
 
       match /queue/{queueId} {
         allow read: if true;
-        allow write: if isAdmin();
+        allow write: if isJokiAdmin();
       }
 
       match /settings/{settingId} {
         allow read: if true;
-        allow write: if isAdmin();
+        allow write: if isJokiAdmin();
       }
     }
 
     // Legacy fallback for backward compatibility
     match /joki_customers/{customerId} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow write: if isJokiAdmin();
     }
 
     match /joki_queue/{queueId} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow write: if isJokiAdmin();
     }
 
     match /joki_settings/{settingId} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow write: if isJokiAdmin();
     }
 
     // ========================================================

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useJoki } from '../../contexts/JokiContext';
-import { functions, httpsCallable, firebaseConfig } from '../../../../config/firebaseConfig';
+import { firebaseConfig } from '../../../../config/firebaseConfig';
 import { initializeApp, deleteApp } from 'firebase/app';
 import { getAuth, createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { doc, setDoc, deleteDoc } from 'firebase/firestore';
@@ -13,7 +13,6 @@ import {
   Share2, 
   Check, 
   ExternalLink, 
-  ShieldCheck, 
   User, 
   Lock, 
   Globe, 
@@ -62,64 +61,61 @@ const ManageAdminsModal = ({ isOpen, onClose }) => {
     }
 
     const cleanSlug = slug.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanName = name.trim();
 
     try {
       setLoading(true);
 
-      // Attempt 1: Try Firebase Cloud Function (asia-southeast2)
-      let functionSuccess = false;
+      // 1. Create user in Firebase Auth using isolated secondary app instance
+      let userUid = '';
+      const secondaryAppName = `SecondaryAuth_${Date.now()}`;
+      const secondaryApp = initializeApp(firebaseConfig, secondaryAppName);
+      const secondaryAuth = getAuth(secondaryApp);
+
       try {
-        const createAdminFn = httpsCallable(functions, 'createJokiAdminUser');
-        await createAdminFn({
-          name: name.trim(),
-          slug: cleanSlug,
-          email: email.trim().toLowerCase(),
-          password: password.trim(),
-        });
-        functionSuccess = true;
-      } catch (fnErr) {
-        console.warn('Cloud Function not deployed or unreachable, using direct Secondary Auth provisioning:', fnErr);
-      }
-
-      // Attempt 2: Direct secondary auth instance fallback (guaranteed to work in any environment)
-      if (!functionSuccess) {
-        const secondaryAppName = `SecondaryAuth_${Date.now()}`;
-        const secondaryApp = initializeApp(firebaseConfig, secondaryAppName);
-        const secondaryAuth = getAuth(secondaryApp);
-
-        try {
-          const userCred = await createUserWithEmailAndPassword(
-            secondaryAuth, 
-            email.trim().toLowerCase(), 
-            password.trim()
-          );
-          await updateProfile(userCred.user, { displayName: name.trim() });
-        } catch (authErr) {
-          if (authErr.code !== 'auth/email-already-in-use') {
-            throw authErr;
-          }
-        } finally {
-          await deleteApp(secondaryApp);
+        const userCred = await createUserWithEmailAndPassword(
+          secondaryAuth, 
+          cleanEmail, 
+          password.trim()
+        );
+        userUid = userCred.user.uid;
+        await updateProfile(userCred.user, { displayName: cleanName });
+      } catch (authErr) {
+        if (authErr.code !== 'auth/email-already-in-use') {
+          throw authErr;
         }
-
-        // Save to Firestore joki_workspaces
-        await setDoc(doc(db, 'joki_workspaces', cleanSlug), {
-          id: cleanSlug,
-          name: name.trim(),
-          slug: cleanSlug,
-          ownerEmail: email.trim().toLowerCase(),
-          createdAt: Date.now(),
-        }, { merge: true });
-
-        // Initialize settings
-        await setDoc(doc(db, 'joki_workspaces', cleanSlug, 'settings', 'global'), {
-          globalPaused: false,
-          globalPauseStarted: null,
-          updatedAt: Date.now(),
-        }, { merge: true });
+      } finally {
+        await deleteApp(secondaryApp);
       }
 
-      addToast(`Admin & Kanal ${name} berhasil dibuat! Teman Anda sudah bisa langsung login.`, 'success');
+      // 2. Add to joki_admin_emails whitelist in Firestore (instant admin recognition)
+      await setDoc(doc(db, 'joki_admin_emails', cleanEmail), {
+        email: cleanEmail,
+        name: cleanName,
+        slug: cleanSlug,
+        uid: userUid,
+        createdAt: Date.now(),
+      }, { merge: true });
+
+      // 3. Save workspace to joki_workspaces
+      await setDoc(doc(db, 'joki_workspaces', cleanSlug), {
+        id: cleanSlug,
+        name: cleanName,
+        slug: cleanSlug,
+        ownerEmail: cleanEmail,
+        ownerUid: userUid,
+        createdAt: Date.now(),
+      }, { merge: true });
+
+      // 4. Initialize workspace settings
+      await setDoc(doc(db, 'joki_workspaces', cleanSlug, 'settings', 'global'), {
+        globalPaused: false,
+        globalPauseStarted: null,
+        updatedAt: Date.now(),
+      }, { merge: true });
+
+      addToast(`Admin & Kanal ${cleanName} berhasil didaftarkan! Teman Anda sudah bisa langsung login.`, 'success');
       setName('');
       setSlug('');
       setEmail('');
@@ -138,12 +134,19 @@ const ManageAdminsModal = ({ isOpen, onClose }) => {
       return;
     }
 
-    if (!window.confirm(`Hapus kanal ${item.name} (${item.id})? Data joki kanal ini akan dinonaktifkan.`)) {
+    if (!window.confirm(`Hapus kanal ${item.name} (${item.id})? Akses admin dan kanal ini akan dinonaktifkan.`)) {
       return;
     }
 
     try {
+      // Delete workspace
       await deleteDoc(doc(db, 'joki_workspaces', item.id));
+
+      // Remove from admin whitelist if email is set
+      if (item.ownerEmail) {
+        await deleteDoc(doc(db, 'joki_admin_emails', item.ownerEmail.toLowerCase()));
+      }
+
       addToast(`Kanal ${item.name} berhasil dihapus.`, 'info');
     } catch (err) {
       console.error(err);
@@ -159,7 +162,7 @@ const ManageAdminsModal = ({ isOpen, onClose }) => {
       >
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 text-text-dim hover:text-text-primary transition-colors p-1"
+          className="absolute top-4 right-4 text-text-dim hover:text-text-primary transition-colors p-1 cursor-pointer"
         >
           <X size={18} />
         </button>
@@ -177,7 +180,7 @@ const ManageAdminsModal = ({ isOpen, onClose }) => {
               </span>
             </h3>
             <p className="text-xs text-text-tertiary mt-0.5 m-0">
-              Buat akun admin baru untuk teman Anda tanpa perlu membuka Firebase Console
+              Daftarkan admin baru untuk teman Anda langsung dari website
             </p>
           </div>
         </div>
@@ -321,7 +324,7 @@ const ManageAdminsModal = ({ isOpen, onClose }) => {
                     <button
                       onClick={() => handleCopyLink(item)}
                       title="Salin link live penonton"
-                      className="p-1.5 rounded-lg bg-bg-surface hover:bg-white/10 text-text-muted hover:text-text-primary border border-border-default transition-colors text-xs flex items-center gap-1"
+                      className="p-1.5 rounded-lg bg-bg-surface hover:bg-white/10 text-text-muted hover:text-text-primary border border-border-default transition-colors text-xs flex items-center gap-1 cursor-pointer"
                     >
                       {copiedId === item.id ? <Check size={12} className="text-accent-green" /> : <Share2 size={12} />}
                       <span className="text-[10.5px]">{copiedId === item.id ? 'Tersalin' : 'Link'}</span>
@@ -333,7 +336,7 @@ const ManageAdminsModal = ({ isOpen, onClose }) => {
                         onClose();
                       }}
                       title="Buka dashboard kanal ini"
-                      className="p-1.5 rounded-lg bg-accent-purple/15 text-accent-purple-light hover:bg-accent-purple/25 border border-accent-purple/30 transition-colors text-xs flex items-center gap-1"
+                      className="p-1.5 rounded-lg bg-accent-purple/15 text-accent-purple-light hover:bg-accent-purple/25 border border-accent-purple/30 transition-colors text-xs flex items-center gap-1 cursor-pointer"
                     >
                       <ExternalLink size={12} />
                       <span className="text-[10.5px]">Buka</span>
@@ -343,7 +346,7 @@ const ManageAdminsModal = ({ isOpen, onClose }) => {
                       <button
                         onClick={() => handleDeleteWorkspace(item)}
                         title="Hapus kanal"
-                        className="p-1.5 rounded-lg text-text-dim hover:text-accent-red hover:bg-accent-red/10 transition-colors"
+                        className="p-1.5 rounded-lg text-text-dim hover:text-accent-red hover:bg-accent-red/10 transition-colors cursor-pointer"
                       >
                         <Trash2 size={13} />
                       </button>

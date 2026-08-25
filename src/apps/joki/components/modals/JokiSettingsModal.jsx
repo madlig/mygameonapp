@@ -20,7 +20,7 @@ import { updateJokiSettings } from '../../services/jokiFirebase';
 const JokiSettingsModal = ({ isOpen, onClose }) => {
   const { activeWorkspace, activeWorkspaceId, globalSettings, addToast } = useJoki();
 
-  const [penjokiName, setPenjokiName] = useState(activeWorkspace?.name || '');
+  const [streamerName, setStreamerName] = useState(activeWorkspace?.name || '');
   const [streamStatus, setStreamStatus] = useState(globalSettings?.streamStatus || 'OFFLINE');
   const [nextStreamSchedule, setNextStreamSchedule] = useState(globalSettings?.nextStreamSchedule || '');
   const [newPassword, setNewPassword] = useState('');
@@ -58,20 +58,20 @@ const JokiSettingsModal = ({ isOpen, onClose }) => {
 
   const handleUpdateName = async (e) => {
     if (e) e.preventDefault();
-    if (!penjokiName.trim()) {
-      addToast('Nama penjoki tidak boleh kosong.', 'error');
+    if (!streamerName.trim()) {
+      addToast('Nama streamer tidak boleh kosong.', 'error');
       return;
     }
 
     try {
       setLoadingName(true);
       await updateDoc(doc(db, 'joki_workspaces', activeWorkspaceId), {
-        name: penjokiName.trim()
+        name: streamerName.trim()
       });
-      addToast('Nama penjoki berhasil diperbarui!', 'success');
+      addToast('Nama streamer berhasil diperbarui!', 'success');
     } catch (err) {
       console.error(err);
-      addToast('Gagal mengubah nama penjoki.', 'error');
+      addToast('Gagal mengubah nama streamer.', 'error');
     } finally {
       setLoadingName(false);
     }
@@ -131,7 +131,7 @@ const JokiSettingsModal = ({ isOpen, onClose }) => {
           </div>
           <div>
             <h3 className="text-base font-black text-text-primary m-0 tracking-tight">
-              Pengaturan Penjoki & Siaran
+              Pengaturan Streamer & Siaran
             </h3>
             <p className="text-xs text-text-tertiary mt-0.5 m-0">
               Kanal: <strong className="text-accent-cyan font-mono">{activeWorkspace.name}</strong>
@@ -219,19 +219,19 @@ const JokiSettingsModal = ({ isOpen, onClose }) => {
             </form>
           </div>
 
-          {/* SECTION 2: UBAH NAMA PENJOKI */}
+          {/* SECTION 2: UBAH NAMA STREAMER */}
           <div className="bg-bg-primary/90 border border-border-default rounded-2xl p-4 shadow-inner space-y-3">
             <div className="text-xs font-black uppercase text-accent-purple-light tracking-wider flex items-center gap-1.5">
               <Gamepad2 size={14} />
-              <span>Nama Penjoki / Brand Live</span>
+              <span>Nama Streamer / Brand Live</span>
             </div>
             <form onSubmit={handleUpdateName} className="space-y-3">
               <div>
                 <input
                   type="text"
                   required
-                  value={penjokiName}
-                  onChange={(e) => setPenjokiName(e.target.value)}
+                  value={streamerName}
+                  onChange={(e) => setStreamerName(e.target.value)}
                   className="w-full bg-bg-surface border border-border-default rounded-xl py-2 px-3 text-xs text-text-primary outline-none focus:border-accent-purple/50 font-bold"
                   placeholder="Contoh: Kadal Gaming"
                 />
@@ -242,7 +242,7 @@ const JokiSettingsModal = ({ isOpen, onClose }) => {
                 className="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-black text-white bg-accent-purple hover:bg-accent-purple-light active:scale-95 transition-all cursor-pointer disabled:opacity-50 shadow-md shadow-accent-purple/20"
               >
                 <Check size={14} />
-                <span>{loadingName ? 'Menyimpan...' : 'Simpan Nama'}</span>
+                <span>{loadingName ? 'Menyimpan...' : 'Simpan Nama Streamer'}</span>
               </button>
             </form>
           </div>

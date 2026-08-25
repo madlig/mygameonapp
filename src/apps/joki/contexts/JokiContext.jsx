@@ -44,6 +44,7 @@ export const JokiProvider = ({ children }) => {
   });
   const [searchQuery, setSearchQuery] = useState("");
   const [filter, setFilter] = useState("ALL"); // ALL, RUNNING, PAUSED
+  const [sortBy, setSortBy] = useState("SHORTEST_TIME"); // SHORTEST_TIME, SLOT, NAME
   
   // Date Filtering State for Finished/History Tab
   const [dateFilter, setDateFilter] = useState("ALL"); // ALL, TODAY, YESTERDAY, WEEK, MONTH, CUSTOM
@@ -52,10 +53,13 @@ export const JokiProvider = ({ children }) => {
 
   const [toasts, setToasts] = useState([]);
 
-  // Toast Notification System
-  const addToast = (message, type = "info") => {
+  // Toast Notification System (Auto dismiss in 4 seconds)
+  const addToast = (message, type = "info", duration = 4000) => {
     const id = Date.now().toString() + Math.random().toString().slice(2, 6);
     setToasts((prev) => [...prev, { id, message, type }]);
+    setTimeout(() => {
+      removeToast(id);
+    }, duration);
   };
 
   const removeToast = (id) => {
@@ -329,6 +333,8 @@ export const JokiProvider = ({ children }) => {
     setSearchQuery,
     filter,
     setFilter,
+    sortBy,
+    setSortBy,
     dateFilter,
     setDateFilter,
     customStartDate,

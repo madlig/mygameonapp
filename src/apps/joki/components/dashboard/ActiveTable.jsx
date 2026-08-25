@@ -12,9 +12,7 @@ import {
   Key, 
   Copy, 
   MessageSquare, 
-  ArrowUpDown,
-  Flame,
-  Check,
+  MoreHorizontal,
   ChevronDown
 } from 'lucide-react';
 import CredentialModal from '../modals/CredentialModal';
@@ -70,14 +68,14 @@ const ActiveTable = ({
     customers, 
     updateJokiCustomer, 
     filter, 
+    sortBy,
     isAdmin,
     addToast 
   } = useJoki();
   
   const [now, setNow] = useState(Date.now());
-  const [sortBy, setSortBy] = useState('SHORTEST_TIME'); // 'SHORTEST_TIME' | 'SLOT' | 'NAME' | 'DEFAULT'
   const [credentialCustomer, setCredentialCustomer] = useState(null);
-  const [dmMenuCustomer, setDmMenuCustomer] = useState(null);
+  const [activeMenuCustomerId, setActiveMenuCustomerId] = useState(null);
 
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 1000);
@@ -149,7 +147,7 @@ const ActiveTable = ({
     }
 
     navigator.clipboard.writeText(text);
-    setDmMenuCustomer(null);
+    setActiveMenuCustomerId(null);
     addToast(`✓ Pesan DM untuk ${user} berhasil disalin!`, 'success');
   };
 
@@ -191,56 +189,7 @@ const ActiveTable = ({
 
   return (
     <div className="flex flex-col gap-2.5">
-      {/* TOOLBAR SORTING & HELPER */}
-      <div className="flex flex-wrap items-center justify-between gap-2 px-1 py-1">
-        <div className="flex items-center gap-1.5 text-xs text-text-dim">
-          <span className="text-[11px] font-bold">Urutkan Tabel:</span>
-          <div className="flex items-center gap-1 bg-bg-surface p-1 rounded-xl border border-border-default shadow-inner">
-            <button
-              type="button"
-              onClick={() => setSortBy('SHORTEST_TIME')}
-              className={`px-2.5 py-1 rounded-lg text-xs font-black transition-all cursor-pointer flex items-center gap-1 ${
-                sortBy === 'SHORTEST_TIME'
-                  ? 'bg-accent-cyan/20 text-accent-cyan border border-accent-cyan/40 shadow-sm'
-                  : 'text-text-muted hover:text-text-primary'
-              }`}
-            >
-              <Flame size={12} className={sortBy === 'SHORTEST_TIME' ? 'text-accent-orange' : ''} />
-              <span>Sisa Waktu Tercepat</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setSortBy('SLOT')}
-              className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                sortBy === 'SLOT'
-                  ? 'bg-accent-purple/20 text-accent-purple-light border border-accent-purple/40'
-                  : 'text-text-muted hover:text-text-primary'
-              }`}
-            >
-              Nomor Slot
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setSortBy('NAME')}
-              className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                sortBy === 'NAME'
-                  ? 'bg-white/10 text-white border border-border-subtle'
-                  : 'text-text-muted hover:text-text-primary'
-              }`}
-            >
-              Abjad (A-Z)
-            </button>
-          </div>
-        </div>
-
-        <div className="text-[11px] text-text-faint font-semibold hidden md:block">
-          💡 <span className="text-text-dim">Klik username untuk salin link tiket</span>
-        </div>
-      </div>
-
-      <div className="bg-bg-surface border border-border-default rounded-2xl overflow-hidden shadow-2xl">
+      <div className="bg-bg-surface border border-border-default rounded-b-3xl overflow-hidden shadow-2xl">
         <div className="overflow-x-auto">
           <table className="w-full border-collapse text-left min-w-[950px]">
             <thead>
@@ -255,7 +204,7 @@ const ActiveTable = ({
                 <th className="py-3 px-3.5 text-center">Sisa Waktu</th>
                 <th className="py-3 px-3 text-center">Jam Beres</th>
                 <th className="py-3 px-3 text-center">Status</th>
-                {isAdmin && <th className="py-3 px-3 text-center w-48">Aksi & Brankas</th>}
+                {isAdmin && <th className="py-3 px-3 text-center w-36">Aksi Cepat</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-border-subtle text-xs font-medium">
@@ -276,6 +225,7 @@ const ActiveTable = ({
                   const isVIP = cleanService === 'VIP';
                   const cleanSlot = getCleanSlot(customer);
                   const isDuplicateSlot = !isVIP && (slotCounts[cleanSlot] > 1);
+                  const isMenuOpen = activeMenuCustomerId === customer.id;
                   
                   return (
                     <tr 
@@ -289,7 +239,7 @@ const ActiveTable = ({
                         {index + 1}
                       </td>
 
-                      {/* Roblox Username (Clickable for Ticket Link) */}
+                      {/* Roblox Username (Clickable to copy ticket link) */}
                       <td className="py-3 px-3.5 font-bold text-text-primary">
                         <button
                           type="button"
@@ -337,7 +287,7 @@ const ActiveTable = ({
                             {cleanSlot === 'VIP' ? '👑 VIP' : `SLOT ${cleanSlot}`}
                           </span>
                           {isDuplicateSlot && (
-                            <span title="Slot ini terduplikasi! Klik tombol ↩️ untuk kembalikan ke antrian" className="text-accent-red">
+                            <span title="Slot ini terduplikasi! Klik menu ⋯ untuk kembalikan ke antrian" className="text-accent-red">
                               <AlertTriangle size={12} />
                             </span>
                           )}
@@ -384,73 +334,16 @@ const ActiveTable = ({
                         </span>
                       </td>
 
-                      {/* Admin Actions */}
+                      {/* SMART PRIORITY ACTION COLUMN (3 UTAMA + 1 MENU ⋯) */}
                       {isAdmin && (
                         <td className="py-3 px-3 text-center relative">
                           <div className="flex items-center justify-center gap-1">
-                            {/* Brankas Button (1-Click Password & Email Vault) */}
-                            <button
-                              onClick={() => setCredentialCustomer(customer)}
-                              title="Buka Brankas Akun (Salin Pass/Email)"
-                              className="p-1.5 rounded-lg bg-accent-green/15 text-accent-green hover:bg-accent-green/25 border border-accent-green/30 transition-all cursor-pointer"
-                            >
-                              <Key size={13} />
-                            </button>
-
-                            {/* DM Menu Button */}
-                            <div className="relative">
-                              <button
-                                onClick={() => setDmMenuCustomer(dmMenuCustomer?.id === customer.id ? null : customer)}
-                                title="Salin Pesan DM TikTok Siap Kirim"
-                                className="p-1.5 rounded-lg bg-accent-cyan/15 text-accent-cyan hover:bg-accent-cyan/25 border border-accent-cyan/30 transition-all cursor-pointer"
-                              >
-                                <MessageSquare size={13} />
-                              </button>
-
-                              {/* DM Template Dropdown Menu */}
-                              {dmMenuCustomer?.id === customer.id && (
-                                <div className="absolute right-0 top-full mt-1 w-52 bg-bg-surface border border-border-default rounded-2xl shadow-2xl z-50 p-1.5 space-y-1 text-left">
-                                  <div className="text-[9.5px] font-extrabold uppercase px-2 py-1 text-text-dim border-b border-border-subtle">
-                                    Salin Chat DM TikTok:
-                                  </div>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleCopyDM(customer, 'ACTIVE')}
-                                    className="w-full px-2.5 py-1.5 rounded-xl text-left text-xs font-bold text-white hover:bg-white/10 flex items-center justify-between"
-                                  >
-                                    <span>🎮 Info Lagi Dimainkan</span>
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleCopyDM(customer, 'OTP')}
-                                    className="w-full px-2.5 py-1.5 rounded-xl text-left text-xs font-bold text-accent-yellow hover:bg-accent-yellow/10 flex items-center justify-between"
-                                  >
-                                    <span>🚨 Minta Kode OTP</span>
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleCopyDM(customer, 'DONE')}
-                                    className="w-full px-2.5 py-1.5 rounded-xl text-left text-xs font-bold text-accent-green hover:bg-accent-green/10 flex items-center justify-between"
-                                  >
-                                    <span>🎉 Info Joki Beres</span>
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleCopyDM(customer, 'RESCHEDULE')}
-                                    className="w-full px-2.5 py-1.5 rounded-xl text-left text-xs font-bold text-accent-orange hover:bg-accent-orange/10 flex items-center justify-between"
-                                  >
-                                    <span>⏳ Undur Jadwal Live</span>
-                                  </button>
-                                </div>
-                              )}
-                            </div>
-
-                            {/* Pause / Resume */}
+                            {/* 1. Pause / Resume */}
                             {customer.paused ? (
                               <button
                                 onClick={() => handleResume(customer)}
                                 title="Resume billing"
-                                className="p-1.5 rounded-lg bg-accent-green/15 text-accent-green hover:bg-accent-green/25 border border-accent-green/30 transition-all cursor-pointer"
+                                className="p-1.5 rounded-xl bg-accent-green/15 text-accent-green hover:bg-accent-green/25 border border-accent-green/30 transition-all cursor-pointer shadow-sm"
                               >
                                 <Play size={13} />
                               </button>
@@ -458,47 +351,122 @@ const ActiveTable = ({
                               <button
                                 onClick={() => handlePause(customer)}
                                 title="Pause billing"
-                                className="p-1.5 rounded-lg bg-accent-orange/15 text-accent-orange hover:bg-accent-orange/25 border border-accent-orange/30 transition-all cursor-pointer"
+                                className="p-1.5 rounded-xl bg-accent-orange/15 text-accent-orange hover:bg-accent-orange/25 border border-accent-orange/30 transition-all cursor-pointer shadow-sm"
                               >
                                 <Pause size={13} />
                               </button>
                             )}
 
-                            {/* Return to Queue */}
+                            {/* 2. Brankas Akun (1-Click Password & Email Vault) */}
                             <button
-                              onClick={() => onRequestMoveToQueue(customer)}
-                              title="Kembalikan ke antrian"
-                              className="p-1.5 rounded-lg bg-accent-yellow/15 text-accent-yellow hover:bg-accent-yellow/25 border border-accent-yellow/30 transition-all cursor-pointer"
+                              onClick={() => setCredentialCustomer(customer)}
+                              title="Buka Brankas Akun (Salin Pass/Email)"
+                              className="p-1.5 rounded-xl bg-accent-green/15 text-accent-green hover:bg-accent-green/25 border border-accent-green/30 transition-all cursor-pointer shadow-sm"
                             >
-                              <Undo2 size={13} />
+                              <Key size={13} />
                             </button>
 
-                            {/* Edit Billing */}
+                            {/* 3. Edit Billing & Koreksi Durasi */}
                             <button
                               onClick={() => onOpenEditModal(customer)}
-                              title="Edit data billing / Brankas / Koreksi waktu"
-                              className="p-1.5 rounded-lg bg-white/5 text-text-secondary hover:text-white hover:bg-white/10 border border-border-subtle transition-all cursor-pointer"
+                              title="Edit data billing / Brankas / Koreksi durasi"
+                              className="p-1.5 rounded-xl bg-white/5 text-text-secondary hover:text-white hover:bg-white/10 border border-border-subtle transition-all cursor-pointer shadow-sm"
                             >
                               <Edit3 size={13} />
                             </button>
 
-                            {/* Extend Time */}
-                            <button
-                              onClick={() => onOpenExtendModal(customer)}
-                              title="Tambah waktu"
-                              className="p-1.5 rounded-lg bg-accent-purple/15 text-accent-purple-light hover:bg-accent-purple/25 border border-accent-purple/30 transition-all cursor-pointer"
-                            >
-                              <Plus size={13} />
-                            </button>
+                            {/* 4. Menu Titik Tiga [ ⋯ ] (Aksi Lainnya) */}
+                            <div className="relative">
+                              <button
+                                onClick={() => setActiveMenuCustomerId(isMenuOpen ? null : customer.id)}
+                                title="Aksi lainnya (Extend, DM, Antrian, Stop)"
+                                className={`p-1.5 rounded-xl border transition-all cursor-pointer shadow-sm ${
+                                  isMenuOpen
+                                    ? 'bg-accent-cyan/25 text-accent-cyan border-accent-cyan'
+                                    : 'bg-white/5 text-text-muted hover:text-text-primary border-border-subtle hover:bg-white/10'
+                                }`}
+                              >
+                                <MoreHorizontal size={13} />
+                              </button>
 
-                            {/* Stop Billing */}
-                            <button
-                              onClick={() => onRequestStopCustomer(customer)}
-                              title="Hentikan billing"
-                              className="p-1.5 rounded-lg bg-accent-red/15 text-accent-red hover:bg-accent-red/25 border border-accent-red/30 transition-all cursor-pointer"
-                            >
-                              <Square size={13} />
-                            </button>
+                              {/* Dropdown Menu [ ⋯ ] */}
+                              {isMenuOpen && (
+                                <div className="absolute right-0 top-full mt-1.5 w-56 bg-bg-surface border border-border-default rounded-2xl shadow-2xl z-50 p-1.5 space-y-1 text-left animate-slide-in">
+                                  <div className="text-[9.5px] font-extrabold uppercase px-2.5 py-1 text-text-dim border-b border-border-subtle">
+                                    Menu Aksi Tambahan:
+                                  </div>
+
+                                  {/* Tambah Waktu */}
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setActiveMenuCustomerId(null);
+                                      onOpenExtendModal(customer);
+                                    }}
+                                    className="w-full px-2.5 py-2 rounded-xl text-left text-xs font-bold text-accent-purple-light hover:bg-accent-purple/15 flex items-center gap-2 cursor-pointer transition-colors"
+                                  >
+                                    <Plus size={13} />
+                                    <span>Tambah Waktu (+ Jam)</span>
+                                  </button>
+
+                                  {/* Kembalikan ke Antrian */}
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setActiveMenuCustomerId(null);
+                                      onRequestMoveToQueue(customer);
+                                    }}
+                                    className="w-full px-2.5 py-2 rounded-xl text-left text-xs font-bold text-accent-yellow hover:bg-accent-yellow/15 flex items-center gap-2 cursor-pointer transition-colors"
+                                  >
+                                    <Undo2 size={13} />
+                                    <span>Kembalikan ke Antrian</span>
+                                  </button>
+
+                                  {/* Salin DM TikTok Templates */}
+                                  <div className="pt-1 border-t border-border-subtle">
+                                    <div className="text-[9px] font-extrabold uppercase px-2.5 py-0.5 text-text-faint">
+                                      Salin Pesan DM TikTok:
+                                    </div>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleCopyDM(customer, 'ACTIVE')}
+                                      className="w-full px-2.5 py-1 rounded-lg text-left text-[11.5px] text-text-muted hover:text-white hover:bg-white/5 flex items-center gap-1.5 cursor-pointer"
+                                    >
+                                      <span>🎮 Info Lagi Dimainkan</span>
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleCopyDM(customer, 'OTP')}
+                                      className="w-full px-2.5 py-1 rounded-lg text-left text-[11.5px] text-accent-yellow hover:bg-accent-yellow/10 flex items-center gap-1.5 cursor-pointer"
+                                    >
+                                      <span>🚨 Minta Kode OTP</span>
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleCopyDM(customer, 'DONE')}
+                                      className="w-full px-2.5 py-1 rounded-lg text-left text-[11.5px] text-accent-green hover:bg-accent-green/10 flex items-center gap-1.5 cursor-pointer"
+                                    >
+                                      <span>🎉 Info Joki Beres</span>
+                                    </button>
+                                  </div>
+
+                                  {/* Hentikan Billing */}
+                                  <div className="pt-1 border-t border-border-subtle">
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setActiveMenuCustomerId(null);
+                                        onRequestStopCustomer(customer);
+                                      }}
+                                      className="w-full px-2.5 py-2 rounded-xl text-left text-xs font-bold text-accent-red hover:bg-accent-red/15 flex items-center gap-2 cursor-pointer transition-colors"
+                                    >
+                                      <Square size={13} />
+                                      <span>Hentikan Billing Sekarang</span>
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
                           </div>
                         </td>
                       )}

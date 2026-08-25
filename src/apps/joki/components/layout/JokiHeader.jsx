@@ -75,12 +75,12 @@ const JokiHeader = ({
   };
 
   return (
-    <header className="bg-bg-surface/80 backdrop-blur-xl border border-border-default rounded-2xl p-5 md:p-6 mb-4 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-5 shadow-2xl transition-all">
-      {/* Left Block: Brand, Penjoki Identity & Link/Clock Bar */}
+    <header className="bg-bg-surface/80 backdrop-blur-xl border border-border-default rounded-3xl p-5 md:p-6 mb-4 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-5 shadow-2xl transition-all">
+      {/* Left Block: Brand, Streamer Identity & Link/Clock Bar */}
       <div className="flex flex-col gap-3">
         {/* Row 1: Brand */}
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-accent-purple/20 to-accent-yellow/10 border border-accent-purple/30 flex items-center justify-center text-xl shadow-inner shrink-0">
+          <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-accent-purple/20 to-accent-yellow/10 border border-accent-purple/30 flex items-center justify-center text-xl shadow-inner shrink-0">
             🥚
           </div>
           <div>
@@ -112,21 +112,21 @@ const JokiHeader = ({
           </div>
         </div>
 
-        {/* Row 2: Penjoki Identity (Admin: Locked Badge | Viewer: Interactive Tabs) */}
+        {/* Row 2: Streamer Identity (Admin: Locked Badge | Viewer: Interactive Tabs) */}
         <div>
           {isAdmin ? (
             /* ADMIN: Static Locked Badge */
             <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-accent-purple/15 border border-accent-purple/30 text-xs text-white font-extrabold shadow-sm">
               <Gamepad2 size={14} className="text-accent-cyan" />
-              <span className="text-text-tertiary font-medium">Penjoki:</span>
+              <span className="text-text-tertiary font-medium">Streamer:</span>
               <span className="text-accent-cyan font-black">{activeWorkspace.name}</span>
             </div>
           ) : (
-            /* VIEWER: Bocil-friendly Tab Pills to switch between Penjoki */
+            /* VIEWER: Bocil-friendly Tab Pills to switch between Streamers */
             <div className="inline-flex items-center gap-1.5 p-1 rounded-xl bg-bg-primary border border-border-default text-xs flex-wrap">
               <span className="text-[11px] font-bold text-text-tertiary px-2 flex items-center gap-1 shrink-0">
                 <Gamepad2 size={13} className="text-accent-cyan" />
-                <span>Pilih Penjoki:</span>
+                <span>Pilih Streamer:</span>
               </span>
               <div className="flex items-center gap-1 flex-wrap">
                 {workspaces.map((w) => {
@@ -150,12 +150,12 @@ const JokiHeader = ({
           )}
         </div>
 
-        {/* Row 3 (BARIS BARU): Bagi Link & Jam Waktu */}
+        {/* Row 3: Bagi Link & Jam Waktu */}
         <div className="flex items-center gap-2 flex-wrap">
           {/* Copy Share Link */}
           <button
             onClick={handleCopyShareLink}
-            title="Salin link live board penjoki ini untuk dibagikan ke penonton live"
+            title="Salin link live board streamer ini untuk dibagikan ke penonton live"
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-bg-primary hover:bg-white/5 border border-border-default text-text-muted hover:text-text-primary text-xs font-bold transition-all cursor-pointer shadow-sm"
           >
             {copied ? <Check size={13} className="text-accent-green" /> : <Share2 size={13} />}
@@ -170,84 +170,93 @@ const JokiHeader = ({
         </div>
       </div>
 
-      {/* Control Buttons */}
-      <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto justify-start lg:justify-end">
+      {/* Right Block: Controls Toolbar */}
+      <div className="flex flex-wrap items-center gap-2.5 w-full xl:w-auto justify-start xl:justify-end">
         {isAdmin ? (
           <>
-            {/* Super Admin Manage Admins Button */}
-            {isSuperAdmin && (
+            {/* Top Admin Tools: Super Admin & Settings */}
+            <div className="flex items-center gap-1.5">
+              {isSuperAdmin && (
+                <button
+                  onClick={onOpenManageAdminsModal}
+                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-extrabold text-bg-primary bg-accent-yellow hover:bg-accent-yellow-light active:scale-95 transition-all shadow-md shadow-accent-yellow/20 cursor-pointer"
+                >
+                  <Crown size={14} />
+                  <span>Kelola Admin</span>
+                </button>
+              )}
+
               <button
-                onClick={onOpenManageAdminsModal}
-                className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl text-xs font-extrabold text-bg-primary bg-accent-yellow hover:bg-accent-yellow-light active:scale-95 transition-all shadow-lg shadow-accent-yellow/20 cursor-pointer"
+                onClick={onOpenSettingsModal}
+                title="Pengaturan Akun & Streamer"
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-text-secondary hover:text-text-primary bg-bg-primary hover:bg-white/5 border border-border-default hover:border-accent-cyan/40 transition-all cursor-pointer shadow-sm"
               >
-                <Crown size={14} />
-                <span>Kelola Admin</span>
+                <Settings size={14} className="text-accent-cyan" />
+                <span>Pengaturan</span>
               </button>
-            )}
+            </div>
 
-            {/* Admin Settings Button */}
-            <button
-              onClick={onOpenSettingsModal}
-              title="Pengaturan Akun & Penjoki"
-              className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl text-xs font-bold text-text-secondary hover:text-text-primary bg-bg-primary hover:bg-white/5 border border-border-default hover:border-accent-cyan/40 transition-all cursor-pointer"
-            >
-              <Settings size={14} className="text-accent-cyan" />
-              <span>Pengaturan</span>
-            </button>
+            {/* BUNDLED OPERATIONAL ACTIONS CONTAINER */}
+            <div className="p-1.5 rounded-2xl bg-bg-primary/95 border border-border-default flex items-center gap-1.5 shadow-inner flex-wrap">
+              
+              {/* 1. Primary Action: Tambah Joki (Wide Proportion) */}
+              <button
+                onClick={onOpenAddModal}
+                className="flex items-center justify-center gap-1.5 px-5 py-2 rounded-xl text-xs font-black text-white bg-accent-purple hover:bg-accent-purple-light active:scale-95 transition-all shadow-md shadow-accent-purple/25 cursor-pointer shrink-0"
+              >
+                <Plus size={15} />
+                <span>Tambah Joki</span>
+              </button>
 
-            {/* Primary Action: Add Billing */}
-            <button
-              onClick={onOpenAddModal}
-              className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-extrabold text-white bg-accent-purple hover:bg-accent-purple-light active:scale-95 transition-all shadow-lg shadow-accent-purple/20 cursor-pointer"
-            >
-              <Plus size={15} />
-              <span>Tambah Joki</span>
-            </button>
+              {/* 2. Compact Bulk Actions: PAUSE ALL & RESUME ALL */}
+              <div className="flex items-center gap-1 px-1 border-x border-border-subtle">
+                <button
+                  onClick={onRequestPauseAll}
+                  title="Jeda semua billing yang sedang berjalan"
+                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-extrabold text-accent-red bg-accent-red/10 hover:bg-accent-red/20 border border-accent-red/25 active:scale-95 transition-all cursor-pointer"
+                >
+                  <Pause size={12} />
+                  <span>PAUSE ALL</span>
+                </button>
 
-            {/* Bulk Pause / Resume */}
-            <button
-              onClick={onRequestPauseAll}
-              className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl text-xs font-bold text-accent-red bg-accent-red/10 hover:bg-accent-red/20 border border-accent-red/20 active:scale-95 transition-all cursor-pointer"
-            >
-              <Pause size={14} />
-              <span>PAUSE ALL</span>
-            </button>
+                <button
+                  onClick={onRequestResumeAll}
+                  title="Lanjutkan semua billing yang sedang dijeda"
+                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-extrabold text-accent-green bg-accent-green/10 hover:bg-accent-green/20 border border-accent-green/25 active:scale-95 transition-all cursor-pointer"
+                >
+                  <Play size={12} />
+                  <span>RESUME ALL</span>
+                </button>
+              </div>
 
-            <button
-              onClick={onRequestResumeAll}
-              className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl text-xs font-bold text-accent-green bg-accent-green/10 hover:bg-accent-green/20 border border-accent-green/20 active:scale-95 transition-all cursor-pointer"
-            >
-              <Play size={14} />
-              <span>RESUME ALL</span>
-            </button>
-
-            {/* Streamer Mode Toggle */}
-            <button
-              onClick={toggleStreamerMode}
-              className={`flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
-                streamerMode
-                  ? 'bg-accent-red text-white border-accent-red shadow-lg shadow-accent-red/20 animate-pulse'
-                  : 'bg-bg-primary text-text-secondary hover:text-text-primary border-border-default hover:border-border-muted'
-              }`}
-            >
-              {streamerMode ? <VideoOff size={14} /> : <Video size={14} />}
-              <span>{streamerMode ? 'Streamer ON' : 'Streamer Mode'}</span>
-            </button>
+              {/* 3. Streamer Mode Toggle (Wide Proportion) */}
+              <button
+                onClick={toggleStreamerMode}
+                className={`flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-xs font-black border transition-all cursor-pointer shrink-0 ${
+                  streamerMode
+                    ? 'bg-accent-red text-white border-accent-red shadow-md shadow-accent-red/20 animate-pulse'
+                    : 'bg-bg-surface text-text-secondary hover:text-white border-border-default hover:border-border-muted shadow-sm'
+                }`}
+              >
+                {streamerMode ? <VideoOff size={14} /> : <Video size={14} />}
+                <span>{streamerMode ? 'Streamer ON' : 'Streamer Mode'}</span>
+              </button>
+            </div>
 
             {/* Logout Admin */}
             <button
               onClick={handleLogout}
               title="Keluar dari mode admin"
-              className="flex items-center gap-1 px-3 py-2.5 rounded-xl text-xs font-bold text-text-dim hover:text-text-primary hover:bg-white/5 border border-border-subtle transition-all cursor-pointer ml-1"
+              className="p-2 rounded-xl text-text-dim hover:text-text-primary hover:bg-white/5 border border-border-subtle transition-all cursor-pointer"
             >
-              <LogOut size={14} />
+              <LogOut size={15} />
             </button>
           </>
         ) : (
           /* Public / Viewer Mode Action */
           <button
             onClick={onOpenLoginModal}
-            className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-bold text-text-secondary hover:text-text-primary bg-bg-primary hover:bg-white/5 border border-border-default hover:border-accent-purple/40 transition-all cursor-pointer"
+            className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-bold text-text-secondary hover:text-text-primary bg-bg-primary hover:bg-white/5 border border-border-default hover:border-accent-purple/40 transition-all cursor-pointer shadow-sm"
           >
             <LogIn size={14} className="text-accent-purple" />
             <span>Login Admin</span>

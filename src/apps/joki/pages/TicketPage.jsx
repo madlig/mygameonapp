@@ -217,7 +217,7 @@ const TicketPage = () => {
             <span>Mau Joki Lagi?</span>
           </div>
           <p className="text-[11.5px] text-text-secondary m-0">
-            Yuk mampir dan pesan antrean baru di live streaming Penjoki!
+            Yuk mampir dan pesan antrean baru di live streaming Streamer!
           </p>
         </div>
 
@@ -225,7 +225,7 @@ const TicketPage = () => {
           to="/"
           className="px-6 py-3 rounded-xl bg-accent-cyan text-bg-primary text-xs font-black transition-all shadow-lg shadow-accent-cyan/20"
         >
-          Buka Live Stream Penjoki
+          Buka Live Stream Streamer
         </Link>
       </div>
     );
@@ -233,7 +233,11 @@ const TicketPage = () => {
 
   // Determine Customer State
   const isVIP = (ticketData.service || '').toUpperCase().includes('VIP');
-  const penjokiName = workspaceInfo?.name || 'Kadal Gaming';
+  const streamerName = workspaceInfo?.name || 'Kadal Gaming';
+
+  // Stream status notes
+  const streamStatus = workspaceSettings?.streamStatus || 'OFFLINE';
+  const nextSchedule = workspaceSettings?.nextStreamSchedule || '';
 
   // Queue Calculations (If in Queue)
   let queuePosition = 1;
@@ -254,7 +258,11 @@ const TicketPage = () => {
       ? activeCustomers.filter(c => (c.service || '').toUpperCase().includes('VIP') || c.slot === 'VIP')
       : activeCustomers.filter(c => !(c.service || '').toUpperCase().includes('VIP') && c.slot !== 'VIP');
 
-    if (relevantSlots.length === 0) {
+    if (streamStatus === 'OFFLINE') {
+      estimatedWaitMinutes = 0;
+      estimatedSlotName = isVIP ? 'SLOT VIP' : 'Slot Live';
+      estimatedStartTimeStr = nextSchedule ? `Jadwal: ${nextSchedule}` : 'Sesi Live Berikutnya';
+    } else if (relevantSlots.length === 0) {
       // Slot is currently vacant
       estimatedWaitMinutes = 0;
       estimatedSlotName = isVIP ? 'SLOT VIP' : 'Slot Siap!';
@@ -290,10 +298,6 @@ const TicketPage = () => {
       : Math.max(0, Math.floor((ticketData.endTime - now) / 1000));
   }
 
-  // Stream status notes
-  const streamStatus = workspaceSettings?.streamStatus || 'OFFLINE';
-  const nextSchedule = workspaceSettings?.nextStreamSchedule || '';
-
   return (
     <div className="min-h-screen bg-[#0d0e12] text-white flex flex-col items-center justify-center p-4 py-8 select-none font-sans">
       <div className="w-full max-w-[420px] flex flex-col gap-3.5">
@@ -306,7 +310,7 @@ const TicketPage = () => {
             </div>
             <div>
               <div className="text-xs font-black tracking-tight text-white flex items-center gap-1">
-                <span>{penjokiName}</span>
+                <span>{streamerName}</span>
               </div>
               <span className="text-[10px] text-text-dim font-bold tracking-wide">
                 TIKET JOKI AFK ROBLOX
@@ -319,13 +323,13 @@ const TicketPage = () => {
           </span>
         </div>
 
-        {/* Streamer Broadcast / Schedule Banner */}
+        {/* Streamer Broadcast / Schedule Banner (Context-Aware) */}
         {streamStatus === 'LIVE' ? (
           <div className="p-3 rounded-2xl bg-gradient-to-r from-accent-red/20 to-accent-purple/20 border border-accent-red/40 flex items-center justify-between gap-2 shadow-lg animate-pulse">
             <div className="flex items-center gap-2 min-w-0">
               <span className="w-2.5 h-2.5 rounded-full bg-accent-red shrink-0" />
               <div className="text-xs font-black text-white truncate">
-                🔴 Penjoki Sedang LIVE STREAM!
+                🔴 Streamer Sedang LIVE STREAM!
               </div>
             </div>
             <Link
@@ -338,18 +342,27 @@ const TicketPage = () => {
         ) : streamStatus === 'BREAK' ? (
           <div className="p-3 rounded-2xl bg-accent-orange/15 border border-accent-orange/35 flex items-center gap-2 text-accent-orange text-xs font-bold">
             <Coffee size={15} />
-            <span>Penjoki lagi istirahat sebentar. Joki segera dilanjutkan!</span>
+            <span>Streamer lagi istirahat sebentar. Joki segera dilanjutkan!</span>
           </div>
         ) : (
+          /* OFFLINE BANNER (Context-Aware for Active Slot vs Queue) */
           <div className="p-3 rounded-2xl bg-bg-surface border border-border-default flex flex-col gap-1 text-xs">
             <div className="flex items-center gap-1.5 text-text-muted font-bold">
               <Moon size={13} className="text-accent-purple-light" />
-              <span>Status Penjoki: <strong>Off Stream</strong></span>
+              <span>Status Streamer: <strong>Off Stream</strong></span>
             </div>
-            <p className="text-[11px] text-text-dim m-0">
-              {nextSchedule 
-                ? `📅 Jadwal live berikutnya: ${nextSchedule}. Akun kamu tetap aman di antrean!` 
-                : 'Akun kamu aman di antrean dan akan dimainkan pada sesi live berikutnya.'}
+            <p className="text-[11.5px] text-text-dim m-0 leading-relaxed">
+              {ticketData.type === 'CUSTOMER' && !ticketData.finished ? (
+                <span>
+                  Sesi live sudah selesai. Joki di <strong className="text-white">{ticketData.slot === 'VIP' ? 'Slot VIP' : `Slot ${ticketData.slot}`}</strong> dijeda dan <strong className="text-accent-green">sisa waktu aman</strong> untuk dilanjutkan saat live berikutnya!
+                </span>
+              ) : (
+                <span>
+                  {nextSchedule 
+                    ? `Jadwal live berikutnya: ${nextSchedule}. Akun kamu tetap aman di antrean!` 
+                    : 'Akun kamu aman di antrean dan akan dimainkan pada sesi live berikutnya.'}
+                </span>
+              )}
             </p>
           </div>
         )}
@@ -419,13 +432,23 @@ const TicketPage = () => {
             <div className="space-y-4">
               {/* Status Pill */}
               <div className="text-center">
-                <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black uppercase ${
-                  isPaused 
+                <span className={`inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full text-xs font-black uppercase tracking-wide ${
+                  isPaused && streamStatus === 'OFFLINE'
+                    ? 'bg-accent-purple/20 text-accent-purple-light border border-accent-purple/40'
+                    : isPaused 
                     ? 'bg-accent-orange/20 text-accent-orange border border-accent-orange/40' 
                     : 'bg-accent-green/20 text-accent-green border border-accent-green/40'
                 }`}>
-                  <span className={`w-2 h-2 rounded-full ${isPaused ? 'bg-accent-orange' : 'bg-accent-green animate-ping'}`} />
-                  {isPaused ? '⏸️ DIJEDA SEMENTARA' : '🟢 LAGI DIMAINKAN'}
+                  <span className={`w-2 h-2 rounded-full ${
+                    isPaused && streamStatus === 'OFFLINE'
+                      ? 'bg-accent-purple-light'
+                      : isPaused ? 'bg-accent-orange' : 'bg-accent-green animate-ping'
+                  }`} />
+                  {isPaused && streamStatus === 'OFFLINE'
+                    ? '⏸️ DIJEDA (OFF STREAM)'
+                    : isPaused 
+                    ? '⏸️ DIJEDA BENTAR' 
+                    : '🟢 LAGI DIMAINKAN'}
                 </span>
               </div>
 
@@ -435,7 +458,9 @@ const TicketPage = () => {
                   Sisa Waktu Joki
                 </div>
                 <div className={`font-mono text-4xl md:text-5xl font-black tracking-tight ${
-                  isPaused ? 'text-accent-orange' : 'text-accent-green'
+                  isPaused && streamStatus === 'OFFLINE' 
+                    ? 'text-accent-purple-light' 
+                    : isPaused ? 'text-accent-orange' : 'text-accent-green'
                 }`}>
                   {formatTime(remainingSeconds)}
                 </div>
@@ -445,10 +470,27 @@ const TicketPage = () => {
                 </div>
               </div>
 
-              {/* Paused Notice */}
+              {/* Context-Aware Paused Notice (Bocil-Friendly) */}
               {isPaused && (
-                <div className="p-3 rounded-xl bg-accent-orange/10 border border-accent-orange/25 text-xs text-accent-orange font-medium">
-                  ⚠️ <strong>Waktu kamu aman!</strong> Penjoki sedang menjeda billing sebentar (misal: verifikasi akun/problem). Sisa waktu kamu tidak berkurang.
+                <div className={`p-3.5 rounded-2xl text-xs font-medium leading-relaxed border ${
+                  streamStatus === 'OFFLINE'
+                    ? 'bg-accent-purple/10 border-accent-purple/30 text-text-secondary'
+                    : 'bg-accent-orange/10 border-accent-orange/25 text-accent-orange'
+                }`}>
+                  {streamStatus === 'OFFLINE' ? (
+                    <div>
+                      <strong className="text-accent-purple-light block mb-0.5">
+                        😴 Joki Dijeda Dulu (Streamer Udahan Live)
+                      </strong>
+                      <span>
+                        Waktu joki kamu <strong className="text-accent-green">AMAN BANGET</strong> bro! Streamer lagi istirahat/off stream. Sisa waktu <strong>{formatTime(remainingSeconds)}</strong> bakal langsung dilanjutin pas sesi live streaming berikutnya ya!
+                      </span>
+                    </div>
+                  ) : (
+                    <div>
+                      ⚠️ <strong>Waktu kamu aman bro!</strong> Streamer lagi menjeda billing sebentar (misal: cek problem/verifikasi akun). Sisa waktu kamu tidak berkurang.
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -460,7 +502,13 @@ const TicketPage = () => {
                 </div>
                 <div className="text-right">
                   <span className="text-text-dim text-[10.5px] block">Perkiraan Beres:</span>
-                  <strong className="text-accent-cyan font-mono">{formatClock(ticketData.endTime)}</strong>
+                  {streamStatus === 'OFFLINE' && isPaused ? (
+                    <strong className="text-accent-purple-light font-bold text-[11px] block">
+                      {nextSchedule ? `📅 ${nextSchedule}` : '📅 Lanjut Next Live'}
+                    </strong>
+                  ) : (
+                    <strong className="text-accent-cyan font-mono">{formatClock(ticketData.endTime)}</strong>
+                  )}
                 </div>
               </div>
             </div>
@@ -480,7 +528,9 @@ const TicketPage = () => {
                   #{queuePosition}
                 </div>
                 <div className="text-xs font-bold text-text-secondary mt-1">
-                  {queuePosition === 1 
+                  {streamStatus === 'OFFLINE'
+                    ? '😴 Streamer Off Stream (Antrean Kamu Aman)'
+                    : queuePosition === 1 
                     ? '🔥 GILIRAN BERIKUTNYA! Siap-siap ya!' 
                     : `Ada ${queuePosition - 1} orang di depan kamu`}
                 </div>
@@ -491,12 +541,12 @@ const TicketPage = () => {
                 <div className="flex items-center justify-between">
                   <span className="text-text-dim">⏳ Estimasi Waktu Tunggu:</span>
                   <strong className="text-accent-yellow font-mono text-sm">
-                    ~{estimatedWaitMinutes} Menit lagi
+                    {streamStatus === 'OFFLINE' ? 'Saat Live Mulai' : `~${estimatedWaitMinutes} Menit lagi`}
                   </strong>
                 </div>
                 <div className="flex items-center justify-between pt-1 border-t border-white/5">
                   <span className="text-text-dim">⏱️ Perkiraan Masuk Slot:</span>
-                  <strong className="text-white font-mono">
+                  <strong className="text-white font-mono text-[11.5px]">
                     {estimatedStartTimeStr}
                   </strong>
                 </div>
@@ -508,9 +558,9 @@ const TicketPage = () => {
                 </div>
               </div>
 
-              {queuePosition === 1 && (
+              {queuePosition === 1 && streamStatus !== 'OFFLINE' && (
                 <div className="p-3 rounded-xl bg-accent-yellow/10 border border-accent-yellow/30 text-xs text-accent-yellow font-medium">
-                  ⚡ <strong>Siap-siap bro!</strong> Penjoki akan segera memasukkan akunmu ke slot live begitu slot berikutnya kosong.
+                  ⚡ <strong>Siap-siap bro!</strong> Streamer akan segera memasukkan akunmu ke slot live begitu slot berikutnya kosong.
                 </div>
               )}
             </div>

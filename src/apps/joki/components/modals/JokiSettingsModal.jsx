@@ -261,17 +261,18 @@ const JokiSettingsModal = ({ isOpen, onClose }) => {
                 </div>
               </div>
 
-              {/* Catatan Tambahan untuk Tiket & Banner */}
+              {/* Catatan / Pengumuman untuk Banner & Tiket */}
               <div>
-                <label className="block text-[10.5px] font-bold text-text-dim mb-1">
-                  Catatan Tambahan (Opsional):
+                <label className="block text-[10.5px] font-bold text-text-dim mb-1 flex items-center justify-between">
+                  <span>📢 Teks Pengumuman Banner & Tiket:</span>
+                  <span className="text-[9.5px] text-accent-cyan font-bold">Muncul di Banner Dashboard & Tiket</span>
                 </label>
                 <input
                   type="text"
                   value={nextStreamSchedule}
                   onChange={(e) => setNextStreamSchedule(e.target.value)}
-                  placeholder="Contoh: Antrean dilanjut besok siang"
-                  className="w-full bg-bg-surface border border-border-default rounded-xl py-2 px-3 text-xs text-text-primary outline-none focus:border-accent-cyan/50"
+                  placeholder="Contoh: Joki dilanjut besok siang jam 14.00 WIB guys!"
+                  className="w-full bg-bg-surface border border-border-default rounded-xl py-2 px-3 text-xs text-text-primary outline-none focus:border-accent-cyan/50 font-bold"
                 />
               </div>
 

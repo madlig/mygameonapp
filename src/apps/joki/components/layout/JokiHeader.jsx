@@ -75,7 +75,7 @@ const JokiHeader = ({
   };
 
   return (
-    <header className="bg-bg-surface/80 backdrop-blur-xl border border-border-default rounded-3xl p-5 md:p-6 mb-4 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-5 shadow-2xl transition-all">
+    <header className="bg-bg-surface/80 backdrop-blur-xl border border-border-default rounded-3xl p-5 md:p-6 mb-4 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 shadow-2xl transition-all">
       {/* Left Block: Brand, Streamer Identity & Link/Clock Bar */}
       <div className="flex flex-col gap-3">
         {/* Row 1: Brand */}
@@ -170,15 +170,15 @@ const JokiHeader = ({
         </div>
       </div>
 
-      {/* Right Block: Exactly 3 Main Items (Kelola Admin, Pengaturan, Seamless Fused Mega-Control Bar) */}
-      <div className="flex flex-wrap items-center gap-3 w-full xl:w-auto justify-start xl:justify-end">
+      {/* Right Block: Compact Items (Kelola Admin, Pengaturan, Compact Fused Mega-Control Bar) */}
+      <div className="flex flex-wrap items-center gap-2.5 w-full xl:w-auto justify-start xl:justify-end">
         {isAdmin ? (
           <>
             {/* 1. Kelola Admin (Super Admin only) */}
             {isSuperAdmin && (
               <button
                 onClick={onOpenManageAdminsModal}
-                className="h-[48px] flex items-center gap-1.5 px-3.5 rounded-2xl text-xs font-extrabold text-bg-primary bg-accent-yellow hover:bg-accent-yellow-light active:scale-95 transition-all shadow-md shadow-accent-yellow/20 cursor-pointer"
+                className="h-[44px] flex items-center gap-1.5 px-3 rounded-2xl text-xs font-extrabold text-bg-primary bg-accent-yellow hover:bg-accent-yellow-light active:scale-95 transition-all shadow-md shadow-accent-yellow/20 cursor-pointer"
               >
                 <Crown size={14} />
                 <span>Kelola Admin</span>
@@ -189,22 +189,22 @@ const JokiHeader = ({
             <button
               onClick={onOpenSettingsModal}
               title="Pengaturan Akun & Streamer"
-              className="h-[48px] flex items-center gap-1.5 px-3.5 rounded-2xl text-xs font-bold text-text-secondary hover:text-text-primary bg-bg-primary hover:bg-white/5 border border-border-default hover:border-accent-cyan/40 transition-all cursor-pointer shadow-sm"
+              className="h-[44px] flex items-center gap-1.5 px-3 rounded-2xl text-xs font-bold text-text-secondary hover:text-text-primary bg-bg-primary hover:bg-white/5 border border-border-default hover:border-accent-cyan/40 transition-all cursor-pointer shadow-sm"
             >
               <Settings size={14} className="text-accent-cyan" />
               <span>Pengaturan</span>
             </button>
 
-            {/* 3. SEAMLESS FUSED MEGA-CONTROL BAR (Flush Joined Segments, Zero Loose Gaps) */}
-            <div className="w-full sm:w-[420px] md:w-[450px] h-[48px] flex items-stretch shadow-2xl shadow-black/50 overflow-hidden rounded-2xl border border-border-default bg-bg-primary">
+            {/* 3. COMPACT SEAMLESS FUSED MEGA-CONTROL BAR (Snug & Compact Width) */}
+            <div className="w-full sm:w-[310px] md:w-[330px] h-[44px] flex items-stretch shadow-xl shadow-black/50 overflow-hidden rounded-2xl border border-border-default bg-bg-primary shrink-0">
               
               {/* Segment 1: Order Baru (Left rounded-l-2xl, Right flat rounded-r-none, ~40% width) */}
               <button
                 type="button"
                 onClick={onOpenAddModal}
-                className="w-[40%] h-full flex items-center justify-center gap-1.5 px-3 bg-accent-purple hover:bg-accent-purple-light active:scale-[0.98] text-white text-xs font-black transition-all cursor-pointer rounded-l-2xl rounded-r-none border-r border-black/40 shadow-inner"
+                className="w-[40%] h-full flex items-center justify-center gap-1 px-2.5 bg-accent-purple hover:bg-accent-purple-light active:scale-[0.98] text-white text-[11.5px] font-black transition-all cursor-pointer rounded-l-2xl rounded-r-none border-r border-black/40 shadow-inner"
               >
-                <Plus size={15} />
+                <Plus size={14} />
                 <span className="truncate">Order Baru</span>
               </button>
 
@@ -215,9 +215,9 @@ const JokiHeader = ({
                   type="button"
                   onClick={onRequestPauseAll}
                   title="Jeda semua billing aktif"
-                  className="h-1/2 flex items-center justify-center gap-1 bg-accent-red/20 hover:bg-accent-red/35 active:bg-accent-red/45 text-accent-red text-[9.5px] font-black transition-all cursor-pointer rounded-none border-b border-black/40"
+                  className="h-1/2 flex items-center justify-center gap-0.5 bg-accent-red/20 hover:bg-accent-red/35 active:bg-accent-red/45 text-accent-red text-[8.5px] font-black transition-all cursor-pointer rounded-none border-b border-black/40"
                 >
-                  <Pause size={10} />
+                  <Pause size={9} />
                   <span className="truncate">PAUSE</span>
                 </button>
 
@@ -226,9 +226,9 @@ const JokiHeader = ({
                   type="button"
                   onClick={onRequestResumeAll}
                   title="Lanjutkan semua billing aktif"
-                  className="h-1/2 flex items-center justify-center gap-1 bg-accent-green/20 hover:bg-accent-green/35 active:bg-accent-green/45 text-accent-green text-[9.5px] font-black transition-all cursor-pointer rounded-none"
+                  className="h-1/2 flex items-center justify-center gap-0.5 bg-accent-green/20 hover:bg-accent-green/35 active:bg-accent-green/45 text-accent-green text-[8.5px] font-black transition-all cursor-pointer rounded-none"
                 >
-                  <Play size={10} />
+                  <Play size={9} />
                   <span className="truncate">RESUME</span>
                 </button>
               </div>
@@ -237,13 +237,13 @@ const JokiHeader = ({
               <button
                 type="button"
                 onClick={toggleStreamerMode}
-                className={`w-[40%] h-full flex items-center justify-center gap-1.5 px-3 text-xs font-black transition-all cursor-pointer rounded-r-2xl rounded-l-none ${
+                className={`w-[40%] h-full flex items-center justify-center gap-1 px-2 text-[11.5px] font-black transition-all cursor-pointer rounded-r-2xl rounded-l-none ${
                   streamerMode
                     ? 'bg-accent-red text-white shadow-inner animate-pulse'
                     : 'bg-bg-surface hover:bg-white/10 text-text-secondary hover:text-white'
                 }`}
               >
-                {streamerMode ? <VideoOff size={15} /> : <Video size={15} />}
+                {streamerMode ? <VideoOff size={13} /> : <Video size={13} />}
                 <span className="truncate">{streamerMode ? 'Streamer ON' : 'Streamer Mode'}</span>
               </button>
             </div>
@@ -252,16 +252,16 @@ const JokiHeader = ({
             <button
               onClick={handleLogout}
               title="Keluar dari mode admin"
-              className="h-[48px] px-3 flex items-center justify-center rounded-2xl text-text-dim hover:text-text-primary hover:bg-white/5 border border-border-subtle transition-all cursor-pointer"
+              className="h-[44px] px-2.5 flex items-center justify-center rounded-2xl text-text-dim hover:text-text-primary hover:bg-white/5 border border-border-subtle transition-all cursor-pointer"
             >
-              <LogOut size={15} />
+              <LogOut size={14} />
             </button>
           </>
         ) : (
           /* Public / Viewer Mode Action */
           <button
             onClick={onOpenLoginModal}
-            className="h-[48px] flex items-center gap-1.5 px-5 rounded-2xl text-xs font-bold text-text-secondary hover:text-text-primary bg-bg-primary hover:bg-white/5 border border-border-default hover:border-accent-purple/40 transition-all cursor-pointer shadow-sm"
+            className="h-[44px] flex items-center gap-1.5 px-4 rounded-2xl text-xs font-bold text-text-secondary hover:text-text-primary bg-bg-primary hover:bg-white/5 border border-border-default hover:border-accent-purple/40 transition-all cursor-pointer shadow-sm"
           >
             <LogIn size={14} className="text-accent-purple" />
             <span>Login Admin</span>

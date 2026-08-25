@@ -3,7 +3,6 @@ import { useJoki } from '../../contexts/JokiContext';
 import { 
   Users, 
   Plus, 
-  Play, 
   Pencil, 
   Trash2, 
   Check, 
@@ -11,11 +10,9 @@ import {
   Crown, 
   Gamepad2, 
   Clock, 
-  ChevronDown, 
-  ChevronUp, 
   Sparkles,
   User,
-  Zap
+  GripVertical
 } from 'lucide-react';
 
 const PRICE_BASIC = 4000;
@@ -44,6 +41,7 @@ const QueueSidebar = ({ onStartFromQueue, onRequestClearQueue }) => {
     addJokiQueue, 
     updateJokiQueue, 
     deleteJokiQueue, 
+    reorderQueue,
     isAdmin, 
     addToast 
   } = useJoki();
@@ -63,6 +61,10 @@ const QueueSidebar = ({ onStartFromQueue, onRequestClearQueue }) => {
   const [editTiktok, setEditTiktok] = useState('');
   const [editService, setEditService] = useState('Basic');
   const [editDuration, setEditDuration] = useState(1);
+
+  // Drag and Drop state
+  const [draggedItem, setDraggedItem] = useState(null);
+  const [dragOverIndex, setDragOverIndex] = useState(null);
 
   // Calculate actual duration in hours and price
   const calculatedHours = qUnit === 'hour' ? Number(qAmount || 0) : Number(qAmount || 0) / 60;
@@ -101,7 +103,7 @@ const QueueSidebar = ({ onStartFromQueue, onRequestClearQueue }) => {
       setQTiktok('');
       setQAmount(1);
       setQUnit('hour');
-      setIsAddOpen(false); // Auto close after adding so list is immediately visible!
+      setIsAddOpen(false);
       addToast(`Customer ${qUsername} berhasil masuk daftar antrian!`, 'success');
     } catch (err) {
       console.error(err);
@@ -156,13 +158,68 @@ const QueueSidebar = ({ onStartFromQueue, onRequestClearQueue }) => {
     }
   };
 
+  // Drag and drop handlers within queue group
+  const handleDragStart = (e, item, index, isVip) => {
+    if (!isAdmin) return;
+    setDraggedItem({ item, index, isVip });
+    e.dataTransfer.effectAllowed = 'move';
+    // Set transparent drag image or styling if needed
+  };
+
+  const handleDragOver = (e, index, isVip) => {
+    e.preventDefault();
+    if (!draggedItem || draggedItem.isVip !== isVip) return;
+    e.dataTransfer.dropEffect = 'move';
+    if (dragOverIndex !== index) {
+      setDragOverIndex(index);
+    }
+  };
+
+  const handleDrop = async (e, targetIndex, isVip) => {
+    e.preventDefault();
+    if (!draggedItem || draggedItem.isVip !== isVip || draggedItem.index === targetIndex) {
+      setDraggedItem(null);
+      setDragOverIndex(null);
+      return;
+    }
+
+    const currentSubQueue = isVip 
+      ? queue.filter(q => q.service === 'VIP') 
+      : queue.filter(q => q.service !== 'VIP');
+
+    const otherSubQueue = isVip 
+      ? queue.filter(q => q.service !== 'VIP') 
+      : queue.filter(q => q.service === 'VIP');
+
+    // Reorder the target sub-queue
+    const updatedSubQueue = [...currentSubQueue];
+    const [movedItem] = updatedSubQueue.splice(draggedItem.index, 1);
+    updatedSubQueue.splice(targetIndex, 0, movedItem);
+
+    // Combine full queue (VIP first, then Basic)
+    const newFullQueue = isVip 
+      ? [...updatedSubQueue, ...otherSubQueue] 
+      : [...otherSubQueue, ...updatedSubQueue];
+
+    setDraggedItem(null);
+    setDragOverIndex(null);
+
+    await reorderQueue(newFullQueue);
+    addToast('Urutan antrian berhasil diperbarui!', 'success');
+  };
+
+  const handleDragEnd = () => {
+    setDraggedItem(null);
+    setDragOverIndex(null);
+  };
+
   const vipQueue = queue.filter(q => q.service === 'VIP');
   const basicQueue = queue.filter(q => q.service !== 'VIP');
 
   return (
     <aside className="w-full lg:w-[350px] shrink-0 flex flex-col gap-3.5">
       <div className="bg-bg-surface/90 backdrop-blur-xl border border-border-default rounded-2xl p-4 md:p-5 shadow-2xl">
-        {/* Header: Title + Total Count + Action Toggle */}
+        {/* Header */}
         <div className="flex items-center justify-between gap-2 pb-3 mb-3 border-b border-border-default">
           <div className="flex items-center gap-2 font-extrabold text-sm text-text-primary tracking-tight">
             <div className="w-6 h-6 rounded-lg bg-accent-cyan/15 border border-accent-cyan/30 flex items-center justify-center text-accent-cyan">
@@ -308,13 +365,15 @@ const QueueSidebar = ({ onStartFromQueue, onRequestClearQueue }) => {
                   Antrian VIP (Priority)
                 </span>
                 <span className="text-[10px] font-mono font-bold text-accent-yellow/80 ml-auto">
-                  {vipQueue.length} Orang
+                  {vipQueue.length} Orang {isAdmin && '(Tarik ⠿ utk atur urutan)'}
                 </span>
               </div>
 
               <div className="space-y-2">
                 {vipQueue.map((item, index) => {
                   const isEditing = editingId === item.id;
+                  const isBeingDragged = draggedItem?.item?.id === item.id;
+                  const isTargetDrop = dragOverIndex === index && draggedItem?.isVip === true;
 
                   if (isEditing) {
                     return (
@@ -354,11 +413,32 @@ const QueueSidebar = ({ onStartFromQueue, onRequestClearQueue }) => {
                   return (
                     <div 
                       key={item.id}
-                      className="group p-3 rounded-xl bg-gradient-to-r from-accent-yellow/[0.08] to-transparent border-2 border-accent-yellow/35 hover:border-accent-yellow/60 transition-all shadow-md relative"
+                      draggable={isAdmin}
+                      onDragStart={(e) => handleDragStart(e, item, index, true)}
+                      onDragOver={(e) => handleDragOver(e, index, true)}
+                      onDrop={(e) => handleDrop(e, index, true)}
+                      onDragEnd={handleDragEnd}
+                      className={`group p-3 rounded-xl bg-gradient-to-r from-accent-yellow/[0.08] to-transparent border-2 transition-all shadow-md relative ${
+                        isBeingDragged 
+                          ? 'opacity-40 border-dashed border-accent-yellow' 
+                          : isTargetDrop 
+                          ? 'border-accent-cyan ring-2 ring-accent-cyan scale-[1.02]' 
+                          : 'border-accent-yellow/35 hover:border-accent-yellow/60'
+                      }`}
                     >
                       <div className="flex items-start justify-between gap-2">
                         {/* Queue Position Badge & User Info */}
-                        <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="flex items-center gap-2 min-w-0">
+                          {/* Grip Handle for Admin */}
+                          {isAdmin && (
+                            <div 
+                              className="text-accent-yellow/40 hover:text-accent-yellow cursor-grab active:cursor-grabbing p-0.5 shrink-0"
+                              title="Tarik untuk memindahkan urutan antrian"
+                            >
+                              <GripVertical size={15} />
+                            </div>
+                          )}
+
                           <div className="w-8 h-8 rounded-lg bg-accent-yellow/20 border border-accent-yellow/40 flex flex-col items-center justify-center font-black text-accent-yellow shrink-0">
                             <span className="text-[9px] leading-none">VIP</span>
                             <span className="text-xs leading-none font-mono">#{index + 1}</span>
@@ -432,7 +512,7 @@ const QueueSidebar = ({ onStartFromQueue, onRequestClearQueue }) => {
                 Antrian Basic
               </span>
               <span className="text-[10px] font-mono font-bold text-accent-cyan/80 ml-auto">
-                {basicQueue.length} Orang
+                {basicQueue.length} Orang {isAdmin && '(Tarik ⠿ utk atur urutan)'}
               </span>
             </div>
 
@@ -454,6 +534,8 @@ const QueueSidebar = ({ onStartFromQueue, onRequestClearQueue }) => {
               <div className="space-y-2">
                 {basicQueue.map((item, index) => {
                   const isEditing = editingId === item.id;
+                  const isBeingDragged = draggedItem?.item?.id === item.id;
+                  const isTargetDrop = dragOverIndex === index && draggedItem?.isVip === false;
 
                   if (isEditing) {
                     return (
@@ -493,11 +575,32 @@ const QueueSidebar = ({ onStartFromQueue, onRequestClearQueue }) => {
                   return (
                     <div 
                       key={item.id}
-                      className="group p-3 rounded-xl bg-bg-primary hover:bg-white/[0.02] border border-border-default hover:border-accent-cyan/40 transition-all shadow-sm relative"
+                      draggable={isAdmin}
+                      onDragStart={(e) => handleDragStart(e, item, index, false)}
+                      onDragOver={(e) => handleDragOver(e, index, false)}
+                      onDrop={(e) => handleDrop(e, index, false)}
+                      onDragEnd={handleDragEnd}
+                      className={`group p-3 rounded-xl bg-bg-primary hover:bg-white/[0.02] border transition-all shadow-sm relative ${
+                        isBeingDragged 
+                          ? 'opacity-40 border-dashed border-accent-cyan' 
+                          : isTargetDrop 
+                          ? 'border-accent-cyan ring-2 ring-accent-cyan scale-[1.02]' 
+                          : 'border-border-default hover:border-accent-cyan/40'
+                      }`}
                     >
                       <div className="flex items-start justify-between gap-2">
                         {/* Queue Position Badge & User Info */}
-                        <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="flex items-center gap-2 min-w-0">
+                          {/* Grip Handle for Admin */}
+                          {isAdmin && (
+                            <div 
+                              className="text-text-faint hover:text-accent-cyan cursor-grab active:cursor-grabbing p-0.5 shrink-0"
+                              title="Tarik untuk memindahkan urutan antrian"
+                            >
+                              <GripVertical size={15} />
+                            </div>
+                          )}
+
                           <div className="w-7 h-7 rounded-lg bg-accent-cyan/15 border border-accent-cyan/30 flex items-center justify-center font-mono font-black text-xs text-accent-cyan shrink-0">
                             #{index + 1}
                           </div>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useJoki } from '../../contexts/JokiContext';
-import { Play, Pause, Plus, Square, Clock, Edit3 } from 'lucide-react';
+import { Play, Pause, Plus, Square, Clock, Edit3, Undo2, AlertTriangle } from 'lucide-react';
 
 const formatTime = (seconds) => {
   seconds = Math.max(0, Math.floor(seconds));
@@ -45,6 +45,7 @@ const getCleanSlot = (customer) => {
 const ActiveTable = ({ 
   onOpenExtendModal, 
   onOpenEditModal,
+  onRequestMoveToQueue,
   onRequestStopCustomer, 
   onRequestClearActiveBillings
 }) => {
@@ -108,6 +109,15 @@ const ActiveTable = ({
     return true;
   });
 
+  // Calculate duplicate slot occurrences
+  const slotCounts = {};
+  filteredCustomers.forEach(c => {
+    const s = getCleanSlot(c);
+    if (s !== 'VIP') {
+      slotCounts[s] = (slotCounts[s] || 0) + 1;
+    }
+  });
+
   return (
     <div className="flex flex-col gap-2.5">
       <div className="bg-bg-surface border border-border-default rounded-b-2xl overflow-hidden shadow-2xl">
@@ -126,7 +136,7 @@ const ActiveTable = ({
                 <th className="py-3 px-3.5 text-center">Sisa Waktu</th>
                 <th className="py-3 px-3 text-center">Jam Beres</th>
                 <th className="py-3 px-3 text-center">Status</th>
-                {isAdmin && <th className="py-3 px-3 text-center w-40">Aksi</th>}
+                {isAdmin && <th className="py-3 px-3 text-center w-44">Aksi</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-border-subtle text-xs font-medium">
@@ -146,11 +156,14 @@ const ActiveTable = ({
                   const cleanService = getCleanService(customer.service);
                   const isVIP = cleanService === 'VIP';
                   const cleanSlot = getCleanSlot(customer);
+                  const isDuplicateSlot = !isVIP && (slotCounts[cleanSlot] > 1);
                   
                   return (
                     <tr 
                       key={customer.id} 
-                      className="hover:bg-white/[0.02] transition-colors"
+                      className={`hover:bg-white/[0.02] transition-colors ${
+                        isDuplicateSlot ? 'bg-accent-red/[0.04]' : ''
+                      }`}
                     >
                       {/* No */}
                       <td className="py-3 px-3 text-center text-text-faint font-mono">
@@ -188,13 +201,22 @@ const ActiveTable = ({
 
                       {/* Slot (Bersebelahan dengan Layanan) */}
                       <td className="py-3 px-3 text-center">
-                        <span className={`inline-flex items-center justify-center min-w-[32px] px-2 py-0.5 rounded-lg text-xs font-extrabold font-mono tracking-tight ${
-                          isVIP
-                            ? 'bg-accent-yellow/15 text-accent-yellow border border-accent-yellow/35'
-                            : 'bg-accent-cyan/15 text-accent-cyan border border-accent-cyan/35'
-                        }`}>
-                          {cleanSlot === 'VIP' ? '👑 VIP' : `SLOT ${cleanSlot}`}
-                        </span>
+                        <div className="inline-flex items-center gap-1">
+                          <span className={`inline-flex items-center justify-center min-w-[32px] px-2 py-0.5 rounded-lg text-xs font-extrabold font-mono tracking-tight ${
+                            isVIP
+                              ? 'bg-accent-yellow/15 text-accent-yellow border border-accent-yellow/35'
+                              : isDuplicateSlot
+                              ? 'bg-accent-red/20 text-accent-red border border-accent-red/40 animate-pulse'
+                              : 'bg-accent-cyan/15 text-accent-cyan border border-accent-cyan/35'
+                          }`}>
+                            {cleanSlot === 'VIP' ? '👑 VIP' : `SLOT ${cleanSlot}`}
+                          </span>
+                          {isDuplicateSlot && (
+                            <span title="Slot ini terduplikasi! Klik tombol ↩️ untuk kembalikan ke antrian" className="text-accent-red">
+                              <AlertTriangle size={12} />
+                            </span>
+                          )}
+                        </div>
                       </td>
 
                       {/* Duration */}
@@ -260,6 +282,15 @@ const ActiveTable = ({
                               </button>
                             )}
 
+                            {/* Return to Queue (Kembalikan ke antrian & bebaskan slot) */}
+                            <button
+                              onClick={() => onRequestMoveToQueue(customer)}
+                              title="Kembalikan ke antrian (Bebaskan slot duplikat)"
+                              className="p-1.5 rounded-lg bg-accent-yellow/15 text-accent-yellow hover:bg-accent-yellow/25 border border-accent-yellow/30 transition-all cursor-pointer"
+                            >
+                              <Undo2 size={13} />
+                            </button>
+
                             {/* Edit Billing (Username / TikTok / Pindah Slot) */}
                             <button
                               onClick={() => onOpenEditModal(customer)}
@@ -298,7 +329,7 @@ const ActiveTable = ({
         </div>
       </div>
 
-      {/* Admin Action: Kosongkan Billing Aktif (TETAP MUNCUL WALAUPUN STREAMER MODE ON) */}
+      {/* Admin Action: Kosongkan Billing Aktif */}
       {isAdmin && filteredCustomers.length > 0 && (
         <div className="flex justify-end">
           <button

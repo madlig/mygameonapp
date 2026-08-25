@@ -1,11 +1,25 @@
-import { collection, doc, setDoc, updateDoc, deleteDoc, onSnapshot, query, orderBy, getDoc } from "firebase/firestore";
-import { db } from "../../../config/firebaseConfig";
+import { 
+  db 
+} from "../../../config/firebaseConfig";
+import { 
+  collection, 
+  doc, 
+  getDoc,
+  setDoc, 
+  updateDoc, 
+  deleteDoc, 
+  onSnapshot, 
+  query, 
+  orderBy,
+  writeBatch
+} from "firebase/firestore";
 
-export const DEFAULT_WORKSPACE_ID = "mygameon";
+export const DEFAULT_WORKSPACE_ID = 'mygameon';
 
-// ── Workspaces List Subscription ──
+// ── Workspaces Subscription ──
 export const subscribeJokiWorkspaces = (callback) => {
-  const q = query(collection(db, "joki_workspaces"), orderBy("createdAt", "asc"));
+  const colRef = collection(db, "joki_workspaces");
+  const q = query(colRef, orderBy("createdAt", "asc"));
   return onSnapshot(q, (snapshot) => {
     const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     callback(data);
@@ -14,17 +28,18 @@ export const subscribeJokiWorkspaces = (callback) => {
   });
 };
 
-// ── Create Workspace if Not Exists ──
+// ── Auto Create Workspace if not exists ──
 export const createWorkspaceIfNotExists = async (workspaceId, name, ownerEmail) => {
+  if (!workspaceId) return;
   try {
-    const docRef = doc(db, "joki_workspaces", workspaceId);
-    const docSnap = await getDoc(docRef);
-    if (!docSnap.exists()) {
-      await setDoc(docRef, {
+    const wsRef = doc(db, "joki_workspaces", workspaceId);
+    const snap = await getDoc(wsRef);
+    if (!snap.exists()) {
+      await setDoc(wsRef, {
         id: workspaceId,
-        name: name,
+        name: name || `${workspaceId.toUpperCase()} Live`,
         slug: workspaceId,
-        ownerEmail: ownerEmail || '',
+        ownerEmail: ownerEmail || null,
         createdAt: Date.now()
       });
 
@@ -55,9 +70,14 @@ export const subscribeJokiCustomers = (workspaceId = DEFAULT_WORKSPACE_ID, callb
 // ── Queue Subscription per Workspace ──
 export const subscribeJokiQueue = (workspaceId = DEFAULT_WORKSPACE_ID, callback) => {
   const colRef = collection(db, "joki_workspaces", workspaceId, "queue");
-  const q = query(colRef, orderBy("createdAt", "asc"));
-  return onSnapshot(q, (snapshot) => {
+  return onSnapshot(colRef, (snapshot) => {
     const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    // Sort by orderIndex if present, fallback to createdAt
+    data.sort((a, b) => {
+      const orderA = a.orderIndex !== undefined ? a.orderIndex : (a.createdAt || 0);
+      const orderB = b.orderIndex !== undefined ? b.orderIndex : (b.createdAt || 0);
+      return orderA - orderB;
+    });
     callback(data);
   }, (error) => {
     console.error(`Error subscribing to queue for workspace ${workspaceId}:`, error);
@@ -120,6 +140,17 @@ export const updateJokiQueue = async (workspaceId = DEFAULT_WORKSPACE_ID, id, da
 export const deleteJokiQueue = async (workspaceId = DEFAULT_WORKSPACE_ID, id) => {
   const docRef = doc(db, "joki_workspaces", workspaceId, "queue", id);
   await deleteDoc(docRef);
+};
+
+// ── Reorder Queue (Drag-and-Drop Batch Update) ──
+export const reorderJokiQueue = async (workspaceId = DEFAULT_WORKSPACE_ID, reorderedList) => {
+  if (!reorderedList || reorderedList.length === 0) return;
+  const batch = writeBatch(db);
+  reorderedList.forEach((item, index) => {
+    const docRef = doc(db, "joki_workspaces", workspaceId, "queue", item.id);
+    batch.update(docRef, { orderIndex: index });
+  });
+  await batch.commit();
 };
 
 // ── Settings Update per Workspace ──

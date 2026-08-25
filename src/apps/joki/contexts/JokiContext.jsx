@@ -13,6 +13,7 @@ import {
   addJokiQueue as fbAddQueue,
   updateJokiQueue as fbUpdateQueue,
   deleteJokiQueue as fbDeleteQueue,
+  reorderJokiQueue,
   updateJokiSettings as fbUpdateSettings 
 } from "../services/jokiFirebase";
 import { useAuth } from "../../../contexts/AuthContext";
@@ -245,7 +246,7 @@ export const JokiProvider = ({ children }) => {
     const isVIP = queueItem.service === 'VIP' || selectedSlot === 'VIP';
     const finalSlot = isVIP ? 'VIP' : (selectedSlot || suggestSlot());
     const pricePerHour = isVIP ? PRICE_VIP : PRICE_BASIC;
-    const price = duration * pricePerHour;
+    const price = Math.round(duration * pricePerHour);
 
     const customerData = {
       username: queueItem.username,
@@ -276,6 +277,45 @@ export const JokiProvider = ({ children }) => {
 
     await fbAddCustomer(activeWorkspaceId, customerData);
     await fbDeleteQueue(activeWorkspaceId, queueItem.id);
+  };
+
+  // Move active billing customer BACK to Queue (Free up slot & fix duplication)
+  const moveCustomerToQueue = async (customer) => {
+    try {
+      const remainingSeconds = customer.paused 
+        ? (customer.remainingAtPause || 0)
+        : Math.max(0, Math.floor((customer.endTime - Date.now()) / 1000));
+      
+      const remainingHours = Number((remainingSeconds / 3600).toFixed(2));
+      const finalDuration = remainingHours > 0 ? remainingHours : (customer.duration || 1);
+
+      await fbAddQueue(activeWorkspaceId, {
+        username: customer.username || customer.name,
+        tiktokName: customer.tiktokName || '',
+        service: customer.service || 'Basic',
+        duration: finalDuration,
+        price: Math.round(customer.price || (finalDuration * (customer.service === 'VIP' ? PRICE_VIP : PRICE_BASIC))),
+        paymentStatus: 'Lunas',
+        createdAt: Date.now()
+      });
+
+      await fbDeleteCustomer(activeWorkspaceId, customer.id);
+      addToast(`Customer ${customer.username || customer.name} berhasil dikembalikan ke antrian! Slot telah dikosongkan.`, 'info');
+    } catch (err) {
+      console.error('Error moving customer to queue:', err);
+      addToast('Gagal memindahkan customer ke antrian.', 'error');
+    }
+  };
+
+  // Reorder queue (drag-and-drop)
+  const reorderQueue = async (newQueueList) => {
+    try {
+      setQueue(newQueueList); // Optimistic UI update
+      await reorderJokiQueue(activeWorkspaceId, newQueueList);
+    } catch (err) {
+      console.error('Error reordering queue:', err);
+      addToast('Gagal menyimpan urutan antrian.', 'error');
+    }
   };
 
   // Workspace-aware CRUD functions
@@ -324,6 +364,8 @@ export const JokiProvider = ({ children }) => {
     removeToast,
     suggestSlot,
     startBillingFromQueue,
+    moveCustomerToQueue,
+    reorderQueue,
     addJokiCustomer,
     updateJokiCustomer,
     deleteJokiCustomer,

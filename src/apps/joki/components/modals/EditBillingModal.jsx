@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useJoki } from '../../contexts/JokiContext';
-import { Edit3, X, User, DollarSign, Layers, Check, AlertCircle } from 'lucide-react';
+import { Edit3, X, User, DollarSign, Layers, Check, AlertCircle, Undo2 } from 'lucide-react';
 
 const PRICE_BASIC = 4000;
 const PRICE_VIP = 6000;
@@ -13,7 +13,7 @@ const formatTime = (seconds) => {
 };
 
 const EditBillingModal = ({ customer, onClose }) => {
-  const { customers, updateJokiCustomer, addToast } = useJoki();
+  const { customers, updateJokiCustomer, moveCustomerToQueue, addToast } = useJoki();
 
   const [username, setUsername] = useState('');
   const [tiktokName, setTiktokName] = useState('');
@@ -92,6 +92,13 @@ const EditBillingModal = ({ customer, onClose }) => {
       addToast('Gagal memperbarui data billing.', 'error');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleMoveBackToQueue = async () => {
+    if (window.confirm(`Kembalikan ${customer.username || customer.name} ke antrian dan kosongkan Slot ${customer.slot}?`)) {
+      await moveCustomerToQueue(customer);
+      onClose();
     }
   };
 
@@ -277,22 +284,35 @@ const EditBillingModal = ({ customer, onClose }) => {
           </div>
 
           {/* Action Buttons */}
-          <div className="flex items-center justify-end gap-2 pt-2 border-t border-border-subtle">
+          <div className="flex items-center justify-between gap-2 pt-2 border-t border-border-subtle">
+            {/* Return to Queue Button */}
             <button
               type="button"
-              onClick={onClose}
-              className="px-4 py-2.5 rounded-xl text-xs font-bold text-text-tertiary hover:text-text-primary hover:bg-white/5 transition-colors cursor-pointer"
+              onClick={handleMoveBackToQueue}
+              title="Kembalikan customer ini ke antrian dan bebaskan slot"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-accent-yellow hover:text-accent-yellow-light bg-accent-yellow/10 hover:bg-accent-yellow/20 border border-accent-yellow/30 transition-all cursor-pointer"
             >
-              Batal
+              <Undo2 size={13} />
+              <span>Ke Antrian</span>
             </button>
-            <button
-              type="submit"
-              disabled={loading}
-              className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl text-xs font-black text-bg-primary bg-accent-cyan hover:bg-accent-cyan/90 active:scale-95 transition-all shadow-lg shadow-accent-cyan/25 cursor-pointer disabled:opacity-50"
-            >
-              <Check size={15} />
-              <span>{loading ? 'Menyimpan...' : 'Simpan Perubahan'}</span>
-            </button>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2 rounded-xl text-xs font-bold text-text-tertiary hover:text-text-primary hover:bg-white/5 transition-colors cursor-pointer"
+              >
+                Batal
+              </button>
+              <button
+                type="submit"
+                disabled={loading}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-black text-bg-primary bg-accent-cyan hover:bg-accent-cyan/90 active:scale-95 transition-all shadow-lg shadow-accent-cyan/25 cursor-pointer disabled:opacity-50"
+              >
+                <Check size={15} />
+                <span>{loading ? 'Menyimpan...' : 'Simpan Perubahan'}</span>
+              </button>
+            </div>
           </div>
         </form>
       </div>

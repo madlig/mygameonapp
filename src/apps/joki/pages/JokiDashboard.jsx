@@ -26,6 +26,7 @@ const JokiDashboard = () => {
     updateJokiCustomer, 
     deleteJokiCustomer,
     deleteJokiQueue,
+    moveCustomerToQueue,
     updateJokiSettings, 
     globalPaused, 
     toasts,
@@ -328,6 +329,21 @@ const JokiDashboard = () => {
     });
   };
 
+  // 8. Move Active Customer back to Queue (Free up duplicate slot)
+  const handleRequestMoveToQueue = (customer) => {
+    setConfirmConfig({
+      isOpen: true,
+      title: 'Kembalikan ke Antrian?',
+      message: `Customer ${customer.username || customer.name} (Slot ${customer.slot}) akan dipindahkan kembali ke daftar Antrian dengan sisa durasinya. Slot ${customer.slot} akan langsung dikosongkan.`,
+      confirmText: 'Kembalikan ke Antrian',
+      variant: 'warning',
+      onConfirm: async () => {
+        closeConfirm();
+        await moveCustomerToQueue(customer);
+      }
+    });
+  };
+
   return (
     <JokiLayout>
       {/* Header */}
@@ -355,6 +371,7 @@ const JokiDashboard = () => {
           <ActiveTable
             onOpenExtendModal={setExtendCustomer}
             onOpenEditModal={setEditCustomer}
+            onRequestMoveToQueue={handleRequestMoveToQueue}
             onRequestStopCustomer={handleRequestStopCustomer}
             onRequestClearActiveBillings={handleRequestClearActiveBillings}
           />

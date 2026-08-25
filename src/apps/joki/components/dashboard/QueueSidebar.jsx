@@ -12,7 +12,8 @@ import {
   Clock, 
   Sparkles,
   User,
-  GripVertical
+  GripVertical,
+  DollarSign
 } from 'lucide-react';
 
 const PRICE_BASIC = 4000;
@@ -25,6 +26,10 @@ const formatDuration = (hours) => {
   if (h > 0 && m > 0) return `${h}j ${m}m`;
   if (h > 0) return `${h} Jam`;
   return `${m} Menit`;
+};
+
+const formatRupiah = (value) => {
+  return "Rp " + Number(value || 0).toLocaleString("id-ID");
 };
 
 const DURATION_PRESETS = [
@@ -340,6 +345,22 @@ const QueueSidebar = ({ onStartFromQueue, onRequestClearQueue }) => {
                   {preset.label}
                 </button>
               ))}
+            </div>
+
+            {/* Estimasi Nominal & Durasi Info */}
+            <div className="flex items-center justify-between px-3 py-2 rounded-xl bg-bg-surface border border-border-default shadow-inner">
+              <div className="flex items-center gap-1.5 text-text-tertiary text-[11px] font-bold">
+                <DollarSign size={13} className="text-accent-yellow" />
+                <span>Estimasi Biaya:</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-[10.5px] text-text-dim font-mono font-semibold">
+                  ({formatDuration(calculatedHours)})
+                </span>
+                <span className="font-mono font-black text-xs text-accent-yellow tracking-tight">
+                  {formatRupiah(calculatedPrice)}
+                </span>
+              </div>
             </div>
 
             {/* Submit */}

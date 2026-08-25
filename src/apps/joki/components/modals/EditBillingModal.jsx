@@ -1,18 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useJoki } from '../../contexts/JokiContext';
-import { Plus, X, User, Shield, Layers, Clock, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Edit3, X, User, DollarSign, Layers, Check, AlertCircle } from 'lucide-react';
 
 const PRICE_BASIC = 4000;
 const PRICE_VIP = 6000;
-
-const formatDuration = (hours) => {
-  const totalMinutes = Math.round(Number(hours) * 60);
-  const h = Math.floor(totalMinutes / 60);
-  const m = totalMinutes % 60;
-  if (h > 0 && m > 0) return `${h} Jam ${m} Menit`;
-  if (h > 0) return `${h} Jam`;
-  return `${m} Menit`;
-};
 
 const formatTime = (seconds) => {
   seconds = Math.max(0, Math.floor(seconds));
@@ -21,56 +12,35 @@ const formatTime = (seconds) => {
   return `${m}m ${s}s`;
 };
 
-const DURATION_PRESETS = [
-  { label: '30m', hours: 0.5 },
-  { label: '1 Jam', hours: 1 },
-  { label: '2 Jam', hours: 2 },
-  { label: '3 Jam', hours: 3 },
-  { label: '4 Jam', hours: 4 },
-  { label: '5 Jam', hours: 5 },
-];
+const EditBillingModal = ({ customer, onClose }) => {
+  const { customers, updateJokiCustomer, addToast } = useJoki();
 
-const AddJokiModal = ({ isOpen, onClose }) => {
-  const { customers, addJokiCustomer, globalPaused, suggestSlot, addToast } = useJoki();
   const [username, setUsername] = useState('');
   const [tiktokName, setTiktokName] = useState('');
   const [service, setService] = useState('Basic');
   const [slot, setSlot] = useState(1);
-  const [durationValue, setDurationValue] = useState(1);
-  const [durationUnit, setDurationUnit] = useState('hour'); // 'minute' | 'hour'
+  const [price, setPrice] = useState(4000);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (isOpen) {
-      setUsername('');
-      setTiktokName('');
-      setService('Basic');
-      setSlot(suggestSlot());
-      setDurationValue(1);
-      setDurationUnit('hour');
+    if (customer) {
+      setUsername(customer.username || customer.name || '');
+      setTiktokName(customer.tiktokName || '');
+      setService(customer.service || 'Basic');
+      setSlot(customer.slot || 1);
+      setPrice(Math.round(customer.price || 0));
     }
-  }, [isOpen, customers]);
+  }, [customer]);
 
-  // Sync slot with service change
-  const handleServiceChange = (e) => {
-    const val = e.target.value;
-    setService(val);
-    if (val === 'VIP') {
-      setSlot('VIP');
-    } else {
-      setSlot(suggestSlot());
-    }
-  };
-
-  if (!isOpen) return null;
+  if (!customer) return null;
 
   const isVIP = service === 'VIP';
   const standardSlots = [1, 2, 3, 4, 5, 6];
 
-  // Map occupied slots from active customers
+  // Map occupied slots from active customers (excluding currently edited customer)
   const occupiedSlots = {};
   customers.forEach(c => {
-    if (!c.finished && c.slot) {
+    if (!c.finished && c.id !== customer.id && c.slot) {
       const remaining = c.paused 
         ? (c.remainingAtPause || 0)
         : Math.max(0, Math.floor((c.endTime - Date.now()) / 1000));
@@ -83,65 +53,43 @@ const AddJokiModal = ({ isOpen, onClose }) => {
     }
   });
 
-  // Calculate duration in hours and total price (rounded integer)
-  const calculatedHours = durationUnit === 'hour' 
-    ? Number(durationValue || 0)
-    : Number(durationValue || 0) / 60;
-
-  const pricePerHour = isVIP ? PRICE_VIP : PRICE_BASIC;
-  const totalPrice = Math.round(calculatedHours * pricePerHour);
+  const handleServiceChange = (e) => {
+    const val = e.target.value;
+    setService(val);
+    if (val === 'VIP') {
+      setSlot('VIP');
+    } else if (slot === 'VIP') {
+      setSlot(1);
+    }
+  };
 
   const handleSave = async (e) => {
     if (e) e.preventDefault();
 
     if (!username.trim()) {
-      addToast('Username Roblox wajib diisi.', 'error');
-      return;
-    }
-    if (!calculatedHours || calculatedHours <= 0) {
-      addToast('Durasi harus lebih dari 0.', 'error');
+      addToast('Username Roblox tidak boleh kosong.', 'error');
       return;
     }
 
     try {
       setLoading(true);
-      const now = Date.now();
-      const durationSeconds = calculatedHours * 3600;
       const chosenSlot = isVIP ? 'VIP' : slot;
 
-      const customer = {
+      const updates = {
         username: username.trim(),
-        tiktokName: tiktokName.trim().replace(/^@/, ''),
         name: username.trim(),
-        service,
+        tiktokName: tiktokName.trim().replace(/^@/, ''),
+        service: service,
         slot: chosenSlot,
-        duration: calculatedHours,
-        price: totalPrice,
-        paymentStatus: 'Lunas',
-        startTime: now,
-        endTime: now + (durationSeconds * 1000),
-        paused: false,
-        pauseStarted: null,
-        remainingAtPause: null,
-        totalPausedSeconds: 0,
-        finished: false,
-        stopped: false,
-        stopTime: null,
-        finishedTime: null
+        price: Math.round(Number(price || 0)),
       };
 
-      if (globalPaused) {
-        customer.paused = true;
-        customer.pauseStarted = now;
-        customer.remainingAtPause = durationSeconds;
-      }
-
-      await addJokiCustomer(customer);
-      addToast(`Joki ${username} berhasil ditambahkan di Slot ${chosenSlot}!`, 'success');
+      await updateJokiCustomer(customer.id, updates);
+      addToast(`Data billing ${username} berhasil diperbarui!`, 'success');
       onClose();
     } catch (err) {
       console.error(err);
-      addToast('Gagal menambahkan data joki.', 'error');
+      addToast('Gagal memperbarui data billing.', 'error');
     } finally {
       setLoading(false);
     }
@@ -162,21 +110,21 @@ const AddJokiModal = ({ isOpen, onClose }) => {
 
         {/* Header */}
         <div className="flex items-center gap-3 mb-4">
-          <div className="w-10 h-10 rounded-xl bg-accent-purple/15 border border-accent-purple/30 flex items-center justify-center text-accent-purple shrink-0">
-            <Plus size={20} />
+          <div className="w-10 h-10 rounded-xl bg-accent-cyan/15 border border-accent-cyan/30 flex items-center justify-center text-accent-cyan shrink-0">
+            <Edit3 size={20} />
           </div>
           <div>
             <h3 className="text-base font-extrabold text-text-primary m-0 tracking-tight">
-              Tambah Billing Joki Baru
+              Edit Data Billing Aktif
             </h3>
             <p className="text-xs text-text-tertiary mt-0.5 m-0">
-              Input data customer & alokasikan langsung ke slot live
+              Koreksi data akun tertukar, salah nama, atau pindah slot
             </p>
           </div>
         </div>
 
         <form onSubmit={handleSave} className="space-y-4">
-          {/* Section 1: Data Customer */}
+          {/* Section 1: Customer Data */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
               <label className="block text-[11px] font-semibold text-text-tertiary mb-1">
@@ -187,41 +135,40 @@ const AddJokiModal = ({ isOpen, onClose }) => {
                 <input
                   type="text"
                   required
-                  placeholder="Contoh: user_roblox123"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  className="w-full bg-bg-primary border border-border-default rounded-xl py-2 pl-9 pr-3 text-xs text-text-primary outline-none focus:border-accent-purple/50 shadow-inner"
+                  className="w-full bg-bg-primary border border-border-default rounded-xl py-2 pl-9 pr-3 text-xs text-text-primary outline-none focus:border-accent-cyan/50 shadow-inner font-bold"
                 />
               </div>
             </div>
 
             <div>
               <label className="block text-[11px] font-semibold text-text-tertiary mb-1">
-                Akun TikTok (Opsional)
+                Akun TikTok
               </label>
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-accent-cyan">@</span>
                 <input
                   type="text"
-                  placeholder="username_tiktok"
                   value={tiktokName}
                   onChange={(e) => setTiktokName(e.target.value)}
-                  className="w-full bg-bg-primary border border-border-default rounded-xl py-2 pl-8 pr-3 text-xs text-text-primary outline-none focus:border-accent-purple/50 shadow-inner"
+                  className="w-full bg-bg-primary border border-border-default rounded-xl py-2 pl-8 pr-3 text-xs text-text-primary outline-none focus:border-accent-cyan/50 shadow-inner"
+                  placeholder="username_tiktok"
                 />
               </div>
             </div>
           </div>
 
-          {/* Section 2: Layanan & Durasi */}
+          {/* Section 2: Layanan & Harga */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
               <label className="block text-[11px] font-semibold text-text-tertiary mb-1">
-                Pilih Layanan
+                Layanan
               </label>
               <select
                 value={service}
                 onChange={handleServiceChange}
-                className="w-full bg-bg-primary border border-border-default rounded-xl py-2 px-3 text-xs text-text-primary outline-none focus:border-accent-purple/50 cursor-pointer shadow-inner font-bold"
+                className="w-full bg-bg-primary border border-border-default rounded-xl py-2 px-3 text-xs text-text-primary outline-none focus:border-accent-cyan/50 cursor-pointer shadow-inner font-bold"
               >
                 <option value="Basic">Basic (Rp 4.000 / Jam)</option>
                 <option value="VIP">VIP (Rp 6.000 / Jam - Priority)</option>
@@ -230,73 +177,36 @@ const AddJokiModal = ({ isOpen, onClose }) => {
 
             <div>
               <label className="block text-[11px] font-semibold text-text-tertiary mb-1">
-                Durasi Joki
+                Total Harga (Rp)
               </label>
-              <div className="flex gap-2">
+              <div className="relative">
+                <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-accent-yellow" />
                 <input
                   type="number"
-                  min={durationUnit === 'hour' ? '0.25' : '15'}
-                  step={durationUnit === 'hour' ? '0.25' : '5'}
-                  required
-                  value={durationValue}
-                  onChange={(e) => setDurationValue(e.target.value)}
-                  className="flex-1 bg-bg-primary border border-border-default rounded-xl py-2 px-3 text-xs text-text-primary outline-none focus:border-accent-purple/50 shadow-inner font-mono font-bold"
+                  min="0"
+                  step="500"
+                  value={price}
+                  onChange={(e) => setPrice(e.target.value)}
+                  className="w-full bg-bg-primary border border-border-default rounded-xl py-2 pl-9 pr-3 text-xs text-accent-yellow font-bold font-mono outline-none focus:border-accent-yellow/50 shadow-inner"
                 />
-                <select
-                  value={durationUnit}
-                  onChange={(e) => setDurationUnit(e.target.value)}
-                  className="w-24 bg-bg-primary border border-border-default rounded-xl py-2 px-2 text-xs text-text-primary outline-none focus:border-accent-purple/50 cursor-pointer font-bold"
-                >
-                  <option value="hour">Jam</option>
-                  <option value="minute">Menit</option>
-                </select>
               </div>
             </div>
           </div>
 
-          {/* Quick Duration Presets */}
-          <div>
-            <div className="text-[10.5px] font-bold text-text-tertiary uppercase tracking-wider mb-1.5">
-              Pilihan Cepat Durasi:
-            </div>
-            <div className="grid grid-cols-6 gap-1.5">
-              {DURATION_PRESETS.map((p) => {
-                const isSelected = calculatedHours === p.hours;
-                return (
-                  <button
-                    key={p.label}
-                    type="button"
-                    onClick={() => {
-                      setDurationValue(p.hours);
-                      setDurationUnit('hour');
-                    }}
-                    className={`py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                      isSelected
-                        ? 'bg-accent-purple text-white shadow-md shadow-accent-purple/20 scale-105'
-                        : 'bg-bg-primary border border-border-default text-text-muted hover:text-text-primary hover:border-accent-purple/30'
-                    }`}
-                  >
-                    {p.label}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Section 3: Visual Slot Selector (Persis seperti StartBillingModal) */}
+          {/* Section 3: Visual Slot Selector & Migration */}
           <div className="pt-2 border-t border-border-subtle">
             {isVIP ? (
               <div className="bg-accent-yellow/10 border border-accent-yellow/30 rounded-xl p-3.5 text-center">
-                <div className="text-sm font-black text-accent-yellow mb-0.5">👑 SLOT VIP (Priority)</div>
+                <div className="text-sm font-black text-accent-yellow mb-0.5">👑 SLOT VIP</div>
                 <p className="text-[11px] text-text-muted m-0">
-                  Customer layanan VIP akan langsung dialokasikan ke Slot VIP khusus.
+                  Customer berada di Slot VIP.
                 </p>
               </div>
             ) : (
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <label className="text-xs font-bold text-text-tertiary uppercase tracking-wider">
-                    Pilih Slot Live AFK (1 - 6)
+                    Pilih / Pindah Slot AFK (1 - 6)
                   </label>
                   <span className="text-[11px] text-text-dim">
                     Slot Terpilih: <strong className="text-accent-cyan font-mono">SLOT {slot}</strong>
@@ -309,6 +219,7 @@ const AddJokiModal = ({ isOpen, onClose }) => {
                     const sStr = s.toString();
                     const occupied = occupiedSlots[sStr];
                     const isSelected = slot.toString() === sStr;
+                    const isCurrentCustomerSlot = customer.slot && customer.slot.toString() === sStr;
 
                     return (
                       <button
@@ -330,8 +241,12 @@ const AddJokiModal = ({ isOpen, onClose }) => {
                             SLOT {s}
                           </span>
                           
-                          {occupied ? (
-                            <span className="w-2 h-2 rounded-full bg-accent-red animate-pulse" title="Terpakai" />
+                          {isCurrentCustomerSlot ? (
+                            <span className="text-[9.5px] font-bold px-1.5 py-0.2 rounded bg-accent-purple/20 text-accent-purple-light border border-accent-purple/30">
+                              Posisi Sekarang
+                            </span>
+                          ) : occupied ? (
+                            <span className="w-2 h-2 rounded-full bg-accent-red animate-pulse" title="Terpakai akun lain" />
                           ) : (
                             <span className="w-2 h-2 rounded-full bg-accent-green" title="Kosong" />
                           )}
@@ -346,33 +261,19 @@ const AddJokiModal = ({ isOpen, onClose }) => {
                               {occupied.paused ? 'PAUSED' : formatTime(occupied.remaining)}
                             </div>
                           </div>
-                        ) : (
+                        ) : !isCurrentCustomerSlot ? (
                           <div className="mt-1">
                             <span className="text-[10px] font-bold text-accent-green">
                               🟢 KOSONG
                             </span>
                           </div>
-                        )}
+                        ) : null}
                       </button>
                     );
                   })}
                 </div>
               </div>
             )}
-          </div>
-
-          {/* Pricing & Estimation Summary */}
-          <div className="bg-bg-primary border border-border-subtle rounded-xl p-3 flex items-center justify-between text-xs font-mono">
-            <div>
-              <span className="text-text-dim text-[11px]">Estimasi Total: </span>
-              <strong className="text-white">{formatDuration(calculatedHours)}</strong>
-            </div>
-            <div>
-              <span className="text-text-dim text-[11px]">Tarif: </span>
-              <strong className="text-accent-yellow font-black text-sm">
-                Rp {totalPrice.toLocaleString('id-ID')}
-              </strong>
-            </div>
           </div>
 
           {/* Action Buttons */}
@@ -387,10 +288,10 @@ const AddJokiModal = ({ isOpen, onClose }) => {
             <button
               type="submit"
               disabled={loading}
-              className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl text-xs font-black text-white bg-accent-purple hover:bg-accent-purple-light active:scale-95 transition-all shadow-lg shadow-accent-purple/25 cursor-pointer disabled:opacity-50"
+              className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl text-xs font-black text-bg-primary bg-accent-cyan hover:bg-accent-cyan/90 active:scale-95 transition-all shadow-lg shadow-accent-cyan/25 cursor-pointer disabled:opacity-50"
             >
-              <Plus size={15} />
-              <span>{loading ? 'Menyimpan...' : 'Mulai Billing Joki'}</span>
+              <Check size={15} />
+              <span>{loading ? 'Menyimpan...' : 'Simpan Perubahan'}</span>
             </button>
           </div>
         </form>
@@ -399,4 +300,4 @@ const AddJokiModal = ({ isOpen, onClose }) => {
   );
 };
 
-export default AddJokiModal;
+export default EditBillingModal;

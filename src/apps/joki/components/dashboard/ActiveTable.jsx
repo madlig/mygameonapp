@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useJoki } from '../../contexts/JokiContext';
-import { Play, Pause, Plus, Square, Clock } from 'lucide-react';
+import { Play, Pause, Plus, Square, Clock, Edit3 } from 'lucide-react';
 
 const formatTime = (seconds) => {
   seconds = Math.max(0, Math.floor(seconds));
@@ -44,6 +44,7 @@ const getCleanSlot = (customer) => {
 
 const ActiveTable = ({ 
   onOpenExtendModal, 
+  onOpenEditModal,
   onRequestStopCustomer, 
   onRequestClearActiveBillings
 }) => {
@@ -125,7 +126,7 @@ const ActiveTable = ({
                 <th className="py-3 px-3.5 text-center">Sisa Waktu</th>
                 <th className="py-3 px-3 text-center">Jam Beres</th>
                 <th className="py-3 px-3 text-center">Status</th>
-                {isAdmin && <th className="py-3 px-3 text-center w-36">Aksi</th>}
+                {isAdmin && <th className="py-3 px-3 text-center w-40">Aksi</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-border-subtle text-xs font-medium">
@@ -240,6 +241,7 @@ const ActiveTable = ({
                       {isAdmin && (
                         <td className="py-3 px-3 text-center">
                           <div className="flex items-center justify-center gap-1.5">
+                            {/* Pause / Resume */}
                             {customer.paused ? (
                               <button
                                 onClick={() => handleResume(customer)}
@@ -258,6 +260,16 @@ const ActiveTable = ({
                               </button>
                             )}
 
+                            {/* Edit Billing (Username / TikTok / Pindah Slot) */}
+                            <button
+                              onClick={() => onOpenEditModal(customer)}
+                              title="Edit data billing / Pindah slot"
+                              className="p-1.5 rounded-lg bg-accent-cyan/15 text-accent-cyan hover:bg-accent-cyan/25 border border-accent-cyan/30 transition-all cursor-pointer"
+                            >
+                              <Edit3 size={13} />
+                            </button>
+
+                            {/* Extend Time */}
                             <button
                               onClick={() => onOpenExtendModal(customer)}
                               title="Tambah waktu"
@@ -266,6 +278,7 @@ const ActiveTable = ({
                               <Plus size={13} />
                             </button>
 
+                            {/* Stop Billing */}
                             <button
                               onClick={() => onRequestStopCustomer(customer)}
                               title="Hentikan billing"

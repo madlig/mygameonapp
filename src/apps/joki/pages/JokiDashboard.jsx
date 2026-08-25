@@ -16,6 +16,7 @@ import ConfirmModal from '../components/modals/ConfirmModal';
 import JokiLoginModal from '../components/modals/JokiLoginModal';
 import ManageAdminsModal from '../components/modals/ManageAdminsModal';
 import JokiSettingsModal from '../components/modals/JokiSettingsModal';
+import EditBillingModal from '../components/modals/EditBillingModal';
 import Toast from '../components/ui/Toast';
 
 const JokiDashboard = () => {
@@ -40,6 +41,7 @@ const JokiDashboard = () => {
   const [isManageAdminsOpen, setIsManageAdminsOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [extendCustomer, setExtendCustomer] = useState(null);
+  const [editCustomer, setEditCustomer] = useState(null);
   const [startQueueItem, setStartQueueItem] = useState(null);
   const [finishedQueue, setFinishedQueue] = useState([]);
   const [popupShowing, setPopupShowing] = useState(false);
@@ -352,6 +354,7 @@ const JokiDashboard = () => {
           <JokiToolbar />
           <ActiveTable
             onOpenExtendModal={setExtendCustomer}
+            onOpenEditModal={setEditCustomer}
             onRequestStopCustomer={handleRequestStopCustomer}
             onRequestClearActiveBillings={handleRequestClearActiveBillings}
           />
@@ -374,6 +377,11 @@ const JokiDashboard = () => {
       <ExtendModal
         customer={extendCustomer}
         onClose={() => setExtendCustomer(null)}
+      />
+
+      <EditBillingModal
+        customer={editCustomer}
+        onClose={() => setEditCustomer(null)}
       />
 
       <StartBillingModal

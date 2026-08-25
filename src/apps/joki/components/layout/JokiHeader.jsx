@@ -170,7 +170,7 @@ const JokiHeader = ({
         </div>
       </div>
 
-      {/* Right Block: Exactly 3 Main Control Blocks */}
+      {/* Right Block: Exactly 3 Main Items (Kelola Admin, Pengaturan, Mega-Control Bar) */}
       <div className="flex flex-wrap items-center gap-3 w-full xl:w-auto justify-start xl:justify-end">
         {isAdmin ? (
           <>
@@ -178,7 +178,7 @@ const JokiHeader = ({
             {isSuperAdmin && (
               <button
                 onClick={onOpenManageAdminsModal}
-                className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-2xl text-xs font-extrabold text-bg-primary bg-accent-yellow hover:bg-accent-yellow-light active:scale-95 transition-all shadow-md shadow-accent-yellow/20 cursor-pointer"
+                className="h-[52px] flex items-center gap-1.5 px-3.5 rounded-2xl text-xs font-extrabold text-bg-primary bg-accent-yellow hover:bg-accent-yellow-light active:scale-95 transition-all shadow-md shadow-accent-yellow/20 cursor-pointer"
               >
                 <Crown size={14} />
                 <span>Kelola Admin</span>
@@ -189,59 +189,60 @@ const JokiHeader = ({
             <button
               onClick={onOpenSettingsModal}
               title="Pengaturan Akun & Streamer"
-              className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-2xl text-xs font-bold text-text-secondary hover:text-text-primary bg-bg-primary hover:bg-white/5 border border-border-default hover:border-accent-cyan/40 transition-all cursor-pointer shadow-sm"
+              className="h-[52px] flex items-center gap-1.5 px-3.5 rounded-2xl text-xs font-bold text-text-secondary hover:text-text-primary bg-bg-primary hover:bg-white/5 border border-border-default hover:border-accent-cyan/40 transition-all cursor-pointer shadow-sm"
             >
               <Settings size={14} className="text-accent-cyan" />
               <span>Pengaturan</span>
             </button>
 
-            {/* 3. UNIFIED MEGA-CONTROL BAR (1 Composite Unit) */}
-            <div className="inline-flex items-center p-1 rounded-2xl bg-bg-primary border border-border-default shadow-lg shadow-black/30 backdrop-blur-md flex-wrap sm:flex-nowrap">
-              {/* Segment A: Order Baru (Wide Proportion) */}
+            {/* 3. UNIFIED MEGA-CONTROL UNIT (40% - 20% - 40% Grid Box) */}
+            <div className="w-full sm:w-[420px] md:w-[450px] h-[52px] p-1 rounded-2xl bg-bg-primary border border-border-default shadow-lg shadow-black/40 backdrop-blur-md flex items-stretch gap-1">
+              
+              {/* Left Column (~40%): Order Baru Button */}
               <button
                 type="button"
                 onClick={onOpenAddModal}
-                className="flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-xs font-black text-white bg-accent-purple hover:bg-accent-purple-light active:scale-95 transition-all shadow-md shadow-accent-purple/30 cursor-pointer shrink-0"
+                className="w-[40%] h-full flex items-center justify-center gap-1.5 px-3 rounded-xl text-xs font-black text-white bg-accent-purple hover:bg-accent-purple-light active:scale-95 transition-all shadow-md shadow-accent-purple/30 cursor-pointer"
               >
-                <Plus size={14} />
-                <span>Order Baru</span>
+                <Plus size={15} />
+                <span className="truncate">Order Baru</span>
               </button>
 
-              {/* Segment B: PAUSE & RESUME (Connected Center Segment) */}
-              <div className="flex items-center gap-0.5 px-1 mx-1 border-x border-border-subtle shrink-0">
+              {/* Middle Column (~20%): Stacked PAUSE ALL (Top) & RESUME ALL (Bottom) */}
+              <div className="w-[20%] h-full flex flex-col gap-0.5 p-0.5 bg-bg-surface/60 rounded-xl border border-border-subtle">
                 <button
                   type="button"
                   onClick={onRequestPauseAll}
                   title="Jeda semua billing aktif"
-                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-black text-accent-red hover:bg-accent-red/15 active:scale-95 transition-all cursor-pointer"
+                  className="flex-1 flex items-center justify-center gap-1 rounded-lg text-[9px] font-black text-accent-red hover:bg-accent-red/20 active:scale-95 transition-all cursor-pointer"
                 >
-                  <Pause size={12} />
-                  <span>PAUSE</span>
+                  <Pause size={10} />
+                  <span className="truncate">PAUSE</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={onRequestResumeAll}
                   title="Lanjutkan semua billing aktif"
-                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-black text-accent-green hover:bg-accent-green/15 active:scale-95 transition-all cursor-pointer"
+                  className="flex-1 flex items-center justify-center gap-1 rounded-lg text-[9px] font-black text-accent-green hover:bg-accent-green/20 active:scale-95 transition-all cursor-pointer"
                 >
-                  <Play size={12} />
-                  <span>RESUME</span>
+                  <Play size={10} />
+                  <span className="truncate">RESUME</span>
                 </button>
               </div>
 
-              {/* Segment C: Streamer Mode (Wide Proportion) */}
+              {/* Right Column (~40%): Streamer Mode Button */}
               <button
                 type="button"
                 onClick={toggleStreamerMode}
-                className={`flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-black transition-all cursor-pointer shrink-0 ${
+                className={`w-[40%] h-full flex items-center justify-center gap-1.5 px-3 rounded-xl text-xs font-black transition-all cursor-pointer ${
                   streamerMode
                     ? 'bg-accent-red text-white shadow-md shadow-accent-red/25 animate-pulse'
-                    : 'bg-white/5 hover:bg-white/10 text-text-secondary hover:text-white border border-transparent'
+                    : 'bg-bg-surface hover:bg-white/10 text-text-secondary hover:text-white border border-border-subtle'
                 }`}
               >
                 {streamerMode ? <VideoOff size={14} /> : <Video size={14} />}
-                <span>{streamerMode ? 'Streamer ON' : 'Streamer Mode'}</span>
+                <span className="truncate">{streamerMode ? 'Streamer ON' : 'Streamer Mode'}</span>
               </button>
             </div>
 
@@ -249,7 +250,7 @@ const JokiHeader = ({
             <button
               onClick={handleLogout}
               title="Keluar dari mode admin"
-              className="p-2.5 rounded-2xl text-text-dim hover:text-text-primary hover:bg-white/5 border border-border-subtle transition-all cursor-pointer"
+              className="h-[52px] px-3 flex items-center justify-center rounded-2xl text-text-dim hover:text-text-primary hover:bg-white/5 border border-border-subtle transition-all cursor-pointer"
             >
               <LogOut size={15} />
             </button>
@@ -258,7 +259,7 @@ const JokiHeader = ({
           /* Public / Viewer Mode Action */
           <button
             onClick={onOpenLoginModal}
-            className="flex items-center gap-1.5 px-4 py-2.5 rounded-2xl text-xs font-bold text-text-secondary hover:text-text-primary bg-bg-primary hover:bg-white/5 border border-border-default hover:border-accent-purple/40 transition-all cursor-pointer shadow-sm"
+            className="h-[52px] flex items-center gap-1.5 px-5 rounded-2xl text-xs font-bold text-text-secondary hover:text-text-primary bg-bg-primary hover:bg-white/5 border border-border-default hover:border-accent-purple/40 transition-all cursor-pointer shadow-sm"
           >
             <LogIn size={14} className="text-accent-purple" />
             <span>Login Admin</span>

@@ -357,7 +357,7 @@ const JokiDashboard = () => {
       />
 
       {/* Stream Status Banners */}
-      <StreamerBanner />
+      <StreamerBanner onOpenSettings={() => setIsSettingsOpen(true)} />
       <StreamStatus />
 
       {/* Metric Summary Cards (Admin Only) */}

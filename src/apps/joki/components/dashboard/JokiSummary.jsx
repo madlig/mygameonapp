@@ -1,6 +1,6 @@
 import React from 'react';
 import { useJoki } from '../../contexts/JokiContext';
-import { Users, Play, Pause, CheckCircle2, DollarSign, Sparkles } from 'lucide-react';
+import { Users, Play, Pause, Clock, DollarSign } from 'lucide-react';
 
 const JokiSummary = () => {
   const { customers, queue, streamerMode, isAdmin } = useJoki();
@@ -11,8 +11,12 @@ const JokiSummary = () => {
   const active = customers.filter(c => !c.finished);
   const running = active.filter(c => !c.paused);
   const paused = active.filter(c => c.paused);
-  const finished = customers.filter(c => c.finished);
   
+  // Total Playtime Jam Billing Aktif
+  const totalActiveHours = active.reduce((sum, c) => sum + Number(c.duration || 0), 0);
+  const vipActiveCount = active.filter(c => (c.service || '').toUpperCase().includes('VIP') || c.slot === 'VIP').length;
+  const basicActiveCount = active.filter(c => !(c.service || '').toUpperCase().includes('VIP') && c.slot !== 'VIP').length;
+
   // Estimasi Omset Berjalan (Active billing + Antrean pending)
   const activeRevenue = active.reduce((total, c) => total + Number(c.price || 0), 0);
   const queueRevenue = (queue || []).reduce((total, q) => total + Number(q.price || 0), 0);
@@ -30,6 +34,7 @@ const JokiSummary = () => {
       color: 'text-accent-purple-light',
       bg: 'bg-accent-purple/10',
       border: 'border-accent-purple/20',
+      subtext: `${active.length}/7 Slot Live Terisi`
     },
     {
       label: 'Running (Aktif)',
@@ -38,6 +43,7 @@ const JokiSummary = () => {
       color: 'text-accent-green',
       bg: 'bg-accent-green/10',
       border: 'border-accent-green/20',
+      subtext: 'Billing berjalan live'
     },
     {
       label: 'Paused (Jeda)',
@@ -46,14 +52,16 @@ const JokiSummary = () => {
       color: 'text-accent-orange',
       bg: 'bg-accent-orange/10',
       border: 'border-accent-orange/20',
+      subtext: 'Durasi waktu aman'
     },
     {
-      label: 'Total Selesai',
-      value: `${finished.length} Order`,
-      icon: CheckCircle2,
+      label: 'Total Jam Main Aktif',
+      value: `${totalActiveHours.toFixed(1)} Jam`,
+      icon: Clock,
       color: 'text-accent-cyan',
       bg: 'bg-accent-cyan/10',
       border: 'border-accent-cyan/20',
+      subtext: `${vipActiveCount} VIP • ${basicActiveCount} Basic`
     },
     {
       label: 'Estimasi Omset Berjalan',

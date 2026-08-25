@@ -215,7 +215,7 @@ const AddJokiModal = ({ isOpen, onClose }) => {
           </div>
           <div>
             <h3 className="text-base font-black text-text-primary m-0 tracking-tight">
-              Tambah Billing Joki Baru
+              Tambah Order Joki Baru
             </h3>
             <p className="text-xs text-text-tertiary mt-0.5 m-0">
               Input data customer & alokasikan langsung ke slot live

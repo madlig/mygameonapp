@@ -1,91 +1,75 @@
-import React, { createContext, useState, useEffect, useContext } from "react";
-import { useSearchParams } from "react-router-dom";
+import React, { createContext, useContext, useState, useEffect } from "react";
 import { 
   DEFAULT_WORKSPACE_ID,
   subscribeJokiWorkspaces,
-  subscribeJokiCustomers, 
+  subscribeJokiCustomers,
   subscribeJokiQueue,
-  subscribeJokiSettings, 
-  createWorkspaceIfNotExists,
-  addJokiCustomer as fbAddCustomer, 
-  updateJokiCustomer as fbUpdateCustomer, 
+  subscribeJokiSettings,
+  addJokiCustomer as fbAddCustomer,
+  updateJokiCustomer as fbUpdateCustomer,
   deleteJokiCustomer as fbDeleteCustomer,
   addJokiQueue as fbAddQueue,
   updateJokiQueue as fbUpdateQueue,
   deleteJokiQueue as fbDeleteQueue,
   reorderJokiQueue,
-  updateJokiSettings as fbUpdateSettings 
+  updateJokiSettings as fbUpdateSettings
 } from "../services/jokiFirebase";
 import { useAuth } from "../../../contexts/AuthContext";
+
+const JokiContext = createContext();
 
 const PRICE_BASIC = 4000;
 const PRICE_VIP = 6000;
 
-const DEFAULT_WORKSPACES = [
-  { id: 'mygameon', name: 'MyGameON AFK', slug: 'mygameon', ownerEmail: 'madlighifari29@gmail.com' },
-];
-
-const JokiContext = createContext();
-
-export const useJoki = () => useContext(JokiContext);
-
 export const JokiProvider = ({ children }) => {
-  const { isAdmin, currentUser, logout } = useAuth();
-  const [searchParams, setSearchParams] = useSearchParams();
-
-  // Workspaces list
-  const [workspaces, setWorkspaces] = useState(DEFAULT_WORKSPACES);
-
-  // Super Admin Check: madlighifari29@gmail.com
-  const userEmail = (currentUser?.email || '').toLowerCase();
-  const isSuperAdmin = isAdmin && (
-    userEmail.includes('madli') || 
-    userEmail === 'madlighifari29@gmail.com' ||
-    userEmail === 'madlighifari@gmail.com' ||
-    userEmail.includes('mygameon')
-  );
-
-  // Determine initial workspace from URL param or default
-  const channelParam = searchParams.get('c') || searchParams.get('channel') || searchParams.get('streamer');
+  const { currentUser, logout } = useAuth();
   
-  const [activeWorkspaceId, setActiveWorkspaceIdState] = useState(() => {
-    if (channelParam) {
-      return channelParam;
-    }
-    return DEFAULT_WORKSPACE_ID;
+  // Workspaces list & Active Workspace ID
+  const [workspaces, setWorkspaces] = useState([]);
+  const [activeWorkspaceId, setActiveWorkspaceId] = useState(() => {
+    return localStorage.getItem("jokiActiveWorkspace") || DEFAULT_WORKSPACE_ID;
   });
 
+  // State per active workspace
   const [customers, setCustomers] = useState([]);
   const [queue, setQueue] = useState([]);
   const [globalPaused, setGlobalPaused] = useState(false);
   const [globalPauseStarted, setGlobalPauseStarted] = useState(null);
+  const [globalSettings, setGlobalSettings] = useState(null);
   const [loading, setLoading] = useState(true);
-  
-  // Streamer Mode per device
+
+  // UI States
   const [streamerMode, setStreamerMode] = useState(() => {
     return localStorage.getItem("jokiStreamerMode") === "true";
   });
-  
   const [searchQuery, setSearchQuery] = useState("");
   const [filter, setFilter] = useState("ALL"); // ALL, RUNNING, PAUSED
-  const [toasts, setToasts] = useState([]);
-
-  // Date Filter for Omset & History: 'ALL' | 'TODAY' | 'YESTERDAY' | 'WEEK' | 'MONTH' | 'CUSTOM'
-  const [dateFilter, setDateFilter] = useState("ALL");
+  
+  // Date Filtering State for Finished/History Tab
+  const [dateFilter, setDateFilter] = useState("ALL"); // ALL, TODAY, YESTERDAY, WEEK, MONTH, CUSTOM
   const [customStartDate, setCustomStartDate] = useState("");
   const [customEndDate, setCustomEndDate] = useState("");
 
-  // Helper to check if a timestamp matches the active date filter
+  const [toasts, setToasts] = useState([]);
+
+  // Toast Notification System
+  const addToast = (message, type = "info") => {
+    const id = Date.now().toString() + Math.random().toString().slice(2, 6);
+    setToasts((prev) => [...prev, { id, message, type }]);
+  };
+
+  const removeToast = (id) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  };
+
+  // Helper date filtering function
   const isWithinDateFilter = (timestamp) => {
     if (!timestamp) return false;
     if (dateFilter === 'ALL') return true;
 
-    const recordDate = new Date(timestamp);
     const now = new Date();
-
-    // Helper: start and end of a date
     const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-    const endOfToday = startOfToday + 86400000 - 1;
+    const endOfToday = startOfToday + 86399999;
 
     if (dateFilter === 'TODAY') {
       return timestamp >= startOfToday && timestamp <= endOfToday;
@@ -138,35 +122,29 @@ export const JokiProvider = ({ children }) => {
     }
   }, [currentUser, workspaces]);
 
-  // Sync with URL param if changed externally
-  useEffect(() => {
-    if (channelParam && channelParam !== activeWorkspaceId) {
-      setActiveWorkspaceIdState(channelParam);
-    }
-  }, [channelParam]);
+  // Check Permissions
+  const isSuperAdmin = currentUser?.email && (
+    currentUser.email.toLowerCase().includes('madli') || 
+    currentUser.email.toLowerCase().includes('mygameon')
+  );
 
-  const changeWorkspace = (newId) => {
-    setActiveWorkspaceIdState(newId);
-    setSearchParams((prev) => {
-      const p = new URLSearchParams(prev);
-      p.set('c', newId);
-      return p;
-    }, { replace: true });
+  const isAdmin = isSuperAdmin || (
+    currentUser?.email && (
+      currentUser.email.toLowerCase().includes('riyan') ||
+      currentUser.email.toLowerCase().includes('udin') ||
+      currentUser.email.toLowerCase().includes('admin') ||
+      workspaces.some(w => w.ownerEmail && w.ownerEmail.toLowerCase() === currentUser.email.toLowerCase())
+    )
+  );
+
+  // Switch Active Workspace
+  const changeWorkspace = (workspaceId) => {
+    if (!workspaceId) return;
+    setActiveWorkspaceId(workspaceId);
+    localStorage.setItem("jokiActiveWorkspace", workspaceId);
   };
 
-  const addToast = (message, type = 'success') => {
-    const id = Date.now() + Math.random();
-    setToasts((prev) => [...prev, { id, message, type }]);
-    setTimeout(() => {
-      removeToast(id);
-    }, 4000);
-  };
-
-  const removeToast = (id) => {
-    setToasts((prev) => prev.filter((t) => t.id !== id));
-  };
-
-  // Subscribe to Workspaces list
+  // Subscribe to all workspaces
   useEffect(() => {
     const unsub = subscribeJokiWorkspaces((data) => {
       if (data && data.length > 0) {
@@ -192,6 +170,7 @@ export const JokiProvider = ({ children }) => {
     const unsubSettings = subscribeJokiSettings(activeWorkspaceId, (data) => {
       setGlobalPaused(data.globalPaused || false);
       setGlobalPauseStarted(data.globalPauseStarted || null);
+      setGlobalSettings(data);
     });
     
     return () => {
@@ -240,8 +219,11 @@ export const JokiProvider = ({ children }) => {
     const price = Math.round(duration * pricePerHour);
 
     const customerData = {
+      ticketId: queueItem.ticketId || `JK-${queueItem.id.slice(-5)}`,
       username: queueItem.username,
       tiktokName: queueItem.tiktokName || '',
+      passwordRoblox: queueItem.passwordRoblox || '',
+      emailRoblox: queueItem.emailRoblox || '',
       name: queueItem.username,
       service: isVIP ? 'VIP' : 'Basic',
       slot: finalSlot,
@@ -281,8 +263,11 @@ export const JokiProvider = ({ children }) => {
       const finalDuration = remainingHours > 0 ? remainingHours : (customer.duration || 1);
 
       await fbAddQueue(activeWorkspaceId, {
+        ticketId: customer.ticketId || `JK-${customer.id.slice(-5)}`,
         username: customer.username || customer.name,
         tiktokName: customer.tiktokName || '',
+        passwordRoblox: customer.passwordRoblox || '',
+        emailRoblox: customer.emailRoblox || '',
         service: customer.service || 'Basic',
         duration: finalDuration,
         price: Math.round(customer.price || (finalDuration * (customer.service === 'VIP' ? PRICE_VIP : PRICE_BASIC))),
@@ -337,6 +322,7 @@ export const JokiProvider = ({ children }) => {
     loading,
     globalPaused,
     globalPauseStarted,
+    globalSettings,
     streamerMode,
     toggleStreamerMode,
     searchQuery,
@@ -371,4 +357,12 @@ export const JokiProvider = ({ children }) => {
       {children}
     </JokiContext.Provider>
   );
+};
+
+export const useJoki = () => {
+  const context = useContext(JokiContext);
+  if (!context) {
+    throw new Error("useJoki must be used within a JokiProvider");
+  }
+  return context;
 };

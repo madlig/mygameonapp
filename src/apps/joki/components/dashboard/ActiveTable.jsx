@@ -1,6 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { useJoki } from '../../contexts/JokiContext';
-import { Play, Pause, Plus, Square, Clock, Edit3, Undo2, AlertTriangle } from 'lucide-react';
+import { 
+  Play, 
+  Pause, 
+  Plus, 
+  Square, 
+  Clock, 
+  Edit3, 
+  Undo2, 
+  AlertTriangle, 
+  Key, 
+  Copy, 
+  MessageSquare, 
+  ArrowUpDown,
+  Flame,
+  Check,
+  ChevronDown
+} from 'lucide-react';
+import CredentialModal from '../modals/CredentialModal';
 
 const formatTime = (seconds) => {
   seconds = Math.max(0, Math.floor(seconds));
@@ -58,6 +75,9 @@ const ActiveTable = ({
   } = useJoki();
   
   const [now, setNow] = useState(Date.now());
+  const [sortBy, setSortBy] = useState('SHORTEST_TIME'); // 'SHORTEST_TIME' | 'SLOT' | 'NAME' | 'DEFAULT'
+  const [credentialCustomer, setCredentialCustomer] = useState(null);
+  const [dmMenuCustomer, setDmMenuCustomer] = useState(null);
 
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 1000);
@@ -102,7 +122,38 @@ const ActiveTable = ({
     addToast(`Billing ${customer.username || customer.name} dilanjutkan! Jam selesai diperbarui.`, 'success');
   };
 
-  const filteredCustomers = customers.filter(c => {
+  // 1-Click Copy Ticket Link
+  const handleCopyTicketLink = (customer) => {
+    const tId = customer.ticketId || `JK-${customer.id.slice(-5)}`;
+    const ticketUrl = `${window.location.origin}/ticket/${tId}`;
+    navigator.clipboard.writeText(ticketUrl);
+    addToast(`✓ Link tiket ${customer.username || customer.name} (${tId}) disalin!`, 'success');
+  };
+
+  // Copy TikTok DM Template
+  const handleCopyDM = (customer, templateType) => {
+    const tId = customer.ticketId || `JK-${customer.id.slice(-5)}`;
+    const ticketUrl = `${window.location.origin}/ticket/${tId}`;
+    const user = customer.username || customer.name;
+    const tt = customer.tiktokName ? `@${customer.tiktokName}` : '';
+
+    let text = '';
+    if (templateType === 'ACTIVE') {
+      text = `Halo bro ${tt}! Akun Roblox kamu (${user}) lagi dimainin di live ya bro! Ini link tiket live buat liat sisa waktu & jam beres: ${ticketUrl}. Pantau terus ya bro!`;
+    } else if (templateType === 'OTP') {
+      text = `Bro ${tt}, giliran akun kamu (${user}) nih mau dimainin! Standby ya, kalau ada kode OTP email masuk langsung kirim kesini ya bro.`;
+    } else if (templateType === 'DONE') {
+      text = `Akun kamu (${user}) udah beres dijoki ya bro! Makasih banyak udah order di live. Tiket kamu otomatis ditutup dalam 5 menit demi keamanan. Cek akun & jangan lupa ganti password ya bro!`;
+    } else if (templateType === 'RESCHEDULE') {
+      text = `Sorry banget ya bro ${tt}, jadwal live joki akun (${user}) diundur sebentar karena ada kendala mendadak. Tiket kamu tetap aman di sini: ${ticketUrl}. Nanti gas lagi ya bro!`;
+    }
+
+    navigator.clipboard.writeText(text);
+    setDmMenuCustomer(null);
+    addToast(`✓ Pesan DM untuk ${user} berhasil disalin!`, 'success');
+  };
+
+  let filteredCustomers = customers.filter(c => {
     if (c.finished) return false;
     if (filter === 'RUNNING') return !c.paused;
     if (filter === 'PAUSED') return c.paused;
@@ -118,9 +169,78 @@ const ActiveTable = ({
     }
   });
 
+  // Apply Smart Sorting
+  filteredCustomers.sort((a, b) => {
+    if (sortBy === 'SHORTEST_TIME') {
+      const remA = getRemaining(a);
+      const remB = getRemaining(b);
+      return remA - remB; // Shortest remaining time on top ("Nu Sakedeng Dei")
+    }
+    if (sortBy === 'SLOT') {
+      const slotA = a.slot === 'VIP' ? 99 : Number(a.slot || 1);
+      const slotB = b.slot === 'VIP' ? 99 : Number(b.slot || 1);
+      return slotA - slotB;
+    }
+    if (sortBy === 'NAME') {
+      const nameA = (a.username || a.name || '').toLowerCase();
+      const nameB = (b.username || b.name || '').toLowerCase();
+      return nameA.localeCompare(nameB);
+    }
+    return (b.createdAt || 0) - (a.createdAt || 0);
+  });
+
   return (
     <div className="flex flex-col gap-2.5">
-      <div className="bg-bg-surface border border-border-default rounded-b-2xl overflow-hidden shadow-2xl">
+      {/* TOOLBAR SORTING & HELPER */}
+      <div className="flex flex-wrap items-center justify-between gap-2 px-1 py-1">
+        <div className="flex items-center gap-1.5 text-xs text-text-dim">
+          <span className="text-[11px] font-bold">Urutkan Tabel:</span>
+          <div className="flex items-center gap-1 bg-bg-surface p-1 rounded-xl border border-border-default shadow-inner">
+            <button
+              type="button"
+              onClick={() => setSortBy('SHORTEST_TIME')}
+              className={`px-2.5 py-1 rounded-lg text-xs font-black transition-all cursor-pointer flex items-center gap-1 ${
+                sortBy === 'SHORTEST_TIME'
+                  ? 'bg-accent-cyan/20 text-accent-cyan border border-accent-cyan/40 shadow-sm'
+                  : 'text-text-muted hover:text-text-primary'
+              }`}
+            >
+              <Flame size={12} className={sortBy === 'SHORTEST_TIME' ? 'text-accent-orange' : ''} />
+              <span>Sisa Waktu Tercepat</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setSortBy('SLOT')}
+              className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                sortBy === 'SLOT'
+                  ? 'bg-accent-purple/20 text-accent-purple-light border border-accent-purple/40'
+                  : 'text-text-muted hover:text-text-primary'
+              }`}
+            >
+              Nomor Slot
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setSortBy('NAME')}
+              className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                sortBy === 'NAME'
+                  ? 'bg-white/10 text-white border border-border-subtle'
+                  : 'text-text-muted hover:text-text-primary'
+              }`}
+            >
+              Abjad (A-Z)
+            </button>
+          </div>
+        </div>
+
+        <div className="text-[11px] text-text-faint font-semibold hidden md:block">
+          💡 <span className="text-text-dim">Klik username untuk salin link tiket</span>
+        </div>
+      </div>
+
+      <div className="bg-bg-surface border border-border-default rounded-2xl overflow-hidden shadow-2xl">
         <div className="overflow-x-auto">
           <table className="w-full border-collapse text-left min-w-[950px]">
             <thead>
@@ -128,7 +248,6 @@ const ActiveTable = ({
                 <th className="py-3 px-3 text-center w-10">No</th>
                 <th className="py-3 px-3.5">Username Roblox</th>
                 <th className="py-3 px-3.5">Akun TikTok</th>
-                {/* Layanan & Slot BERSEBELAHAN */}
                 <th className="py-3 px-3 text-center">Layanan</th>
                 <th className="py-3 px-3 text-center">Slot</th>
                 <th className="py-3 px-3 text-center">Durasi</th>
@@ -136,7 +255,7 @@ const ActiveTable = ({
                 <th className="py-3 px-3.5 text-center">Sisa Waktu</th>
                 <th className="py-3 px-3 text-center">Jam Beres</th>
                 <th className="py-3 px-3 text-center">Status</th>
-                {isAdmin && <th className="py-3 px-3 text-center w-44">Aksi</th>}
+                {isAdmin && <th className="py-3 px-3 text-center w-48">Aksi & Brankas</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-border-subtle text-xs font-medium">
@@ -170,11 +289,17 @@ const ActiveTable = ({
                         {index + 1}
                       </td>
 
-                      {/* Roblox Username */}
+                      {/* Roblox Username (Clickable for Ticket Link) */}
                       <td className="py-3 px-3.5 font-bold text-text-primary">
-                        <span className="font-extrabold text-sm tracking-tight text-white">
-                          {customer.username || customer.name}
-                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleCopyTicketLink(customer)}
+                          title="Klik untuk salin Link Tiket Customer"
+                          className="font-black text-sm tracking-tight text-white hover:text-accent-cyan transition-colors flex items-center gap-1.5 cursor-pointer text-left group"
+                        >
+                          <span>{customer.username || customer.name}</span>
+                          <Copy size={12} className="opacity-0 group-hover:opacity-100 text-accent-cyan transition-opacity" />
+                        </button>
                       </td>
 
                       {/* TikTok Account */}
@@ -199,7 +324,7 @@ const ActiveTable = ({
                         </span>
                       </td>
 
-                      {/* Slot (Bersebelahan dengan Layanan) */}
+                      {/* Slot */}
                       <td className="py-3 px-3 text-center">
                         <div className="inline-flex items-center gap-1">
                           <span className={`inline-flex items-center justify-center min-w-[32px] px-2 py-0.5 rounded-lg text-xs font-extrabold font-mono tracking-tight ${
@@ -261,8 +386,65 @@ const ActiveTable = ({
 
                       {/* Admin Actions */}
                       {isAdmin && (
-                        <td className="py-3 px-3 text-center">
-                          <div className="flex items-center justify-center gap-1.5">
+                        <td className="py-3 px-3 text-center relative">
+                          <div className="flex items-center justify-center gap-1">
+                            {/* Brankas Button (1-Click Password & Email Vault) */}
+                            <button
+                              onClick={() => setCredentialCustomer(customer)}
+                              title="Buka Brankas Akun (Salin Pass/Email)"
+                              className="p-1.5 rounded-lg bg-accent-green/15 text-accent-green hover:bg-accent-green/25 border border-accent-green/30 transition-all cursor-pointer"
+                            >
+                              <Key size={13} />
+                            </button>
+
+                            {/* DM Menu Button */}
+                            <div className="relative">
+                              <button
+                                onClick={() => setDmMenuCustomer(dmMenuCustomer?.id === customer.id ? null : customer)}
+                                title="Salin Pesan DM TikTok Siap Kirim"
+                                className="p-1.5 rounded-lg bg-accent-cyan/15 text-accent-cyan hover:bg-accent-cyan/25 border border-accent-cyan/30 transition-all cursor-pointer"
+                              >
+                                <MessageSquare size={13} />
+                              </button>
+
+                              {/* DM Template Dropdown Menu */}
+                              {dmMenuCustomer?.id === customer.id && (
+                                <div className="absolute right-0 top-full mt-1 w-52 bg-bg-surface border border-border-default rounded-2xl shadow-2xl z-50 p-1.5 space-y-1 text-left">
+                                  <div className="text-[9.5px] font-extrabold uppercase px-2 py-1 text-text-dim border-b border-border-subtle">
+                                    Salin Chat DM TikTok:
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleCopyDM(customer, 'ACTIVE')}
+                                    className="w-full px-2.5 py-1.5 rounded-xl text-left text-xs font-bold text-white hover:bg-white/10 flex items-center justify-between"
+                                  >
+                                    <span>🎮 Info Lagi Dimainkan</span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleCopyDM(customer, 'OTP')}
+                                    className="w-full px-2.5 py-1.5 rounded-xl text-left text-xs font-bold text-accent-yellow hover:bg-accent-yellow/10 flex items-center justify-between"
+                                  >
+                                    <span>🚨 Minta Kode OTP</span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleCopyDM(customer, 'DONE')}
+                                    className="w-full px-2.5 py-1.5 rounded-xl text-left text-xs font-bold text-accent-green hover:bg-accent-green/10 flex items-center justify-between"
+                                  >
+                                    <span>🎉 Info Joki Beres</span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleCopyDM(customer, 'RESCHEDULE')}
+                                    className="w-full px-2.5 py-1.5 rounded-xl text-left text-xs font-bold text-accent-orange hover:bg-accent-orange/10 flex items-center justify-between"
+                                  >
+                                    <span>⏳ Undur Jadwal Live</span>
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+
                             {/* Pause / Resume */}
                             {customer.paused ? (
                               <button
@@ -282,20 +464,20 @@ const ActiveTable = ({
                               </button>
                             )}
 
-                            {/* Return to Queue (Kembalikan ke antrian & bebaskan slot) */}
+                            {/* Return to Queue */}
                             <button
                               onClick={() => onRequestMoveToQueue(customer)}
-                              title="Kembalikan ke antrian (Bebaskan slot duplikat)"
+                              title="Kembalikan ke antrian"
                               className="p-1.5 rounded-lg bg-accent-yellow/15 text-accent-yellow hover:bg-accent-yellow/25 border border-accent-yellow/30 transition-all cursor-pointer"
                             >
                               <Undo2 size={13} />
                             </button>
 
-                            {/* Edit Billing (Username / TikTok / Pindah Slot) */}
+                            {/* Edit Billing */}
                             <button
                               onClick={() => onOpenEditModal(customer)}
-                              title="Edit data billing / Pindah slot"
-                              className="p-1.5 rounded-lg bg-accent-cyan/15 text-accent-cyan hover:bg-accent-cyan/25 border border-accent-cyan/30 transition-all cursor-pointer"
+                              title="Edit data billing / Brankas / Koreksi waktu"
+                              className="p-1.5 rounded-lg bg-white/5 text-text-secondary hover:text-white hover:bg-white/10 border border-border-subtle transition-all cursor-pointer"
                             >
                               <Edit3 size={13} />
                             </button>
@@ -340,6 +522,14 @@ const ActiveTable = ({
             <span>🧹 Kosongkan Semua Billing Aktif</span>
           </button>
         </div>
+      )}
+
+      {/* Credential Popover Modal */}
+      {credentialCustomer && (
+        <CredentialModal
+          customer={credentialCustomer}
+          onClose={() => setCredentialCustomer(null)}
+        />
       )}
     </div>
   );

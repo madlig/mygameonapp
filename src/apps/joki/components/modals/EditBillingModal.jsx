@@ -1,15 +1,43 @@
 import React, { useState, useEffect } from 'react';
 import { useJoki } from '../../contexts/JokiContext';
-import { Edit3, X, User, DollarSign, Layers, Check, AlertCircle, Undo2 } from 'lucide-react';
+import { 
+  Edit3, 
+  X, 
+  User, 
+  Lock, 
+  Mail, 
+  DollarSign, 
+  Check, 
+  Undo2, 
+  Copy, 
+  Eye, 
+  EyeOff, 
+  Clock, 
+  Minus, 
+  Plus, 
+  ShieldCheck,
+  Sparkles
+} from 'lucide-react';
 
 const PRICE_BASIC = 4000;
 const PRICE_VIP = 6000;
 
 const formatTime = (seconds) => {
   seconds = Math.max(0, Math.floor(seconds));
-  const m = Math.floor(seconds / 60);
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
   const s = seconds % 60;
+  if (h > 0) return `${h}j ${m}m ${s}s`;
   return `${m}m ${s}s`;
+};
+
+const formatClock = (timestamp) => {
+  if (!timestamp) return '--:--';
+  return new Date(timestamp).toLocaleTimeString('id-ID', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  }) + ' WIB';
 };
 
 const EditBillingModal = ({ customer, onClose }) => {
@@ -17,18 +45,33 @@ const EditBillingModal = ({ customer, onClose }) => {
 
   const [username, setUsername] = useState('');
   const [tiktokName, setTiktokName] = useState('');
+  const [passwordRoblox, setPasswordRoblox] = useState('');
+  const [emailRoblox, setEmailRoblox] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [copiedField, setCopiedField] = useState(null);
+
   const [service, setService] = useState('Basic');
   const [slot, setSlot] = useState(1);
   const [price, setPrice] = useState(4000);
   const [loading, setLoading] = useState(false);
 
+  // Duration Jam & Menit
+  const [durHours, setDurHours] = useState(1);
+  const [durMinutes, setDurMinutes] = useState(0);
+
   useEffect(() => {
     if (customer) {
       setUsername(customer.username || customer.name || '');
       setTiktokName(customer.tiktokName || '');
+      setPasswordRoblox(customer.passwordRoblox || '');
+      setEmailRoblox(customer.emailRoblox || '');
       setService(customer.service || 'Basic');
       setSlot(customer.slot || 1);
       setPrice(Math.round(customer.price || 0));
+
+      const totalMins = Math.round(Number(customer.duration || 1) * 60);
+      setDurHours(Math.floor(totalMins / 60));
+      setDurMinutes(totalMins % 60);
     }
   }, [customer]);
 
@@ -36,6 +79,51 @@ const EditBillingModal = ({ customer, onClose }) => {
 
   const isVIP = service === 'VIP';
   const standardSlots = [1, 2, 3, 4, 5, 6];
+  const ratePerHour = isVIP ? PRICE_VIP : PRICE_BASIC;
+
+  // Total new duration in hours
+  const calculatedTotalHours = Number(durHours || 0) + (Number(durMinutes || 0) / 60);
+
+  // New calculated End Time
+  const newEndTime = (customer.startTime || Date.now()) + (calculatedTotalHours * 3600 * 1000);
+  const newRemainingSeconds = Math.max(0, Math.floor((newEndTime - Date.now()) / 1000));
+
+  // Auto-hide password after 5 seconds
+  const handleToggleShowPassword = () => {
+    if (!showPassword) {
+      setShowPassword(true);
+      setTimeout(() => setShowPassword(false), 5000);
+    } else {
+      setShowPassword(false);
+    }
+  };
+
+  // Clipboard copy helper
+  const handleCopy = (text, fieldName) => {
+    if (!text) {
+      addToast(`Data ${fieldName} masih kosong.`, 'info');
+      return;
+    }
+    navigator.clipboard.writeText(text);
+    setCopiedField(fieldName);
+    addToast(`✓ ${fieldName} berhasil disalin ke clipboard!`, 'success');
+    setTimeout(() => setCopiedField(null), 2000);
+  };
+
+  // Quick Duration Adjustment handlers
+  const handleAdjustMinutes = (deltaMinutes) => {
+    const currentTotalMins = (Number(durHours) * 60) + Number(durMinutes);
+    const newTotalMins = Math.max(15, currentTotalMins + deltaMinutes);
+    
+    const newH = Math.floor(newTotalMins / 60);
+    const newM = newTotalMins % 60;
+    setDurHours(newH);
+    setDurMinutes(newM);
+
+    // Auto adjust price
+    const newHoursFloat = newTotalMins / 60;
+    setPrice(Math.round(newHoursFloat * ratePerHour));
+  };
 
   // Map occupied slots from active customers (excluding currently edited customer)
   const occupiedSlots = {};
@@ -56,6 +144,8 @@ const EditBillingModal = ({ customer, onClose }) => {
   const handleServiceChange = (e) => {
     const val = e.target.value;
     setService(val);
+    const newRate = val === 'VIP' ? PRICE_VIP : PRICE_BASIC;
+    setPrice(Math.round(calculatedTotalHours * newRate));
     if (val === 'VIP') {
       setSlot('VIP');
     } else if (slot === 'VIP') {
@@ -70,6 +160,10 @@ const EditBillingModal = ({ customer, onClose }) => {
       addToast('Username Roblox tidak boleh kosong.', 'error');
       return;
     }
+    if (calculatedTotalHours <= 0) {
+      addToast('Durasi joki harus lebih dari 0.', 'error');
+      return;
+    }
 
     try {
       setLoading(true);
@@ -79,13 +173,22 @@ const EditBillingModal = ({ customer, onClose }) => {
         username: username.trim(),
         name: username.trim(),
         tiktokName: tiktokName.trim().replace(/^@/, ''),
+        passwordRoblox: passwordRoblox.trim(),
+        emailRoblox: emailRoblox.trim(),
         service: service,
         slot: chosenSlot,
+        duration: Number(calculatedTotalHours.toFixed(2)),
+        endTime: newEndTime,
         price: Math.round(Number(price || 0)),
       };
 
+      // If paused, update remainingAtPause as well
+      if (customer.paused) {
+        updates.remainingAtPause = newRemainingSeconds;
+      }
+
       await updateJokiCustomer(customer.id, updates);
-      addToast(`Data billing ${username} berhasil diperbarui!`, 'success');
+      addToast(`Data billing & durasi ${username} berhasil diperbarui!`, 'success');
       onClose();
     } catch (err) {
       console.error(err);
@@ -103,142 +206,316 @@ const EditBillingModal = ({ customer, onClose }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-[fadeIn_0.2s_ease]">
+    <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-[fadeIn_0.2s_ease]">
       <div 
-        className="w-full max-w-lg bg-bg-surface border border-border-default rounded-2xl p-6 shadow-2xl animate-slide-in relative max-h-[90vh] overflow-y-auto"
-        style={{ background: '#111317' }}
+        className="w-full max-w-xl bg-bg-surface border border-border-default rounded-3xl p-6 shadow-2xl animate-slide-in relative max-h-[92vh] overflow-y-auto"
+        style={{ background: '#111318' }}
       >
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 text-text-dim hover:text-text-primary transition-colors p-1 cursor-pointer"
+          className="absolute top-5 right-5 text-text-dim hover:text-text-primary transition-colors p-1.5 rounded-xl hover:bg-white/5 cursor-pointer"
         >
           <X size={18} />
         </button>
 
         {/* Header */}
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-10 h-10 rounded-xl bg-accent-cyan/15 border border-accent-cyan/30 flex items-center justify-center text-accent-cyan shrink-0">
+        <div className="flex items-center gap-3 mb-5">
+          <div className="w-10 h-10 rounded-2xl bg-accent-cyan/15 border border-accent-cyan/30 flex items-center justify-center text-accent-cyan shrink-0">
             <Edit3 size={20} />
           </div>
           <div>
-            <h3 className="text-base font-extrabold text-text-primary m-0 tracking-tight">
-              Edit Data Billing Aktif
+            <h3 className="text-base font-black text-text-primary m-0 tracking-tight">
+              Edit Billing & Brankas Akun
             </h3>
             <p className="text-xs text-text-tertiary mt-0.5 m-0">
-              Koreksi data akun tertukar, salah nama, atau pindah slot
+              Koreksi durasi, password akun, harga, atau pindah slot
             </p>
           </div>
         </div>
 
         <form onSubmit={handleSave} className="space-y-4">
-          {/* Section 1: Customer Data */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          
+          {/* SECTION 1: BRANKAS LOGIN AKUN ROBLOX */}
+          <div className="p-4 rounded-2xl bg-bg-primary/90 border border-border-default space-y-3 shadow-inner">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-black uppercase tracking-wider text-accent-cyan flex items-center gap-1.5">
+                <ShieldCheck size={14} className="text-accent-green" />
+                <span>Brankas Login Akun (Anti-Bocor OBS)</span>
+              </span>
+              <span className="text-[10.5px] text-text-dim">Klik salin untuk paste instan</span>
+            </div>
+
+            {/* Username Roblox */}
             <div>
-              <label className="block text-[11px] font-semibold text-text-tertiary mb-1">
+              <label className="block text-[10.5px] font-bold text-text-dim mb-1">
                 Username Roblox <span className="text-accent-red">*</span>
               </label>
-              <div className="relative">
-                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-faint" />
-                <input
-                  type="text"
-                  required
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  className="w-full bg-bg-primary border border-border-default rounded-xl py-2 pl-9 pr-3 text-xs text-text-primary outline-none focus:border-accent-cyan/50 shadow-inner font-bold"
-                />
+              <div className="flex gap-1.5">
+                <div className="relative flex-1">
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-faint" />
+                  <input
+                    type="text"
+                    required
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    className="w-full bg-bg-surface border border-border-default rounded-xl py-2 pl-9 pr-3 text-xs text-text-primary font-bold outline-none focus:border-accent-cyan/50"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleCopy(username, 'Username')}
+                  className="px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-text-secondary hover:text-white border border-border-subtle text-xs font-bold transition-all flex items-center gap-1 cursor-pointer shrink-0"
+                >
+                  <Copy size={13} />
+                  <span>{copiedField === 'Username' ? 'Tersalin!' : 'Salin'}</span>
+                </button>
               </div>
             </div>
 
+            {/* Password Roblox */}
             <div>
-              <label className="block text-[11px] font-semibold text-text-tertiary mb-1">
-                Akun TikTok
+              <label className="block text-[10.5px] font-bold text-text-dim mb-1">
+                Password Roblox (Tersimpan Aman)
               </label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-accent-cyan">@</span>
-                <input
-                  type="text"
-                  value={tiktokName}
-                  onChange={(e) => setTiktokName(e.target.value)}
-                  className="w-full bg-bg-primary border border-border-default rounded-xl py-2 pl-8 pr-3 text-xs text-text-primary outline-none focus:border-accent-cyan/50 shadow-inner"
-                  placeholder="username_tiktok"
-                />
+              <div className="flex gap-1.5">
+                <div className="relative flex-1">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-faint" />
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    value={passwordRoblox}
+                    onChange={(e) => setPasswordRoblox(e.target.value)}
+                    placeholder="Masukkan password akun..."
+                    className="w-full bg-bg-surface border border-border-default rounded-xl py-2 pl-9 pr-3 text-xs text-text-primary font-mono outline-none focus:border-accent-cyan/50"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={handleToggleShowPassword}
+                  title="Intip 5 detik"
+                  className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-text-dim hover:text-white border border-border-subtle transition-all cursor-pointer shrink-0"
+                >
+                  {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleCopy(passwordRoblox, 'Password')}
+                  className="px-3 py-2 rounded-xl bg-accent-cyan/15 hover:bg-accent-cyan/25 text-accent-cyan border border-accent-cyan/30 text-xs font-black transition-all flex items-center gap-1 cursor-pointer shrink-0"
+                >
+                  <Copy size={13} />
+                  <span>{copiedField === 'Password' ? 'Tersalin!' : 'Salin Pass'}</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Email Akun / OTP */}
+            <div>
+              <label className="block text-[10.5px] font-bold text-text-dim mb-1">
+                Email Akun / Email OTP (Opsional)
+              </label>
+              <div className="flex gap-1.5">
+                <div className="relative flex-1">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-faint" />
+                  <input
+                    type="text"
+                    value={emailRoblox}
+                    onChange={(e) => setEmailRoblox(e.target.value)}
+                    placeholder="email_customer@gmail.com"
+                    className="w-full bg-bg-surface border border-border-default rounded-xl py-2 pl-9 pr-3 text-xs text-text-primary outline-none focus:border-accent-cyan/50"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleCopy(emailRoblox, 'Email')}
+                  className="px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-text-secondary hover:text-white border border-border-subtle text-xs font-bold transition-all flex items-center gap-1 cursor-pointer shrink-0"
+                >
+                  <Copy size={13} />
+                  <span>{copiedField === 'Email' ? 'Tersalin!' : 'Salin Email'}</span>
+                </button>
               </div>
             </div>
           </div>
 
-          {/* Section 2: Layanan & Harga */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {/* SECTION 2: PENGATURAN DURASI & KOREKSI WAKTU */}
+          <div className="p-4 rounded-2xl bg-bg-primary/90 border border-border-default space-y-3 shadow-inner">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-black uppercase tracking-wider text-accent-yellow flex items-center gap-1.5">
+                <Clock size={14} />
+                <span>Koreksi Durasi & Waktu (Kasus Cancel/Refund)</span>
+              </span>
+              <span className="text-[10.5px] font-mono text-accent-yellow font-bold">
+                Total: {durHours} Jam {durMinutes > 0 ? `${durMinutes}m` : ''}
+              </span>
+            </div>
+
+            {/* Jam & Menit Inputs */}
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="block text-[10px] uppercase font-bold text-text-dim mb-1">Jam</label>
+                <input
+                  type="number"
+                  min="0"
+                  max="24"
+                  value={durHours}
+                  onChange={(e) => {
+                    const val = Math.max(0, parseInt(e.target.value, 10) || 0);
+                    setDurHours(val);
+                    const newTot = val + (Number(durMinutes) / 60);
+                    setPrice(Math.round(newTot * ratePerHour));
+                  }}
+                  className="w-full bg-bg-surface border border-border-default rounded-xl py-2 px-3 text-xs text-text-primary font-mono font-bold outline-none focus:border-accent-yellow/50"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] uppercase font-bold text-text-dim mb-1">Menit</label>
+                <input
+                  type="number"
+                  min="0"
+                  max="59"
+                  step="5"
+                  value={durMinutes}
+                  onChange={(e) => {
+                    const val = Math.max(0, Math.min(59, parseInt(e.target.value, 10) || 0));
+                    setDurMinutes(val);
+                    const newTot = Number(durHours) + (val / 60);
+                    setPrice(Math.round(newTot * ratePerHour));
+                  }}
+                  className="w-full bg-bg-surface border border-border-default rounded-xl py-2 px-3 text-xs text-text-primary font-mono font-bold outline-none focus:border-accent-yellow/50"
+                />
+              </div>
+            </div>
+
+            {/* Quick Adjustment Presets */}
+            <div className="flex items-center gap-1.5 pt-1">
+              <span className="text-[10px] text-text-dim font-bold shrink-0">Kurangi/Tambah:</span>
+              <button
+                type="button"
+                onClick={() => handleAdjustMinutes(-60)}
+                className="flex-1 py-1 rounded-lg bg-accent-red/15 hover:bg-accent-red/25 text-accent-red border border-accent-red/30 text-[11px] font-mono font-black transition-all"
+              >
+                -1 Jam
+              </button>
+              <button
+                type="button"
+                onClick={() => handleAdjustMinutes(-30)}
+                className="flex-1 py-1 rounded-lg bg-accent-red/15 hover:bg-accent-red/25 text-accent-red border border-accent-red/30 text-[11px] font-mono font-black transition-all"
+              >
+                -30m
+              </button>
+              <button
+                type="button"
+                onClick={() => handleAdjustMinutes(30)}
+                className="flex-1 py-1 rounded-lg bg-accent-green/15 hover:bg-accent-green/25 text-accent-green border border-accent-green/30 text-[11px] font-mono font-black transition-all"
+              >
+                +30m
+              </button>
+              <button
+                type="button"
+                onClick={() => handleAdjustMinutes(60)}
+                className="flex-1 py-1 rounded-lg bg-accent-green/15 hover:bg-accent-green/25 text-accent-green border border-accent-green/30 text-[11px] font-mono font-black transition-all"
+              >
+                +1 Jam
+              </button>
+            </div>
+
+            {/* Live Preview Box */}
+            <div className="p-3 rounded-xl bg-white/[0.02] border border-white/10 grid grid-cols-2 gap-2 text-xs">
+              <div>
+                <span className="text-[10px] text-text-dim block">Sisa Waktu Baru:</span>
+                <strong className="text-accent-green font-mono font-black">{formatTime(newRemainingSeconds)}</strong>
+              </div>
+              <div className="text-right">
+                <span className="text-[10px] text-text-dim block">Jam Beres Baru:</span>
+                <strong className="text-accent-cyan font-mono font-black">{formatClock(newEndTime)}</strong>
+              </div>
+            </div>
+          </div>
+
+          {/* SECTION 3: LAYANAN, HARGA & TIKTOK */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <div>
-              <label className="block text-[11px] font-semibold text-text-tertiary mb-1">
+              <label className="block text-[10.5px] font-bold text-text-dim mb-1">
                 Layanan
               </label>
               <select
                 value={service}
                 onChange={handleServiceChange}
-                className="w-full bg-bg-primary border border-border-default rounded-xl py-2 px-3 text-xs text-text-primary outline-none focus:border-accent-cyan/50 cursor-pointer shadow-inner font-bold"
+                className="w-full bg-bg-primary border border-border-default rounded-xl py-2 px-2.5 text-xs text-text-primary outline-none focus:border-accent-cyan/50 cursor-pointer font-bold"
               >
-                <option value="Basic">Basic (Rp 4.000 / Jam)</option>
-                <option value="VIP">VIP (Rp 6.000 / Jam - Priority)</option>
+                <option value="Basic">Basic (4k/j)</option>
+                <option value="VIP">VIP (6k/j)</option>
               </select>
             </div>
 
             <div>
-              <label className="block text-[11px] font-semibold text-text-tertiary mb-1">
+              <label className="block text-[10.5px] font-bold text-text-dim mb-1">
                 Total Harga (Rp)
               </label>
               <div className="relative">
-                <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-accent-yellow" />
+                <DollarSign className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-accent-yellow" />
                 <input
                   type="number"
                   min="0"
                   step="500"
                   value={price}
                   onChange={(e) => setPrice(e.target.value)}
-                  className="w-full bg-bg-primary border border-border-default rounded-xl py-2 pl-9 pr-3 text-xs text-accent-yellow font-bold font-mono outline-none focus:border-accent-yellow/50 shadow-inner"
+                  className="w-full bg-bg-primary border border-border-default rounded-xl py-2 pl-8 pr-2 text-xs text-accent-yellow font-mono font-black outline-none focus:border-accent-yellow/50"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-[10.5px] font-bold text-text-dim mb-1">
+                Akun TikTok
+              </label>
+              <div className="relative">
+                <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs font-bold text-accent-cyan">@</span>
+                <input
+                  type="text"
+                  value={tiktokName}
+                  onChange={(e) => setTiktokName(e.target.value)}
+                  placeholder="username_tiktok"
+                  className="w-full bg-bg-primary border border-border-default rounded-xl py-2 pl-6 pr-2 text-xs text-text-primary outline-none focus:border-accent-cyan/50"
                 />
               </div>
             </div>
           </div>
 
-          {/* Section 3: Visual Slot Selector & Migration */}
+          {/* SECTION 4: PINDAH SLOT VISUAL */}
           <div className="pt-2 border-t border-border-subtle">
             {isVIP ? (
-              <div className="bg-accent-yellow/10 border border-accent-yellow/30 rounded-xl p-3.5 text-center">
-                <div className="text-sm font-black text-accent-yellow mb-0.5">👑 SLOT VIP</div>
-                <p className="text-[11px] text-text-muted m-0">
-                  Customer berada di Slot VIP.
-                </p>
+              <div className="bg-accent-yellow/10 border border-accent-yellow/30 rounded-2xl p-3 text-center">
+                <div className="text-xs font-black text-accent-yellow">👑 SLOT VIP AKTIF</div>
               </div>
             ) : (
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <label className="text-xs font-bold text-text-tertiary uppercase tracking-wider">
-                    Pilih / Pindah Slot AFK (1 - 6)
+                  <label className="text-[10.5px] font-extrabold text-text-dim uppercase tracking-wider">
+                    Pindah Slot AFK (1 - 6)
                   </label>
-                  <span className="text-[11px] text-text-dim">
+                  <span className="text-[10.5px] text-text-dim">
                     Slot Terpilih: <strong className="text-accent-cyan font-mono">SLOT {slot}</strong>
                   </span>
                 </div>
 
-                {/* 6-Slot Visual Grid */}
-                <div className="grid grid-cols-3 gap-2 mb-2">
+                <div className="grid grid-cols-3 gap-2">
                   {standardSlots.map((s) => {
                     const sStr = s.toString();
                     const occupied = occupiedSlots[sStr];
                     const isSelected = slot.toString() === sStr;
-                    const isCurrentCustomerSlot = customer.slot && customer.slot.toString() === sStr;
+                    const isCurrentSlot = customer.slot && customer.slot.toString() === sStr;
 
                     return (
                       <button
                         key={s}
                         type="button"
                         onClick={() => setSlot(s)}
-                        className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer relative overflow-hidden flex flex-col justify-between min-h-[64px] ${
+                        className={`p-2 rounded-xl border text-left transition-all cursor-pointer relative flex flex-col justify-between min-h-[58px] ${
                           isSelected
-                            ? 'bg-accent-cyan/15 border-accent-cyan shadow-md shadow-accent-cyan/20 ring-1 ring-accent-cyan'
+                            ? 'bg-accent-cyan/15 border-accent-cyan ring-1 ring-accent-cyan'
                             : occupied
-                            ? 'bg-bg-primary/80 border-accent-red/25 hover:border-accent-red/40'
-                            : 'bg-bg-primary border-border-default hover:border-border-muted hover:bg-white/[0.02]'
+                            ? 'bg-bg-primary border-accent-red/25'
+                            : 'bg-bg-primary border-border-default hover:border-border-muted'
                         }`}
                       >
                         <div className="flex items-center justify-between">
@@ -247,32 +524,23 @@ const EditBillingModal = ({ customer, onClose }) => {
                           }`}>
                             SLOT {s}
                           </span>
-                          
-                          {isCurrentCustomerSlot ? (
-                            <span className="text-[9.5px] font-bold px-1.5 py-0.2 rounded bg-accent-purple/20 text-accent-purple-light border border-accent-purple/30">
-                              Posisi Sekarang
+                          {isCurrentSlot ? (
+                            <span className="text-[9px] font-bold px-1 py-0.2 rounded bg-accent-purple/20 text-accent-purple-light">
+                              Sekarang
                             </span>
                           ) : occupied ? (
-                            <span className="w-2 h-2 rounded-full bg-accent-red animate-pulse" title="Terpakai akun lain" />
+                            <span className="w-1.5 h-1.5 rounded-full bg-accent-red" />
                           ) : (
-                            <span className="w-2 h-2 rounded-full bg-accent-green" title="Kosong" />
+                            <span className="w-1.5 h-1.5 rounded-full bg-accent-green" />
                           )}
                         </div>
-
                         {occupied ? (
-                          <div className="mt-1">
-                            <div className="text-[11px] font-extrabold text-white truncate">
-                              {occupied.username}
-                            </div>
-                            <div className="text-[9.5px] font-mono text-accent-red font-bold">
-                              {occupied.paused ? 'PAUSED' : formatTime(occupied.remaining)}
-                            </div>
+                          <div className="text-[10px] font-bold text-text-muted truncate mt-0.5">
+                            {occupied.username}
                           </div>
-                        ) : !isCurrentCustomerSlot ? (
-                          <div className="mt-1">
-                            <span className="text-[10px] font-bold text-accent-green">
-                              🟢 KOSONG
-                            </span>
+                        ) : !isCurrentSlot ? (
+                          <div className="text-[9.5px] font-bold text-accent-green mt-0.5">
+                            🟢 Kosong
                           </div>
                         ) : null}
                       </button>
@@ -283,14 +551,12 @@ const EditBillingModal = ({ customer, onClose }) => {
             )}
           </div>
 
-          {/* Action Buttons */}
-          <div className="flex items-center justify-between gap-2 pt-2 border-t border-border-subtle">
-            {/* Return to Queue Button */}
+          {/* ACTION BUTTONS */}
+          <div className="flex items-center justify-between gap-2 pt-3 border-t border-border-subtle">
             <button
               type="button"
               onClick={handleMoveBackToQueue}
-              title="Kembalikan customer ini ke antrian dan bebaskan slot"
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-accent-yellow hover:text-accent-yellow-light bg-accent-yellow/10 hover:bg-accent-yellow/20 border border-accent-yellow/30 transition-all cursor-pointer"
+              className="flex items-center gap-1 px-3 py-2.5 rounded-xl text-xs font-bold text-accent-yellow hover:text-accent-yellow-light bg-accent-yellow/10 hover:bg-accent-yellow/20 border border-accent-yellow/30 transition-all cursor-pointer"
             >
               <Undo2 size={13} />
               <span>Ke Antrian</span>
@@ -300,16 +566,16 @@ const EditBillingModal = ({ customer, onClose }) => {
               <button
                 type="button"
                 onClick={onClose}
-                className="px-4 py-2 rounded-xl text-xs font-bold text-text-tertiary hover:text-text-primary hover:bg-white/5 transition-colors cursor-pointer"
+                className="px-4 py-2.5 rounded-xl text-xs font-bold text-text-tertiary hover:text-text-primary hover:bg-white/5 transition-colors cursor-pointer"
               >
                 Batal
               </button>
               <button
                 type="submit"
                 disabled={loading}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-black text-bg-primary bg-accent-cyan hover:bg-accent-cyan/90 active:scale-95 transition-all shadow-lg shadow-accent-cyan/25 cursor-pointer disabled:opacity-50"
+                className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl text-xs font-black text-bg-primary bg-accent-cyan hover:bg-accent-cyan/90 active:scale-95 transition-all shadow-lg shadow-accent-cyan/25 cursor-pointer disabled:opacity-50"
               >
-                <Check size={15} />
+                <Check size={14} />
                 <span>{loading ? 'Menyimpan...' : 'Simpan Perubahan'}</span>
               </button>
             </div>

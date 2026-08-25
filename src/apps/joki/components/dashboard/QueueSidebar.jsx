@@ -12,9 +12,16 @@ import {
   Clock, 
   Sparkles,
   User,
+  Lock,
+  Mail,
   GripVertical,
-  DollarSign
+  DollarSign,
+  Key,
+  Copy,
+  Flame,
+  MessageSquare
 } from 'lucide-react';
+import CredentialModal from '../modals/CredentialModal';
 
 const PRICE_BASIC = 4000;
 const PRICE_VIP = 6000;
@@ -43,11 +50,13 @@ const DURATION_PRESETS = [
 const QueueSidebar = ({ onStartFromQueue, onRequestClearQueue }) => {
   const { 
     queue, 
+    customers,
     addJokiQueue, 
     updateJokiQueue, 
     deleteJokiQueue, 
     reorderQueue,
     isAdmin, 
+    activeWorkspaceId,
     addToast 
   } = useJoki();
 
@@ -55,21 +64,61 @@ const QueueSidebar = ({ onStartFromQueue, onRequestClearQueue }) => {
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [qUsername, setQUsername] = useState('');
   const [qTiktok, setQTiktok] = useState('');
+  const [qPassword, setQPassword] = useState('');
+  const [qEmail, setQEmail] = useState('');
   const [qService, setQService] = useState('Basic');
   const [qAmount, setQAmount] = useState(1);
   const [qUnit, setQUnit] = useState('hour');
   const [loadingAdd, setLoadingAdd] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(false);
 
   // Edit Queue Item state
   const [editingId, setEditingId] = useState(null);
   const [editUsername, setEditUsername] = useState('');
   const [editTiktok, setEditTiktok] = useState('');
+  const [editPassword, setEditPassword] = useState('');
+  const [editEmail, setEditEmail] = useState('');
   const [editService, setEditService] = useState('Basic');
   const [editDuration, setEditDuration] = useState(1);
+
+  // Credential Modal target
+  const [credentialCustomer, setCredentialCustomer] = useState(null);
 
   // Drag and Drop state
   const [draggedItem, setDraggedItem] = useState(null);
   const [dragOverIndex, setDragOverIndex] = useState(null);
+
+  // Autocomplete data mapping from past customers
+  const customerHistoryMap = {};
+  customers.forEach(c => {
+    const u = (c.username || c.name || '').trim();
+    if (u && !customerHistoryMap[u.toLowerCase()]) {
+      customerHistoryMap[u.toLowerCase()] = {
+        username: u,
+        tiktokName: c.tiktokName || '',
+        passwordRoblox: c.passwordRoblox || '',
+        emailRoblox: c.emailRoblox || ''
+      };
+    }
+  });
+
+  const matchingSuggestions = qUsername.trim()
+    ? Object.values(customerHistoryMap).filter(c => 
+        c.username.toLowerCase().includes(qUsername.toLowerCase().trim())
+      ).slice(0, 4)
+    : [];
+
+  const handleSelectSuggestion = (item) => {
+    setQUsername(item.username);
+    if (item.tiktokName) setQTiktok(item.tiktokName);
+    if (item.passwordRoblox) setQPassword(item.passwordRoblox);
+    if (item.emailRoblox) setQEmail(item.emailRoblox);
+    setShowSuggestions(false);
+    addToast(`Data pelanggan ${item.username} otomatis terisi!`, 'info');
+  };
+
+  // Calculate total workload queue hours
+  const totalQueueHours = queue.reduce((sum, q) => sum + Number(q.duration || 0), 0);
 
   // Calculate actual duration in hours and price
   const calculatedHours = qUnit === 'hour' ? Number(qAmount || 0) : Number(qAmount || 0) / 60;
@@ -97,6 +146,8 @@ const QueueSidebar = ({ onStartFromQueue, onRequestClearQueue }) => {
       await addJokiQueue({
         username: qUsername.trim(),
         tiktokName: qTiktok.trim().replace(/^@/, ''),
+        passwordRoblox: qPassword.trim(),
+        emailRoblox: qEmail.trim(),
         service: qService === 'VIP' ? 'VIP' : 'Basic',
         duration: calculatedHours,
         price: calculatedPrice,
@@ -106,6 +157,8 @@ const QueueSidebar = ({ onStartFromQueue, onRequestClearQueue }) => {
 
       setQUsername('');
       setQTiktok('');
+      setQPassword('');
+      setQEmail('');
       setQAmount(1);
       setQUnit('hour');
       setIsAddOpen(false);
@@ -122,6 +175,8 @@ const QueueSidebar = ({ onStartFromQueue, onRequestClearQueue }) => {
     setEditingId(item.id);
     setEditUsername(item.username);
     setEditTiktok(item.tiktokName || '');
+    setEditPassword(item.passwordRoblox || '');
+    setEditEmail(item.emailRoblox || '');
     setEditService(item.service === 'VIP' ? 'VIP' : 'Basic');
     setEditDuration(item.duration);
   };
@@ -141,6 +196,8 @@ const QueueSidebar = ({ onStartFromQueue, onRequestClearQueue }) => {
       await updateJokiQueue(id, {
         username: editUsername.trim(),
         tiktokName: editTiktok.trim().replace(/^@/, ''),
+        passwordRoblox: editPassword.trim(),
+        emailRoblox: editEmail.trim(),
         service: editService === 'VIP' ? 'VIP' : 'Basic',
         duration: numDur,
         price: Math.round(numDur * rate),
@@ -163,12 +220,24 @@ const QueueSidebar = ({ onStartFromQueue, onRequestClearQueue }) => {
     }
   };
 
-  // Drag and drop handlers within queue group
+  // Copy TikTok DM template
+  const handleCopyDM = (item, type = 'QUEUE') => {
+    const tId = item.ticketId || `JK-${item.id.slice(-5)}`;
+    const ticketUrl = `${window.location.origin}/ticket/${tId}`;
+    const user = item.username || item.name;
+    const tt = item.tiktokName ? `@${item.tiktokName}` : '';
+
+    let text = `Halo bro ${tt}! Akun Roblox kamu (${user}) udah masuk antrean joki ya bro. Ini link tiket live kamu untuk pantau antrean & jam mulai: ${ticketUrl}. Standby ya bro!`;
+
+    navigator.clipboard.writeText(text);
+    addToast(`✓ Pesan DM untuk ${user} berhasil disalin!`, 'success');
+  };
+
+  // Drag and drop handlers
   const handleDragStart = (e, item, index, isVip) => {
     if (!isAdmin) return;
     setDraggedItem({ item, index, isVip });
     e.dataTransfer.effectAllowed = 'move';
-    // Set transparent drag image or styling if needed
   };
 
   const handleDragOver = (e, index, isVip) => {
@@ -196,12 +265,10 @@ const QueueSidebar = ({ onStartFromQueue, onRequestClearQueue }) => {
       ? queue.filter(q => q.service !== 'VIP') 
       : queue.filter(q => q.service === 'VIP');
 
-    // Reorder the target sub-queue
     const updatedSubQueue = [...currentSubQueue];
     const [movedItem] = updatedSubQueue.splice(draggedItem.index, 1);
     updatedSubQueue.splice(targetIndex, 0, movedItem);
 
-    // Combine full queue (VIP first, then Basic)
     const newFullQueue = isVip 
       ? [...updatedSubQueue, ...otherSubQueue] 
       : [...otherSubQueue, ...updatedSubQueue];
@@ -223,7 +290,7 @@ const QueueSidebar = ({ onStartFromQueue, onRequestClearQueue }) => {
 
   return (
     <aside className="w-full lg:w-[350px] shrink-0 flex flex-col gap-3.5">
-      <div className="bg-bg-surface/90 backdrop-blur-xl border border-border-default rounded-2xl p-4 md:p-5 shadow-2xl">
+      <div className="bg-bg-surface/90 backdrop-blur-xl border border-border-default rounded-3xl p-4 md:p-5 shadow-2xl">
         {/* Header */}
         <div className="flex items-center justify-between gap-2 pb-3 mb-3 border-b border-border-default">
           <div className="flex items-center gap-2 font-extrabold text-sm text-text-primary tracking-tight">
@@ -234,15 +301,16 @@ const QueueSidebar = ({ onStartFromQueue, onRequestClearQueue }) => {
           </div>
 
           <div className="flex items-center gap-1.5">
-            <span className="text-[11px] font-black px-2.5 py-0.5 rounded-full bg-accent-cyan/15 text-accent-cyan border border-accent-cyan/30">
-              {queue.length} orang
+            {/* Total Queue Count & Playtime Badge */}
+            <span className="text-[10.5px] font-black px-2.5 py-0.5 rounded-full bg-accent-cyan/15 text-accent-cyan border border-accent-cyan/30 font-mono">
+              {queue.length} org • {totalQueueHours.toFixed(1)}j
             </span>
 
             {/* Collapsible Add Button for Admin */}
             {isAdmin && (
               <button
                 onClick={() => setIsAddOpen(!isAddOpen)}
-                title={isAddOpen ? 'Tutup Form Tambah' : 'Buka Form Tambah Antrian'}
+                title={isAddOpen ? 'Tutup Form' : 'Tambah Antrian'}
                 className={`p-1.5 rounded-lg border text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${
                   isAddOpen
                     ? 'bg-accent-purple text-white border-accent-purple shadow-sm shadow-accent-purple/20'
@@ -258,21 +326,22 @@ const QueueSidebar = ({ onStartFromQueue, onRequestClearQueue }) => {
 
         {/* Collapsible Quick Add Form (Admin Only) */}
         {isAdmin && isAddOpen && (
-          <form onSubmit={handleAddQueue} className="space-y-2.5 mb-4 p-3.5 rounded-xl bg-bg-primary border border-accent-purple/30 animate-slide-in shadow-inner">
+          <form onSubmit={handleAddQueue} className="space-y-2.5 mb-4 p-3.5 rounded-2xl bg-bg-primary border border-accent-purple/30 animate-slide-in shadow-inner">
             <div className="flex items-center justify-between">
               <span className="text-[10.5px] font-black uppercase tracking-wider text-accent-purple-light flex items-center gap-1">
                 <Sparkles size={12} />
-                <span>Input Customer Antrian</span>
+                <span>Input Customer & Brankas</span>
               </span>
               <button
                 type="button"
                 onClick={() => setIsAddOpen(false)}
-                className="text-text-dim hover:text-text-primary p-0.5"
+                className="text-text-dim hover:text-text-primary p-0.5 cursor-pointer"
               >
                 <X size={13} />
               </button>
             </div>
 
+            {/* Roblox Username with Autocomplete */}
             <div className="relative">
               <User className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-faint" />
               <input
@@ -280,9 +349,34 @@ const QueueSidebar = ({ onStartFromQueue, onRequestClearQueue }) => {
                 required
                 placeholder="Username Roblox *"
                 value={qUsername}
-                onChange={(e) => setQUsername(e.target.value)}
-                className="w-full bg-bg-surface border border-border-default rounded-lg py-1.5 pl-8 pr-2.5 text-xs text-text-primary placeholder:text-text-faint outline-none focus:border-accent-purple/50 font-bold"
+                onChange={(e) => {
+                  setQUsername(e.target.value);
+                  setShowSuggestions(true);
+                }}
+                onFocus={() => setShowSuggestions(true)}
+                className="w-full bg-bg-surface border border-border-default rounded-lg py-1.5 pl-8 pr-2.5 text-xs text-text-primary font-bold outline-none focus:border-accent-purple/50"
               />
+
+              {/* Autocomplete Dropdown */}
+              {showSuggestions && matchingSuggestions.length > 0 && (
+                <div className="absolute z-50 left-0 right-0 top-full mt-1 bg-bg-surface border border-border-default rounded-xl shadow-2xl overflow-hidden">
+                  <div className="px-2.5 py-1 text-[9px] font-extrabold uppercase text-accent-cyan border-b border-border-subtle flex items-center gap-1">
+                    <Sparkles size={10} />
+                    <span>Pelanggan Lama (Auto-Fill)</span>
+                  </div>
+                  {matchingSuggestions.map((sug, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => handleSelectSuggestion(sug)}
+                      className="w-full px-2.5 py-1.5 text-left text-xs text-white hover:bg-accent-purple/15 flex items-center justify-between border-b border-border-subtle last:border-0 cursor-pointer"
+                    >
+                      <span className="font-bold">{sug.username}</span>
+                      <span className="text-[10px] text-accent-cyan">{sug.tiktokName ? `@${sug.tiktokName}` : ''}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className="relative">
@@ -292,8 +386,33 @@ const QueueSidebar = ({ onStartFromQueue, onRequestClearQueue }) => {
                 placeholder="Akun TikTok (opsional)"
                 value={qTiktok}
                 onChange={(e) => setQTiktok(e.target.value)}
-                className="w-full bg-bg-surface border border-border-default rounded-lg py-1.5 pl-7 pr-2.5 text-xs text-text-primary placeholder:text-text-faint outline-none focus:border-accent-purple/50"
+                className="w-full bg-bg-surface border border-border-default rounded-lg py-1.5 pl-7 pr-2.5 text-xs text-text-primary outline-none focus:border-accent-purple/50"
               />
+            </div>
+
+            {/* Brankas Credentials: Password & Email */}
+            <div className="grid grid-cols-2 gap-1.5 pt-1 border-t border-border-subtle">
+              <div className="relative">
+                <Lock className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-accent-cyan" />
+                <input
+                  type="password"
+                  placeholder="Pass Roblox"
+                  value={qPassword}
+                  onChange={(e) => setQPassword(e.target.value)}
+                  className="w-full bg-bg-surface border border-border-default rounded-lg py-1.5 pl-6 pr-2 text-xs text-text-primary font-mono outline-none focus:border-accent-purple/50"
+                />
+              </div>
+
+              <div className="relative">
+                <Mail className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-accent-purple-light" />
+                <input
+                  type="text"
+                  placeholder="Email OTP"
+                  value={qEmail}
+                  onChange={(e) => setQEmail(e.target.value)}
+                  className="w-full bg-bg-surface border border-border-default rounded-lg py-1.5 pl-6 pr-2 text-xs text-text-primary outline-none focus:border-accent-purple/50"
+                />
+              </div>
             </div>
 
             {/* Service & Duration */}
@@ -386,7 +505,7 @@ const QueueSidebar = ({ onStartFromQueue, onRequestClearQueue }) => {
                   Antrian VIP (Priority)
                 </span>
                 <span className="text-[10px] font-mono font-bold text-accent-yellow/80 ml-auto">
-                  {vipQueue.length} Orang {isAdmin && '(Tarik ⠿ utk atur urutan)'}
+                  {vipQueue.length} Orang {isAdmin && '(Tarik ⠿)'}
                 </span>
               </div>
 
@@ -412,6 +531,13 @@ const QueueSidebar = ({ onStartFromQueue, onRequestClearQueue }) => {
                           onChange={(e) => setEditTiktok(e.target.value)}
                           className="w-full bg-bg-surface border border-border-default rounded px-2 py-1 text-text-primary text-xs outline-none"
                           placeholder="TikTok Username"
+                        />
+                        <input
+                          type="password"
+                          value={editPassword}
+                          onChange={(e) => setEditPassword(e.target.value)}
+                          className="w-full bg-bg-surface border border-border-default rounded px-2 py-1 text-text-primary text-xs font-mono outline-none"
+                          placeholder="Password Roblox"
                         />
                         <div className="flex justify-end gap-1.5 pt-1">
                           <button
@@ -439,7 +565,7 @@ const QueueSidebar = ({ onStartFromQueue, onRequestClearQueue }) => {
                       onDragOver={(e) => handleDragOver(e, index, true)}
                       onDrop={(e) => handleDrop(e, index, true)}
                       onDragEnd={handleDragEnd}
-                      className={`group p-3 rounded-xl bg-gradient-to-r from-accent-yellow/[0.08] to-transparent border-2 transition-all shadow-md relative ${
+                      className={`group p-3 rounded-2xl bg-gradient-to-r from-accent-yellow/[0.08] to-transparent border-2 transition-all shadow-md relative ${
                         isBeingDragged 
                           ? 'opacity-40 border-dashed border-accent-yellow' 
                           : isTargetDrop 
@@ -448,13 +574,11 @@ const QueueSidebar = ({ onStartFromQueue, onRequestClearQueue }) => {
                       }`}
                     >
                       <div className="flex items-start justify-between gap-2">
-                        {/* Queue Position Badge & User Info */}
                         <div className="flex items-center gap-2 min-w-0">
-                          {/* Grip Handle for Admin */}
                           {isAdmin && (
                             <div 
                               className="text-accent-yellow/40 hover:text-accent-yellow cursor-grab active:cursor-grabbing p-0.5 shrink-0"
-                              title="Tarik untuk memindahkan urutan antrian"
+                              title="Tarik untuk urutkan antrian"
                             >
                               <GripVertical size={15} />
                             </div>
@@ -480,7 +604,6 @@ const QueueSidebar = ({ onStartFromQueue, onRequestClearQueue }) => {
                           </div>
                         </div>
 
-                        {/* Duration Badge */}
                         <div className="text-right shrink-0">
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-accent-yellow/15 text-accent-yellow font-mono font-black text-[11px] border border-accent-yellow/30">
                             <Clock size={10} />
@@ -491,16 +614,32 @@ const QueueSidebar = ({ onStartFromQueue, onRequestClearQueue }) => {
 
                       {/* Admin Actions Bar */}
                       {isAdmin && (
-                        <div className="flex items-center justify-between gap-2 mt-2.5 pt-2 border-t border-accent-yellow/20">
+                        <div className="flex items-center justify-between gap-1.5 mt-2.5 pt-2 border-t border-accent-yellow/20">
                           <button
                             onClick={() => onStartFromQueue(item)}
-                            className="flex-1 py-1.5 px-3 rounded-lg text-xs font-black text-bg-primary bg-accent-yellow hover:bg-accent-yellow-light active:scale-95 transition-all shadow-sm flex items-center justify-center gap-1.5 cursor-pointer"
+                            className="flex-1 py-1.5 px-2.5 rounded-lg text-xs font-black text-bg-primary bg-accent-yellow hover:bg-accent-yellow-light active:scale-95 transition-all shadow-sm flex items-center justify-center gap-1 cursor-pointer"
                           >
                             <Gamepad2 size={13} />
-                            <span>Masuk Slot Live</span>
+                            <span>Masuk Slot</span>
                           </button>
 
                           <div className="flex items-center gap-1 shrink-0">
+                            {/* Brankas Button */}
+                            <button
+                              onClick={() => setCredentialCustomer(item)}
+                              title="Buka Brankas Akun (Password/Email)"
+                              className="p-1.5 rounded-lg bg-bg-primary hover:bg-accent-green/20 text-accent-green border border-accent-green/30 transition-colors cursor-pointer"
+                            >
+                              <Key size={12} />
+                            </button>
+                            {/* Copy DM Template */}
+                            <button
+                              onClick={() => handleCopyDM(item)}
+                              title="Salin Pesan DM TikTok Siap Kirim"
+                              className="p-1.5 rounded-lg bg-bg-primary hover:bg-accent-cyan/20 text-accent-cyan border border-accent-cyan/30 transition-colors cursor-pointer"
+                            >
+                              <MessageSquare size={12} />
+                            </button>
                             <button
                               onClick={() => startEdit(item)}
                               title="Edit Antrian"
@@ -533,12 +672,12 @@ const QueueSidebar = ({ onStartFromQueue, onRequestClearQueue }) => {
                 Antrian Basic
               </span>
               <span className="text-[10px] font-mono font-bold text-accent-cyan/80 ml-auto">
-                {basicQueue.length} Orang {isAdmin && '(Tarik ⠿ utk atur urutan)'}
+                {basicQueue.length} Orang {isAdmin && '(Tarik ⠿)'}
               </span>
             </div>
 
             {basicQueue.length === 0 && vipQueue.length === 0 ? (
-              <div className="py-8 px-4 text-center rounded-xl bg-bg-primary border border-border-subtle">
+              <div className="py-8 px-4 text-center rounded-2xl bg-bg-primary border border-border-subtle">
                 <div className="w-10 h-10 mx-auto mb-2 rounded-xl bg-white/[0.03] border border-border-subtle flex items-center justify-center text-text-faint">
                   <Users size={18} />
                 </div>
@@ -575,6 +714,13 @@ const QueueSidebar = ({ onStartFromQueue, onRequestClearQueue }) => {
                           className="w-full bg-bg-surface border border-border-default rounded px-2 py-1 text-text-primary text-xs outline-none"
                           placeholder="TikTok Username"
                         />
+                        <input
+                          type="password"
+                          value={editPassword}
+                          onChange={(e) => setEditPassword(e.target.value)}
+                          className="w-full bg-bg-surface border border-border-default rounded px-2 py-1 text-text-primary text-xs font-mono outline-none"
+                          placeholder="Password Roblox"
+                        />
                         <div className="flex justify-end gap-1.5 pt-1">
                           <button
                             onClick={cancelEdit}
@@ -601,7 +747,7 @@ const QueueSidebar = ({ onStartFromQueue, onRequestClearQueue }) => {
                       onDragOver={(e) => handleDragOver(e, index, false)}
                       onDrop={(e) => handleDrop(e, index, false)}
                       onDragEnd={handleDragEnd}
-                      className={`group p-3 rounded-xl bg-bg-primary hover:bg-white/[0.02] border transition-all shadow-sm relative ${
+                      className={`group p-3 rounded-2xl bg-bg-primary hover:bg-white/[0.02] border transition-all shadow-sm relative ${
                         isBeingDragged 
                           ? 'opacity-40 border-dashed border-accent-cyan' 
                           : isTargetDrop 
@@ -610,13 +756,11 @@ const QueueSidebar = ({ onStartFromQueue, onRequestClearQueue }) => {
                       }`}
                     >
                       <div className="flex items-start justify-between gap-2">
-                        {/* Queue Position Badge & User Info */}
                         <div className="flex items-center gap-2 min-w-0">
-                          {/* Grip Handle for Admin */}
                           {isAdmin && (
                             <div 
                               className="text-text-faint hover:text-accent-cyan cursor-grab active:cursor-grabbing p-0.5 shrink-0"
-                              title="Tarik untuk memindahkan urutan antrian"
+                              title="Tarik untuk urutkan antrian"
                             >
                               <GripVertical size={15} />
                             </div>
@@ -640,7 +784,6 @@ const QueueSidebar = ({ onStartFromQueue, onRequestClearQueue }) => {
                           </div>
                         </div>
 
-                        {/* Duration Badge */}
                         <div className="text-right shrink-0">
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-white/5 text-text-secondary font-mono font-bold text-[11px] border border-border-subtle">
                             <Clock size={10} className="text-accent-cyan" />
@@ -651,16 +794,32 @@ const QueueSidebar = ({ onStartFromQueue, onRequestClearQueue }) => {
 
                       {/* Admin Actions Bar */}
                       {isAdmin && (
-                        <div className="flex items-center justify-between gap-2 mt-2.5 pt-2 border-t border-border-subtle">
+                        <div className="flex items-center justify-between gap-1.5 mt-2.5 pt-2 border-t border-border-subtle">
                           <button
                             onClick={() => onStartFromQueue(item)}
-                            className="flex-1 py-1.5 px-3 rounded-lg text-xs font-black text-white bg-accent-purple hover:bg-accent-purple-light active:scale-95 transition-all shadow-sm flex items-center justify-center gap-1.5 cursor-pointer"
+                            className="flex-1 py-1.5 px-2.5 rounded-lg text-xs font-black text-white bg-accent-purple hover:bg-accent-purple-light active:scale-95 transition-all shadow-sm flex items-center justify-center gap-1 cursor-pointer"
                           >
                             <Gamepad2 size={13} />
-                            <span>Masuk Slot Live</span>
+                            <span>Masuk Slot</span>
                           </button>
 
                           <div className="flex items-center gap-1 shrink-0">
+                            {/* Brankas Button */}
+                            <button
+                              onClick={() => setCredentialCustomer(item)}
+                              title="Buka Brankas Akun (Password/Email)"
+                              className="p-1.5 rounded-lg bg-bg-surface hover:bg-accent-green/20 text-accent-green border border-accent-green/30 transition-colors cursor-pointer"
+                            >
+                              <Key size={12} />
+                            </button>
+                            {/* Copy DM Template */}
+                            <button
+                              onClick={() => handleCopyDM(item)}
+                              title="Salin Pesan DM TikTok Siap Kirim"
+                              className="p-1.5 rounded-lg bg-bg-surface hover:bg-accent-cyan/20 text-accent-cyan border border-accent-cyan/30 transition-colors cursor-pointer"
+                            >
+                              <MessageSquare size={12} />
+                            </button>
                             <button
                               onClick={() => startEdit(item)}
                               title="Edit Antrian"
@@ -699,6 +858,14 @@ const QueueSidebar = ({ onStartFromQueue, onRequestClearQueue }) => {
           </div>
         )}
       </div>
+
+      {/* Credential Popover Modal */}
+      {credentialCustomer && (
+        <CredentialModal
+          customer={credentialCustomer}
+          onClose={() => setCredentialCustomer(null)}
+        />
+      )}
     </aside>
   );
 };

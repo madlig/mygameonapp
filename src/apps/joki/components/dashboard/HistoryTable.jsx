@@ -9,8 +9,15 @@ import {
   Search, 
   X, 
   RotateCcw, 
-  DollarSign 
+  DollarSign,
+  Clock,
+  Crown,
+  Key,
+  ChevronLeft,
+  ChevronRight,
+  Sparkles
 } from 'lucide-react';
+import CredentialModal from '../modals/CredentialModal';
 
 // Format date ONLY (Tanpa waktu/jam)
 const formatDateOnly = (timestamp) => {
@@ -70,10 +77,14 @@ const HistoryTable = () => {
     customEndDate,
     setCustomEndDate,
     isWithinDateFilter,
+    addJokiQueue,
     addToast
   } = useJoki();
 
   const [historySearch, setHistorySearch] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [credentialCustomer, setCredentialCustomer] = useState(null);
+  const PAGE_SIZE = 10;
 
   if (!isAdmin || streamerMode) return null;
 
@@ -103,8 +114,44 @@ const HistoryTable = () => {
     })
     .sort((a, b) => (b.finishedTime || b.createdAt || 0) - (a.finishedTime || a.createdAt || 0));
 
-  // Calculate subtotal for filtered history records
-  const subtotalFiltered = filteredFinished.reduce((sum, c) => sum + Number(c.price || 0), 0);
+  // 4 Core Financial & Operational Metrics (Computed ONLY from valid finished history)
+  const totalOmsetValid = filteredFinished.reduce((sum, c) => sum + Number(c.price || 0), 0);
+  const totalSuccessCount = filteredFinished.length;
+  const totalPlaytimeHours = filteredFinished.reduce((sum, c) => sum + Number(c.duration || 0), 0);
+  const vipCount = filteredFinished.filter(c => getCleanService(c.service) === 'VIP').length;
+  const basicCount = totalSuccessCount - vipCount;
+
+  // Pagination Logic
+  const totalPages = Math.max(1, Math.ceil(filteredFinished.length / PAGE_SIZE));
+  const validCurrentPage = Math.min(currentPage, totalPages);
+  const startIndex = (validCurrentPage - 1) * PAGE_SIZE;
+  const paginatedData = filteredFinished.slice(startIndex, startIndex + PAGE_SIZE);
+
+  // Quick Re-Order (Joki Ulang) Handler
+  const handleQuickReorder = async (customer) => {
+    try {
+      const dur = Number(customer.duration || 1);
+      const isVIP = getCleanService(customer.service) === 'VIP';
+      const price = Math.round(dur * (isVIP ? 6000 : 4000));
+
+      await addJokiQueue({
+        username: customer.username || customer.name,
+        tiktokName: customer.tiktokName || '',
+        passwordRoblox: customer.passwordRoblox || '',
+        emailRoblox: customer.emailRoblox || '',
+        service: isVIP ? 'VIP' : 'Basic',
+        duration: dur,
+        price: price,
+        paymentStatus: 'Lunas',
+        createdAt: Date.now()
+      });
+
+      addToast(`✓ ${customer.username || customer.name} berhasil masuk antrean baru (Joki Ulang)!`, 'success');
+    } catch (err) {
+      console.error(err);
+      addToast('Gagal melakukan joki ulang.', 'error');
+    }
+  };
 
   // CSV Export Function
   const handleExportCSV = () => {
@@ -161,9 +208,87 @@ const HistoryTable = () => {
   };
 
   return (
-    <div className="mt-8">
-      {/* Title & Search Bar */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-3">
+    <div className="mt-8 space-y-4">
+      
+      {/* 4 INSIGHT METRIC CARDS (VALID REVENUE & HISTORY ANALYTICS) */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {/* 1. Total Omset Valid */}
+        <div className="p-4 rounded-2xl bg-bg-surface/90 border border-accent-yellow/30 shadow-lg shadow-accent-yellow/5">
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-[10.5px] font-extrabold uppercase tracking-wider text-text-tertiary">
+              Total Omset Valid
+            </span>
+            <div className="w-7 h-7 rounded-lg bg-accent-yellow/15 border border-accent-yellow/30 flex items-center justify-center text-accent-yellow">
+              <DollarSign size={14} />
+            </div>
+          </div>
+          <div className="text-xl font-black font-mono text-accent-yellow">
+            {formatRupiah(totalOmsetValid)}
+          </div>
+          <span className="text-[10px] text-text-dim font-bold block mt-0.5">
+            Uang Riil Selesai (Lunas)
+          </span>
+        </div>
+
+        {/* 2. Total Transaksi Sukses */}
+        <div className="p-4 rounded-2xl bg-bg-surface/90 border border-border-default">
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-[10.5px] font-extrabold uppercase tracking-wider text-text-tertiary">
+              Transaksi Sukses
+            </span>
+            <div className="w-7 h-7 rounded-lg bg-accent-green/15 border border-accent-green/30 flex items-center justify-center text-accent-green">
+              <CheckCircle2 size={14} />
+            </div>
+          </div>
+          <div className="text-xl font-black font-mono text-text-primary">
+            {totalSuccessCount} <span className="text-sm text-text-dim font-normal">Order</span>
+          </div>
+          <span className="text-[10px] text-text-dim font-bold block mt-0.5">
+            Akun selesai dimainkan
+          </span>
+        </div>
+
+        {/* 3. Total Jam Main (Playtime) */}
+        <div className="p-4 rounded-2xl bg-bg-surface/90 border border-border-default">
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-[10.5px] font-extrabold uppercase tracking-wider text-text-tertiary">
+              Total Jam Joki
+            </span>
+            <div className="w-7 h-7 rounded-lg bg-accent-cyan/15 border border-accent-cyan/30 flex items-center justify-center text-accent-cyan">
+              <Clock size={14} />
+            </div>
+          </div>
+          <div className="text-xl font-black font-mono text-accent-cyan">
+            {totalPlaytimeHours.toFixed(1)} <span className="text-sm text-text-dim font-normal">Jam</span>
+          </div>
+          <span className="text-[10px] text-text-dim font-bold block mt-0.5">
+            Total jam terbang AFK
+          </span>
+        </div>
+
+        {/* 4. Proporsi Layanan */}
+        <div className="p-4 rounded-2xl bg-bg-surface/90 border border-border-default">
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-[10.5px] font-extrabold uppercase tracking-wider text-text-tertiary">
+              Proporsi Layanan
+            </span>
+            <div className="w-7 h-7 rounded-lg bg-accent-purple/15 border border-accent-purple/30 flex items-center justify-center text-accent-purple-light">
+              <Crown size={14} />
+            </div>
+          </div>
+          <div className="text-sm font-black font-mono text-text-primary flex items-center gap-2 pt-0.5">
+            <span className="text-accent-yellow">{vipCount} VIP</span>
+            <span className="text-text-faint">•</span>
+            <span className="text-accent-purple-light">{basicCount} Basic</span>
+          </div>
+          <span className="text-[10px] text-text-dim font-bold block mt-1">
+            Rasio order penonton
+          </span>
+        </div>
+      </div>
+
+      {/* Header & Search */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pt-2">
         <div className="flex items-center gap-2">
           <div className="w-2 h-4 rounded-full bg-accent-purple" />
           <h3 className="text-sm font-extrabold uppercase tracking-wider text-text-primary m-0 flex items-center gap-1.5">
@@ -183,11 +308,17 @@ const HistoryTable = () => {
             className="w-full bg-bg-surface border border-border-default rounded-xl py-2 pl-9 pr-8 text-xs text-text-primary placeholder:text-text-faint outline-none focus:border-accent-purple/50 transition-colors shadow-sm"
             placeholder="Cari di riwayat transaksi..."
             value={historySearch}
-            onChange={(e) => setHistorySearch(e.target.value)}
+            onChange={(e) => {
+              setHistorySearch(e.target.value);
+              setCurrentPage(1);
+            }}
           />
           {historySearch && (
             <button
-              onClick={() => setHistorySearch('')}
+              onClick={() => {
+                setHistorySearch('');
+                setCurrentPage(1);
+              }}
               className="absolute right-2.5 top-1/2 -translate-y-1/2 text-text-dim hover:text-text-primary p-0.5"
             >
               <X size={13} />
@@ -197,7 +328,7 @@ const HistoryTable = () => {
       </div>
 
       {/* Date Range Presets Toolbar */}
-      <div className="bg-bg-surface/90 border border-border-default rounded-xl p-3 mb-3 space-y-2.5 shadow-md">
+      <div className="bg-bg-surface/90 border border-border-default rounded-2xl p-3 space-y-2.5 shadow-md">
         <div className="flex items-center gap-1.5 flex-wrap">
           <span className="text-[11px] font-extrabold text-text-tertiary px-1 flex items-center gap-1">
             <Filter size={13} className="text-accent-purple" />
@@ -208,7 +339,10 @@ const HistoryTable = () => {
             return (
               <button
                 key={preset.id}
-                onClick={() => setDateFilter(preset.id)}
+                onClick={() => {
+                  setDateFilter(preset.id);
+                  setCurrentPage(1);
+                }}
                 className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                   isSelected
                     ? 'bg-accent-purple text-white shadow-md shadow-accent-purple/20 scale-105'
@@ -221,7 +355,7 @@ const HistoryTable = () => {
           })}
         </div>
 
-        {/* Polished Custom Date Range Picker with High-Visibility White Calendar Icons */}
+        {/* Polished Custom Date Range Picker */}
         {dateFilter === 'CUSTOM' && (
           <div className="p-3.5 bg-bg-primary/95 rounded-xl border border-accent-purple/30 flex flex-wrap items-center gap-3 animate-slide-in shadow-inner">
             {/* Start Date */}
@@ -240,7 +374,10 @@ const HistoryTable = () => {
                 <input
                   type="date"
                   value={customStartDate}
-                  onChange={(e) => setCustomStartDate(e.target.value)}
+                  onChange={(e) => {
+                    setCustomStartDate(e.target.value);
+                    setCurrentPage(1);
+                  }}
                   style={{ colorScheme: 'dark' }}
                   className="bg-transparent text-xs text-text-primary font-bold font-mono outline-none cursor-pointer [color-scheme:dark] [&::-webkit-calendar-picker-indicator]:filter [&::-webkit-calendar-picker-indicator]:invert [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-90 hover:[&::-webkit-calendar-picker-indicator]:opacity-100"
                 />
@@ -265,7 +402,10 @@ const HistoryTable = () => {
                 <input
                   type="date"
                   value={customEndDate}
-                  onChange={(e) => setCustomEndDate(e.target.value)}
+                  onChange={(e) => {
+                    setCustomEndDate(e.target.value);
+                    setCurrentPage(1);
+                  }}
                   style={{ colorScheme: 'dark' }}
                   className="bg-transparent text-xs text-text-primary font-bold font-mono outline-none cursor-pointer [color-scheme:dark] [&::-webkit-calendar-picker-indicator]:filter [&::-webkit-calendar-picker-indicator]:invert [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-90 hover:[&::-webkit-calendar-picker-indicator]:opacity-100"
                 />
@@ -294,32 +434,32 @@ const HistoryTable = () => {
             <thead>
               <tr className="bg-bg-primary/90 border-b border-border-default text-text-tertiary text-[11px] font-extrabold uppercase tracking-wider">
                 <th className="py-3 px-3 text-center w-10">No</th>
-                {/* TANGGAL SELESAI DI PALING KIRI SETELAH NO (HANYA TANGGAL) */}
                 <th className="py-3 px-3.5">Tanggal Selesai</th>
                 <th className="py-3 px-3.5">Username Roblox</th>
                 <th className="py-3 px-3.5">Akun TikTok</th>
-                {/* LAYANAN DAN SLOT BERSEBELAHAN */}
                 <th className="py-3 px-3 text-center">Layanan</th>
                 <th className="py-3 px-3 text-center">Slot</th>
                 <th className="py-3 px-3 text-center">Durasi</th>
                 <th className="py-3 px-3.5 text-center">Harga (Lunas)</th>
                 <th className="py-3 px-3.5 text-center">Status</th>
+                <th className="py-3 px-3 text-center w-36">Aksi</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border-subtle text-xs font-medium">
-              {filteredFinished.length === 0 ? (
+              {paginatedData.length === 0 ? (
                 <tr>
-                  <td colSpan="9" className="py-10 text-center text-text-dim">
+                  <td colSpan="10" className="py-10 text-center text-text-dim">
                     {historySearch 
                       ? `Tidak ditemukan transaksi dengan kata kunci "${historySearch}".`
                       : 'Belum ada riwayat transaksi pada filter tanggal ini.'}
                   </td>
                 </tr>
               ) : (
-                filteredFinished.map((customer, index) => {
+                paginatedData.map((customer, index) => {
                   const cleanService = getCleanService(customer.service);
                   const isVIP = cleanService === 'VIP';
                   const cleanSlot = getCleanSlot(customer);
+                  const globalIndex = startIndex + index + 1;
 
                   return (
                     <tr 
@@ -328,10 +468,10 @@ const HistoryTable = () => {
                     >
                       {/* No */}
                       <td className="py-3 px-3 text-center text-text-faint font-mono">
-                        {index + 1}
+                        {globalIndex}
                       </td>
 
-                      {/* Tanggal Selesai (HANYA TANGGAL TANPA WAKTU/JAM) */}
+                      {/* Tanggal Selesai */}
                       <td className="py-3 px-3.5 text-text-secondary font-mono font-bold">
                         {formatDateOnly(customer.finishedTime || customer.createdAt)}
                       </td>
@@ -359,7 +499,7 @@ const HistoryTable = () => {
                         </span>
                       </td>
 
-                      {/* Slot (Bersebelahan dengan Layanan) */}
+                      {/* Slot */}
                       <td className="py-3 px-3 text-center">
                         <span className={`inline-flex items-center justify-center min-w-[28px] px-1.5 py-0.5 rounded text-[10.5px] font-extrabold font-mono ${
                           isVIP
@@ -391,6 +531,32 @@ const HistoryTable = () => {
                           {customer.stopped ? 'STOPPED' : 'SELESAI (LUNAS)'}
                         </span>
                       </td>
+
+                      {/* Actions: Joki Ulang & Brankas */}
+                      <td className="py-3 px-3 text-center">
+                        <div className="flex items-center justify-center gap-1.5">
+                          {/* Quick Re-Order */}
+                          <button
+                            type="button"
+                            onClick={() => handleQuickReorder(customer)}
+                            title="Joki Ulang (Masukkan ke antrian baru otomatis)"
+                            className="px-2 py-1 rounded-lg bg-accent-purple/15 hover:bg-accent-purple/25 text-accent-purple-light border border-accent-purple/30 text-[11px] font-black transition-all flex items-center gap-1 cursor-pointer"
+                          >
+                            <RotateCcw size={11} />
+                            <span>Joki Lagi</span>
+                          </button>
+
+                          {/* Brankas */}
+                          <button
+                            type="button"
+                            onClick={() => setCredentialCustomer(customer)}
+                            title="Buka data login di brankas"
+                            className="p-1.5 rounded-lg bg-bg-primary hover:bg-accent-green/20 text-accent-green border border-border-default hover:border-accent-green/30 transition-all cursor-pointer"
+                          >
+                            <Key size={12} />
+                          </button>
+                        </div>
+                      </td>
                     </tr>
                   );
                 })
@@ -398,28 +564,64 @@ const HistoryTable = () => {
             </tbody>
           </table>
         </div>
+
+        {/* PAGINATION TOOLBAR (10 ITEMS PER PAGE) */}
+        {filteredFinished.length > 0 && (
+          <div className="p-3 bg-bg-primary/95 border-t border-border-default flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div className="text-xs text-text-muted font-medium">
+              Menampilkan <strong className="text-white">{startIndex + 1}</strong> - <strong className="text-white">{Math.min(startIndex + PAGE_SIZE, filteredFinished.length)}</strong> dari <strong className="text-white">{filteredFinished.length}</strong> transaksi
+            </div>
+
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                disabled={validCurrentPage <= 1}
+                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                className="px-3 py-1.5 rounded-xl bg-bg-surface hover:bg-white/10 disabled:opacity-40 disabled:hover:bg-bg-surface border border-border-default text-xs font-bold text-text-secondary hover:text-white transition-all flex items-center gap-1 cursor-pointer disabled:cursor-not-allowed"
+              >
+                <ChevronLeft size={14} />
+                <span>Sebelumnya</span>
+              </button>
+
+              <span className="px-3 py-1 text-xs font-mono font-bold text-accent-cyan bg-accent-cyan/10 border border-accent-cyan/20 rounded-xl">
+                {validCurrentPage} / {totalPages}
+              </span>
+
+              <button
+                type="button"
+                disabled={validCurrentPage >= totalPages}
+                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                className="px-3 py-1.5 rounded-xl bg-bg-surface hover:bg-white/10 disabled:opacity-40 disabled:hover:bg-bg-surface border border-border-default text-xs font-bold text-text-secondary hover:text-white transition-all flex items-center gap-1 cursor-pointer disabled:cursor-not-allowed"
+              >
+                <span>Selanjutnya</span>
+                <ChevronRight size={14} />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* FOOTER: Subtotal Terfilter & Tombol Export CSV di Bawah Tabel */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mt-3.5 pt-1">
-        <div className="text-xs text-text-muted flex items-center gap-1.5">
-          <span>Subtotal Riwayat Terfilter:</span>
-          <strong className="text-accent-yellow font-mono text-sm font-black">{formatRupiah(subtotalFiltered)}</strong>
-          <span className="text-text-faint font-mono">({filteredFinished.length} transaksi)</span>
-        </div>
-
-        {/* Export CSV Button (Posisi di Bawah Tabel Riwayat) */}
-        {filteredFinished.length > 0 && (
+      {/* FOOTER: Export CSV Button */}
+      {filteredFinished.length > 0 && (
+        <div className="flex justify-end pt-1">
           <button
             onClick={handleExportCSV}
             title="Download riwayat transaksi terfilter ke format CSV"
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-accent-cyan/15 hover:bg-accent-cyan/25 border border-accent-cyan/35 text-accent-cyan font-extrabold text-xs transition-all active:scale-95 cursor-pointer shadow-md shadow-accent-cyan/10"
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-accent-cyan/15 hover:bg-accent-cyan/25 border border-accent-cyan/35 text-accent-cyan font-black text-xs transition-all active:scale-95 cursor-pointer shadow-md shadow-accent-cyan/10"
           >
             <Download size={14} />
             <span>Export CSV</span>
           </button>
-        )}
-      </div>
+        </div>
+      )}
+
+      {/* Credential Popover Modal */}
+      {credentialCustomer && (
+        <CredentialModal
+          customer={credentialCustomer}
+          onClose={() => setCredentialCustomer(null)}
+        />
+      )}
     </div>
   );
 };

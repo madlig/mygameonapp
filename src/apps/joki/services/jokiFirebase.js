@@ -10,11 +10,17 @@ import {
   deleteDoc, 
   onSnapshot, 
   query, 
+  where,
   orderBy,
   writeBatch
 } from "firebase/firestore";
 
 export const DEFAULT_WORKSPACE_ID = 'mygameon';
+
+export const generateTicketId = () => {
+  const num = Math.floor(10000 + Math.random() * 90000);
+  return `JK-${num}`;
+};
 
 // ── Workspaces Subscription ──
 export const subscribeJokiWorkspaces = (callback) => {
@@ -47,6 +53,9 @@ export const createWorkspaceIfNotExists = async (workspaceId, name, ownerEmail) 
       await setDoc(doc(db, "joki_workspaces", workspaceId, "settings", "global"), {
         globalPaused: false,
         globalPauseStarted: null,
+        streamStatus: 'OFFLINE',
+        nextStreamSchedule: '',
+        streamNote: '',
         updatedAt: Date.now()
       });
     }
@@ -91,7 +100,7 @@ export const subscribeJokiSettings = (workspaceId = DEFAULT_WORKSPACE_ID, callba
     if (docSnap.exists()) {
       callback(docSnap.data());
     } else {
-      callback({ globalPaused: false, globalPauseStarted: null });
+      callback({ globalPaused: false, globalPauseStarted: null, streamStatus: 'OFFLINE', nextStreamSchedule: '' });
     }
   }, (error) => {
     console.error(`Error subscribing to settings for workspace ${workspaceId}:`, error);
@@ -102,9 +111,13 @@ export const subscribeJokiSettings = (workspaceId = DEFAULT_WORKSPACE_ID, callba
 export const addJokiCustomer = async (workspaceId = DEFAULT_WORKSPACE_ID, customerData) => {
   const colRef = collection(db, "joki_workspaces", workspaceId, "customers");
   const newDocRef = doc(colRef);
+  const ticketId = customerData.ticketId || generateTicketId();
   await setDoc(newDocRef, { 
     ...customerData, 
     workspaceId,
+    ticketId,
+    passwordRoblox: customerData.passwordRoblox || '',
+    emailRoblox: customerData.emailRoblox || '',
     createdAt: customerData.createdAt || Date.now() 
   });
   return newDocRef.id;
@@ -124,9 +137,13 @@ export const deleteJokiCustomer = async (workspaceId = DEFAULT_WORKSPACE_ID, id)
 export const addJokiQueue = async (workspaceId = DEFAULT_WORKSPACE_ID, queueData) => {
   const colRef = collection(db, "joki_workspaces", workspaceId, "queue");
   const newDocRef = doc(colRef);
+  const ticketId = queueData.ticketId || generateTicketId();
   await setDoc(newDocRef, {
     ...queueData,
     workspaceId,
+    ticketId,
+    passwordRoblox: queueData.passwordRoblox || '',
+    emailRoblox: queueData.emailRoblox || '',
     createdAt: Date.now()
   });
   return newDocRef.id;

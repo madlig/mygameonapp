@@ -12,7 +12,7 @@ import {
   Radio, 
   Coffee, 
   Moon, 
-  Calendar,
+  Clock,
   Sparkles 
 } from 'lucide-react';
 import { updateJokiSettings } from '../../services/jokiFirebase';
@@ -21,8 +21,12 @@ const JokiSettingsModal = ({ isOpen, onClose }) => {
   const { activeWorkspace, activeWorkspaceId, globalSettings, addToast } = useJoki();
 
   const [streamerName, setStreamerName] = useState(activeWorkspace?.name || '');
+  const [liveStartTime, setLiveStartTime] = useState(globalSettings?.liveStartTime || '09:00');
+  const [liveEndTime, setLiveEndTime] = useState(globalSettings?.liveEndTime || '15:00');
+  const [manualOverride, setManualOverride] = useState(globalSettings?.manualOverride || false);
   const [streamStatus, setStreamStatus] = useState(globalSettings?.streamStatus || 'OFFLINE');
   const [nextStreamSchedule, setNextStreamSchedule] = useState(globalSettings?.nextStreamSchedule || '');
+  
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loadingStream, setLoadingStream] = useState(false);
@@ -31,6 +35,9 @@ const JokiSettingsModal = ({ isOpen, onClose }) => {
 
   useEffect(() => {
     if (globalSettings) {
+      setLiveStartTime(globalSettings.liveStartTime || '09:00');
+      setLiveEndTime(globalSettings.liveEndTime || '15:00');
+      setManualOverride(globalSettings.manualOverride || false);
       setStreamStatus(globalSettings.streamStatus || 'OFFLINE');
       setNextStreamSchedule(globalSettings.nextStreamSchedule || '');
     }
@@ -38,19 +45,22 @@ const JokiSettingsModal = ({ isOpen, onClose }) => {
 
   if (!isOpen) return null;
 
-  const handleUpdateStreamStatus = async (e) => {
+  const handleUpdateScheduleAndStatus = async (e) => {
     if (e) e.preventDefault();
     try {
       setLoadingStream(true);
       await updateJokiSettings(activeWorkspaceId, {
+        liveStartTime: liveStartTime.trim(),
+        liveEndTime: liveEndTime.trim(),
+        manualOverride,
         streamStatus,
         nextStreamSchedule: nextStreamSchedule.trim(),
         updatedAt: Date.now()
       });
-      addToast('Status siaran & jadwal live berhasil diupdate ke seluruh tiket!', 'success');
+      addToast('Jadwal jam live & status siaran otomatis berhasil diperbarui!', 'success');
     } catch (err) {
       console.error(err);
-      addToast('Gagal mengupdate status siaran.', 'error');
+      addToast('Gagal mengupdate jadwal siaran.', 'error');
     } finally {
       setLoadingStream(false);
     }
@@ -131,7 +141,7 @@ const JokiSettingsModal = ({ isOpen, onClose }) => {
           </div>
           <div>
             <h3 className="text-base font-black text-text-primary m-0 tracking-tight">
-              Pengaturan Streamer & Siaran
+              Pengaturan Streamer & Jadwal Live
             </h3>
             <p className="text-xs text-text-tertiary mt-0.5 m-0">
               Kanal: <strong className="text-accent-cyan font-mono">{activeWorkspace.name}</strong>
@@ -140,81 +150,138 @@ const JokiSettingsModal = ({ isOpen, onClose }) => {
         </div>
 
         <div className="space-y-4">
-          {/* SECTION 1: STATUS SIARAN & JADWAL LIVE STREAM */}
+          {/* SECTION 1: ATUR JAM LIVE & OFFSTREAM SEMI-OTOMATIS */}
           <div className="bg-bg-primary/90 border border-border-default rounded-2xl p-4 shadow-inner space-y-3">
             <div className="text-xs font-black uppercase text-accent-cyan tracking-wider flex items-center justify-between">
               <span className="flex items-center gap-1.5">
-                <Radio size={14} className="text-accent-red animate-pulse" />
-                <span>Status Siaran & Jadwal Tiket</span>
+                <Clock size={14} className="text-accent-cyan" />
+                <span>Atur Jam Live & Off Stream (Semi-Otomatis)</span>
               </span>
-              <span className="text-[10px] text-text-dim font-bold">Otomatis Muncul di Tiket</span>
+              <span className="text-[10px] text-text-dim font-bold font-mono">WIB</span>
             </div>
 
-            <form onSubmit={handleUpdateStreamStatus} className="space-y-3">
-              {/* Radio options for stream status */}
-              <div className="grid grid-cols-3 gap-2">
-                <button
-                  type="button"
-                  onClick={() => setStreamStatus('LIVE')}
-                  className={`p-2.5 rounded-xl border text-xs font-black transition-all flex flex-col items-center gap-1 cursor-pointer ${
-                    streamStatus === 'LIVE'
-                      ? 'bg-accent-red/20 text-accent-red border-accent-red/50 shadow-md shadow-accent-red/10'
-                      : 'bg-bg-surface text-text-muted hover:text-white border-border-default'
-                  }`}
-                >
-                  <span className="w-2 h-2 rounded-full bg-accent-red" />
-                  <span>🔴 Live Stream</span>
-                </button>
+            <p className="text-[11.5px] text-text-muted m-0 leading-relaxed">
+              Status siaran akan <strong>otomatis berubah menjadi LIVE</strong> saat jam mulai tercapai, dan <strong>otomatis OFF STREAM</strong> saat melewati jam selesai.
+            </p>
 
-                <button
-                  type="button"
-                  onClick={() => setStreamStatus('BREAK')}
-                  className={`p-2.5 rounded-xl border text-xs font-bold transition-all flex flex-col items-center gap-1 cursor-pointer ${
-                    streamStatus === 'BREAK'
-                      ? 'bg-accent-orange/20 text-accent-orange border-accent-orange/50 shadow-md shadow-accent-orange/10'
-                      : 'bg-bg-surface text-text-muted hover:text-white border-border-default'
-                  }`}
-                >
-                  <Coffee size={14} className="text-accent-orange" />
-                  <span>☕ Break/Makan</span>
-                </button>
+            <form onSubmit={handleUpdateScheduleAndStatus} className="space-y-3 pt-1">
+              {/* Jam Mulai & Jam Selesai Time Pickers */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[10.5px] font-bold text-text-dim mb-1">
+                    🟢 Jam Mulai Live:
+                  </label>
+                  <input
+                    type="time"
+                    required
+                    value={liveStartTime}
+                    onChange={(e) => {
+                      setLiveStartTime(e.target.value);
+                      setManualOverride(false);
+                    }}
+                    className="w-full bg-bg-surface border border-border-default rounded-xl py-2 px-3 text-xs text-white font-mono font-bold outline-none focus:border-accent-green/50"
+                  />
+                </div>
 
-                <button
-                  type="button"
-                  onClick={() => setStreamStatus('OFFLINE')}
-                  className={`p-2.5 rounded-xl border text-xs font-bold transition-all flex flex-col items-center gap-1 cursor-pointer ${
-                    streamStatus === 'OFFLINE'
-                      ? 'bg-accent-purple/20 text-accent-purple-light border-accent-purple/50 shadow-md shadow-accent-purple/10'
-                      : 'bg-bg-surface text-text-muted hover:text-white border-border-default'
-                  }`}
-                >
-                  <Moon size={14} className="text-accent-purple-light" />
-                  <span>😴 Off Stream</span>
-                </button>
+                <div>
+                  <label className="block text-[10.5px] font-bold text-text-dim mb-1">
+                    😴 Jam Selesai (Off Stream):
+                  </label>
+                  <input
+                    type="time"
+                    required
+                    value={liveEndTime}
+                    onChange={(e) => {
+                      setLiveEndTime(e.target.value);
+                      setManualOverride(false);
+                    }}
+                    className="w-full bg-bg-surface border border-border-default rounded-xl py-2 px-3 text-xs text-white font-mono font-bold outline-none focus:border-accent-purple/50"
+                  />
+                </div>
               </div>
 
-              {/* Next Stream Schedule Input */}
+              {/* Mode Kontrol / Manual Override */}
+              <div className="pt-2 border-t border-border-subtle">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[10.5px] font-bold text-text-dim">
+                    Mode Status Saat Ini:
+                  </span>
+                  <span className="text-[10px] font-mono text-accent-cyan font-bold">
+                    {manualOverride ? 'Manual Override' : '⚡ Otomatis Mengikuti Jam'}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setManualOverride(false);
+                    }}
+                    className={`p-2 rounded-xl border text-xs font-black transition-all flex flex-col items-center gap-0.5 cursor-pointer ${
+                      !manualOverride
+                        ? 'bg-accent-cyan/20 text-accent-cyan border-accent-cyan/50 shadow-sm'
+                        : 'bg-bg-surface text-text-muted hover:text-white border-border-default'
+                    }`}
+                  >
+                    <span>⚡ Otomatis</span>
+                    <span className="text-[9px] text-text-dim font-normal">Sesuai Jam</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setManualOverride(true);
+                      setStreamStatus('BREAK');
+                    }}
+                    className={`p-2 rounded-xl border text-xs font-bold transition-all flex flex-col items-center gap-0.5 cursor-pointer ${
+                      manualOverride && streamStatus === 'BREAK'
+                        ? 'bg-accent-orange/20 text-accent-orange border-accent-orange/50 shadow-sm'
+                        : 'bg-bg-surface text-text-muted hover:text-white border-border-default'
+                    }`}
+                  >
+                    <span>☕ Break</span>
+                    <span className="text-[9px] text-text-dim font-normal">Istirahat</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setManualOverride(true);
+                      setStreamStatus('OFFLINE');
+                    }}
+                    className={`p-2 rounded-xl border text-xs font-bold transition-all flex flex-col items-center gap-0.5 cursor-pointer ${
+                      manualOverride && streamStatus === 'OFFLINE'
+                        ? 'bg-accent-purple/20 text-accent-purple-light border-accent-purple/50 shadow-sm'
+                        : 'bg-bg-surface text-text-muted hover:text-white border-border-default'
+                    }`}
+                  >
+                    <span>😴 Paksa Off</span>
+                    <span className="text-[9px] text-text-dim font-normal">Off Lebih Awal</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Catatan Tambahan untuk Tiket & Banner */}
               <div>
-                <label className="block text-[10.5px] font-bold text-text-dim mb-1 flex items-center gap-1">
-                  <Calendar size={11} className="text-accent-cyan" />
-                  <span>Jadwal Live Berikutnya (Muncul di Tiket saat Off Stream):</span>
+                <label className="block text-[10.5px] font-bold text-text-dim mb-1">
+                  Catatan Tambahan (Opsional):
                 </label>
                 <input
                   type="text"
                   value={nextStreamSchedule}
                   onChange={(e) => setNextStreamSchedule(e.target.value)}
-                  placeholder="Contoh: Besok Siang, Pukul 14.00 WIB"
-                  className="w-full bg-bg-surface border border-border-default rounded-xl py-2 px-3 text-xs text-text-primary outline-none focus:border-accent-cyan/50 font-bold"
+                  placeholder="Contoh: Antrean dilanjut besok siang"
+                  className="w-full bg-bg-surface border border-border-default rounded-xl py-2 px-3 text-xs text-text-primary outline-none focus:border-accent-cyan/50"
                 />
               </div>
 
               <button
                 type="submit"
                 disabled={loadingStream}
-                className="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-black text-bg-primary bg-accent-cyan hover:bg-accent-cyan/90 active:scale-95 transition-all cursor-pointer shadow-md shadow-accent-cyan/20 disabled:opacity-50"
+                className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-black text-bg-primary bg-accent-cyan hover:bg-accent-cyan/90 active:scale-95 transition-all cursor-pointer shadow-md shadow-accent-cyan/20 disabled:opacity-50 mt-2"
               >
                 <Check size={14} />
-                <span>{loadingStream ? 'Menyimpan...' : 'Update Status ke Tiket Penonton'}</span>
+                <span>{loadingStream ? 'Menyimpan...' : 'Simpan Jadwal Jam Live'}</span>
               </button>
             </form>
           </div>

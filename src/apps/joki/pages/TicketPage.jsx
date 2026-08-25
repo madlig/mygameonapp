@@ -24,6 +24,7 @@ import {
   Coffee,
   Moon
 } from 'lucide-react';
+import { computeLiveStatus } from '../services/jokiFirebase';
 
 const formatTime = (seconds) => {
   seconds = Math.max(0, Math.floor(seconds));
@@ -235,9 +236,10 @@ const TicketPage = () => {
   const isVIP = (ticketData.service || '').toUpperCase().includes('VIP');
   const streamerName = workspaceInfo?.name || 'Kadal Gaming';
 
-  // Stream status notes
-  const streamStatus = workspaceSettings?.streamStatus || 'OFFLINE';
-  const nextSchedule = workspaceSettings?.nextStreamSchedule || '';
+  // Compute Time-Based Semi-Automatic Stream Status
+  const liveState = computeLiveStatus(workspaceSettings);
+  const streamStatus = liveState.status;
+  const nextSchedule = liveState.subtext || '';
 
   // Queue Calculations (If in Queue)
   let queuePosition = 1;
@@ -261,7 +263,7 @@ const TicketPage = () => {
     if (streamStatus === 'OFFLINE') {
       estimatedWaitMinutes = 0;
       estimatedSlotName = isVIP ? 'SLOT VIP' : 'Slot Live';
-      estimatedStartTimeStr = nextSchedule ? `Jadwal: ${nextSchedule}` : 'Sesi Live Berikutnya';
+      estimatedStartTimeStr = liveState.liveStartTime ? `Pukul ${liveState.liveStartTime} WIB` : 'Sesi Live Berikutnya';
     } else if (relevantSlots.length === 0) {
       // Slot is currently vacant
       estimatedWaitMinutes = 0;
@@ -359,7 +361,7 @@ const TicketPage = () => {
               ) : (
                 <span>
                   {nextSchedule 
-                    ? `Jadwal live berikutnya: ${nextSchedule}. Akun kamu tetap aman di antrean!` 
+                    ? `${nextSchedule}. Akun kamu tetap aman di antrean!` 
                     : 'Akun kamu aman di antrean dan akan dimainkan pada sesi live berikutnya.'}
                 </span>
               )}
@@ -504,7 +506,7 @@ const TicketPage = () => {
                   <span className="text-text-dim text-[10.5px] block">Perkiraan Beres:</span>
                   {streamStatus === 'OFFLINE' && isPaused ? (
                     <strong className="text-accent-purple-light font-bold text-[11px] block">
-                      {nextSchedule ? `📅 ${nextSchedule}` : '📅 Lanjut Next Live'}
+                      {liveState.liveStartTime ? `📅 Besok Jam ${liveState.liveStartTime} WIB` : '📅 Lanjut Next Live'}
                     </strong>
                   ) : (
                     <strong className="text-accent-cyan font-mono">{formatClock(ticketData.endTime)}</strong>

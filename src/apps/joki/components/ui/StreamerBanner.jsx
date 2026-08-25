@@ -1,12 +1,20 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useJoki } from '../../contexts/JokiContext';
-import { EyeOff, AlertOctagon, Radio, Coffee, Moon, Calendar, Edit3 } from 'lucide-react';
+import { EyeOff, AlertOctagon, Coffee, Moon, Clock } from 'lucide-react';
+import { computeLiveStatus } from '../../services/jokiFirebase';
 
 export const StreamerBanner = ({ onOpenSettings }) => {
   const { streamerMode, isAdmin, globalSettings, activeWorkspace } = useJoki();
+  const [now, setNow] = useState(Date.now());
 
-  const streamStatus = globalSettings?.streamStatus || 'OFFLINE';
-  const nextSchedule = globalSettings?.nextStreamSchedule || '';
+  // Re-evaluate live time range periodically
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 30000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const liveState = computeLiveStatus(globalSettings);
+  const streamStatus = liveState.status;
   const streamerName = activeWorkspace?.name || 'Streamer';
 
   return (
@@ -31,6 +39,11 @@ export const StreamerBanner = ({ onOpenSettings }) => {
             <span className="w-3 h-3 rounded-full bg-accent-red animate-ping shrink-0" />
             <div className="text-xs font-black text-white truncate flex items-center gap-1.5">
               <span>🔴 {streamerName.toUpperCase()} SEDANG LIVE STREAMING!</span>
+              {liveState.liveEndTime && (
+                <span className="text-[11px] font-bold text-accent-cyan font-mono">
+                  (Sampai {liveState.liveEndTime} WIB)
+                </span>
+              )}
             </div>
           </div>
           {isAdmin && (
@@ -38,8 +51,8 @@ export const StreamerBanner = ({ onOpenSettings }) => {
               onClick={onOpenSettings}
               className="text-[11px] font-bold px-2.5 py-1 rounded-xl bg-white/5 hover:bg-white/10 text-text-secondary hover:text-white border border-border-subtle transition-all flex items-center gap-1 shrink-0 cursor-pointer"
             >
-              <Edit3 size={11} />
-              <span>Ubah Status</span>
+              <Clock size={11} />
+              <span>Atur Jam Live</span>
             </button>
           )}
         </div>
@@ -54,8 +67,8 @@ export const StreamerBanner = ({ onOpenSettings }) => {
               onClick={onOpenSettings}
               className="text-[11px] font-bold px-2.5 py-1 rounded-xl bg-accent-orange/20 hover:bg-accent-orange/30 text-white border border-accent-orange/40 transition-all flex items-center gap-1 shrink-0 cursor-pointer"
             >
-              <Edit3 size={11} />
-              <span>Ubah Status</span>
+              <Clock size={11} />
+              <span>Atur Jam Live</span>
             </button>
           )}
         </div>
@@ -69,24 +82,20 @@ export const StreamerBanner = ({ onOpenSettings }) => {
                 Status Streamer: <strong className="text-white">Off Stream</strong>
               </span>
               <span className="text-text-dim sm:ml-2">
-                {nextSchedule ? (
-                  <span className="text-accent-cyan font-bold">
-                    📅 Jadwal Live Berikutnya: <u>{nextSchedule}</u>
-                  </span>
-                ) : (
-                  'Akun aman di antrean dan akan dimainkan pada live berikutnya.'
-                )}
+                <span className="text-accent-cyan font-bold">
+                  {liveState.subtext}
+                </span>
               </span>
             </div>
           </div>
           {isAdmin && (
             <button
               onClick={onOpenSettings}
-              title="Atur jadwal live berikutnya agar penonton & tiket tahu kapan live lagi"
+              title="Atur jam live & offstream agar otomatis berganti status"
               className="text-[11px] font-bold px-3 py-1.5 rounded-xl bg-accent-cyan/15 hover:bg-accent-cyan/25 text-accent-cyan border border-accent-cyan/30 transition-all flex items-center gap-1.5 shrink-0 cursor-pointer shadow-sm"
             >
-              <Calendar size={12} />
-              <span>Atur Jadwal Live</span>
+              <Clock size={12} />
+              <span>Atur Jam Live</span>
             </button>
           )}
         </div>

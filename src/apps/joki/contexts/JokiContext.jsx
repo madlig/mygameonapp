@@ -23,7 +23,6 @@ const PRICE_VIP = 6000;
 
 const DEFAULT_WORKSPACES = [
   { id: 'mygameon', name: 'MyGameON AFK', slug: 'mygameon', ownerEmail: 'madlighifari29@gmail.com' },
-  { id: 'kadal', name: 'Kadal Gaming', slug: 'kadal', ownerEmail: 'kadal@gmail.com' },
 ];
 
 const JokiContext = createContext();
@@ -119,9 +118,9 @@ export const JokiProvider = ({ children }) => {
     return true;
   };
 
-  // Auto-switch / create workspace based on logged in user's email
+  // Auto-switch workspace based on logged in user's email
   useEffect(() => {
-    if (currentUser?.email) {
+    if (currentUser?.email && workspaces.length > 0) {
       const email = currentUser.email.toLowerCase();
       
       // 1. If Super Admin -> lock to mygameon
@@ -130,20 +129,12 @@ export const JokiProvider = ({ children }) => {
         return;
       }
 
-      // 2. Check if email matches ownerEmail of an existing workspace
+      // 2. Check if email matches ownerEmail of an existing registered workspace
       const matched = workspaces.find(w => w.ownerEmail && w.ownerEmail.toLowerCase() === email);
       if (matched) {
         changeWorkspace(matched.id);
         return;
       }
-
-      // 3. For any other friend/admin email
-      const slug = email.split('@')[0].replace(/[^a-z0-9]/gi, '').toLowerCase();
-      const rawName = email.split('@')[0];
-      const displayName = rawName.charAt(0).toUpperCase() + rawName.slice(1) + ' Gaming Live';
-
-      createWorkspaceIfNotExists(slug, displayName, email);
-      changeWorkspace(slug);
     }
   }, [currentUser, workspaces]);
 

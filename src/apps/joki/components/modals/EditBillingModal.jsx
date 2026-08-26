@@ -456,7 +456,7 @@ const EditBillingModal = ({ customer, onClose }) => {
                 <input
                   type="number"
                   min="0"
-                  step="500"
+                  step="any"
                   value={price}
                   onChange={(e) => setPrice(e.target.value)}
                   className="w-full bg-bg-primary border border-border-default rounded-xl py-2 pl-8 pr-2 text-xs text-accent-yellow font-mono font-black outline-none focus:border-accent-yellow/50"

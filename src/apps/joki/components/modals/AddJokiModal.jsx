@@ -38,7 +38,16 @@ const DURATION_PRESETS = [
 ];
 
 const AddJokiModal = ({ isOpen, onClose }) => {
-  const { customers, addJokiCustomer, addJokiQueue, globalPaused, suggestSlot, addToast } = useJoki();
+  const { 
+    customers, 
+    enableVvipSlot,
+    priceVvip,
+    addJokiCustomer, 
+    addJokiQueue, 
+    globalPaused, 
+    suggestSlot, 
+    addToast 
+  } = useJoki();
   const [destination, setDestination] = useState('SLOT'); // 'SLOT' | 'QUEUE'
   const [username, setUsername] = useState('');
   const [tiktokName, setTiktokName] = useState('');
@@ -134,7 +143,7 @@ const AddJokiModal = ({ isOpen, onClose }) => {
     ? Number(durationValue || 0)
     : Number(durationValue || 0) / 60;
 
-  const pricePerHour = isVVIP ? PRICE_VVIP : (isVIP ? PRICE_VIP : PRICE_BASIC);
+  const pricePerHour = isVVIP ? (priceVvip || PRICE_VVIP) : (isVIP ? PRICE_VIP : PRICE_BASIC);
   const totalPrice = Math.round(calculatedHours * pricePerHour);
 
   const handleSave = async (e) => {
@@ -381,7 +390,9 @@ const AddJokiModal = ({ isOpen, onClose }) => {
               >
                 <option value="Basic">Basic (Rp 4.000 / Jam)</option>
                 <option value="VIP">VIP (Rp 6.000 / Jam - Priority)</option>
-                <option value="VVIP">VVIP (Rp 10.000 / Jam - Super Priority)</option>
+                {enableVvipSlot && (
+                  <option value="VVIP">VVIP (Rp {Number(priceVvip || 10000).toLocaleString('id-ID')} / Jam - Super Priority)</option>
+                )}
               </select>
             </div>
 

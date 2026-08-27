@@ -13,7 +13,8 @@ import {
   Coffee, 
   Moon, 
   Clock,
-  Sparkles 
+  Sparkles,
+  Gem
 } from 'lucide-react';
 import { updateJokiSettings } from '../../services/jokiFirebase';
 
@@ -26,6 +27,15 @@ const JokiSettingsModal = ({ isOpen, onClose }) => {
   const [manualOverride, setManualOverride] = useState(globalSettings?.manualOverride || false);
   const [streamStatus, setStreamStatus] = useState(globalSettings?.streamStatus || 'OFFLINE');
   const [nextStreamSchedule, setNextStreamSchedule] = useState(globalSettings?.nextStreamSchedule || '');
+
+  // VVIP Settings State
+  const [enableVvip, setEnableVvip] = useState(
+    globalSettings?.enableVvipSlot !== undefined
+      ? Boolean(globalSettings.enableVvipSlot)
+      : (activeWorkspaceId === 'saviours')
+  );
+  const [vvipPrice, setVvipPrice] = useState(globalSettings?.priceVvip || 10000);
+  const [loadingVvip, setLoadingVvip] = useState(false);
   
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -40,6 +50,12 @@ const JokiSettingsModal = ({ isOpen, onClose }) => {
       setManualOverride(globalSettings.manualOverride || false);
       setStreamStatus(globalSettings.streamStatus || 'OFFLINE');
       setNextStreamSchedule(globalSettings.nextStreamSchedule || '');
+      if (globalSettings.enableVvipSlot !== undefined) {
+        setEnableVvip(Boolean(globalSettings.enableVvipSlot));
+      }
+      if (globalSettings.priceVvip !== undefined) {
+        setVvipPrice(globalSettings.priceVvip);
+      }
     }
   }, [globalSettings]);
 
@@ -63,6 +79,29 @@ const JokiSettingsModal = ({ isOpen, onClose }) => {
       addToast('Gagal mengupdate jadwal siaran.', 'error');
     } finally {
       setLoadingStream(false);
+    }
+  };
+
+  const handleUpdateVvipSettings = async (e) => {
+    if (e) e.preventDefault();
+    try {
+      setLoadingVvip(true);
+      await updateJokiSettings(activeWorkspaceId, {
+        enableVvipSlot: enableVvip,
+        priceVvip: Math.max(1000, Number(vvipPrice) || 10000),
+        updatedAt: Date.now()
+      });
+      addToast(
+        enableVvip 
+          ? '✓ Fitur & Slot VVIP berhasil diaktifkan!' 
+          : '✓ Fitur VVIP dinonaktifkan (Dashboard kembali 2-Tier standard).', 
+        'success'
+      );
+    } catch (err) {
+      console.error(err);
+      addToast('Gagal mengubah pengaturan VVIP.', 'error');
+    } finally {
+      setLoadingVvip(false);
     }
   };
 
@@ -303,7 +342,85 @@ const JokiSettingsModal = ({ isOpen, onClose }) => {
             </form>
           </div>
 
-          {/* SECTION 2: UBAH NAMA STREAMER */}
+          {/* SECTION 2: PENGATURAN FITUR & SLOT VVIP */}
+          <div className="bg-bg-primary/90 border border-rose-500/30 rounded-2xl p-4 shadow-inner space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="text-xs font-black uppercase text-rose-400 tracking-wider flex items-center gap-1.5">
+                <Gem size={14} />
+                <span>Fitur & Slot VVIP (Super Priority)</span>
+              </div>
+              <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full border ${
+                enableVvip
+                  ? 'bg-rose-500/20 text-rose-300 border-rose-500/40'
+                  : 'bg-white/5 text-text-dim border-border-default'
+              }`}>
+                {enableVvip ? '🟢 AKTIF' : '⚪ NONAKTIF'}
+              </span>
+            </div>
+
+            <p className="text-[11px] text-text-dim m-0 leading-relaxed">
+              Aktifkan jika streamer menyediakan layanan slot VVIP khusus (Super Priority). Jika dinonaktifkan, antrean dan opsi VVIP akan disembunyikan agar viewer tidak rancu.
+            </p>
+
+            <form onSubmit={handleUpdateVvipSettings} className="space-y-3 pt-1">
+              {/* Toggle Button */}
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setEnableVvip(true)}
+                  className={`py-2 px-3 rounded-xl border text-xs font-extrabold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                    enableVvip
+                      ? 'bg-rose-500/20 text-rose-300 border-rose-500/60 ring-1 ring-rose-500/40 shadow-sm'
+                      : 'bg-bg-surface text-text-muted hover:text-white border-border-default'
+                  }`}
+                >
+                  <Gem size={13} className={enableVvip ? 'text-rose-400' : 'text-text-dim'} />
+                  <span>Aktifkan VVIP</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setEnableVvip(false)}
+                  className={`py-2 px-3 rounded-xl border text-xs font-extrabold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                    !enableVvip
+                      ? 'bg-white/10 text-white border-border-default ring-1 ring-white/20 shadow-sm'
+                      : 'bg-bg-surface text-text-muted hover:text-white border-border-default'
+                  }`}
+                >
+                  <span>Nonaktifkan</span>
+                </button>
+              </div>
+
+              {/* Input Tarif VVIP */}
+              {enableVvip && (
+                <div className="animate-slide-in">
+                  <label className="block text-[10.5px] font-bold text-text-dim mb-1">
+                    Tarif Layanan VVIP / Jam (Rp)
+                  </label>
+                  <input
+                    type="number"
+                    min="1000"
+                    step="1000"
+                    value={vvipPrice}
+                    onChange={(e) => setVvipPrice(e.target.value)}
+                    className="w-full bg-bg-surface border border-rose-500/30 rounded-xl py-2 px-3 text-xs text-rose-300 font-mono font-bold outline-none focus:border-rose-500 shadow-inner"
+                    placeholder="10000"
+                  />
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={loadingVvip}
+                className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-black text-white bg-rose-600 hover:bg-rose-500 active:scale-95 transition-all cursor-pointer shadow-md shadow-rose-600/20 disabled:opacity-50"
+              >
+                <Check size={14} />
+                <span>{loadingVvip ? 'Menyimpan...' : 'Simpan Pengaturan VVIP'}</span>
+              </button>
+            </form>
+          </div>
+
+          {/* SECTION 3: UBAH NAMA STREAMER */}
           <div className="bg-bg-primary/90 border border-border-default rounded-2xl p-4 shadow-inner space-y-3">
             <div className="text-xs font-black uppercase text-accent-purple-light tracking-wider flex items-center gap-1.5">
               <Gamepad2 size={14} />

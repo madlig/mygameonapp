@@ -216,6 +216,14 @@ export const JokiProvider = ({ children }) => {
     return n;
   };
 
+  // Check if VVIP is enabled for current workspace
+  const hasVvipData = customers.some(c => (c.service || '').toUpperCase().includes('VVIP') || c.slot === 'VVIP') ||
+                      queue.some(q => (q.service || '').toUpperCase().includes('VVIP'));
+  const enableVvipSlot = globalSettings?.enableVvipSlot !== undefined
+    ? Boolean(globalSettings.enableVvipSlot)
+    : (activeWorkspaceId === 'saviours' || hasVvipData);
+  const priceVvip = Number(globalSettings?.priceVvip) || PRICE_VVIP;
+
   // Start billing from queue
   const startBillingFromQueue = async (queueItem, selectedSlot) => {
     const now = Date.now();
@@ -225,7 +233,7 @@ export const JokiProvider = ({ children }) => {
     const isVIP = (queueItem.service || '').toUpperCase() === 'VIP' || selectedSlot === 'VIP';
     const finalService = isVVIP ? 'VVIP' : (isVIP ? 'VIP' : 'Basic');
     const finalSlot = isVVIP ? 'VVIP' : (isVIP ? 'VIP' : (selectedSlot || suggestSlot()));
-    const pricePerHour = isVVIP ? PRICE_VVIP : (isVIP ? PRICE_VIP : PRICE_BASIC);
+    const pricePerHour = isVVIP ? priceVvip : (isVIP ? PRICE_VIP : PRICE_BASIC);
     const price = Math.round(duration * pricePerHour);
 
     const customerData = {
@@ -335,6 +343,8 @@ export const JokiProvider = ({ children }) => {
     globalPaused,
     globalPauseStarted,
     globalSettings,
+    enableVvipSlot,
+    priceVvip,
     streamerMode,
     toggleStreamerMode,
     searchQuery,

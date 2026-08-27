@@ -15,7 +15,8 @@ import {
   Key,
   ChevronLeft,
   ChevronRight,
-  Sparkles
+  Sparkles,
+  Trash2
 } from 'lucide-react';
 import CredentialModal from '../modals/CredentialModal';
 
@@ -82,6 +83,7 @@ const HistoryTable = () => {
     setCustomEndDate,
     isWithinDateFilter,
     addJokiQueue,
+    deleteJokiCustomer,
     addToast
   } = useJoki();
 
@@ -156,6 +158,20 @@ const HistoryTable = () => {
     } catch (err) {
       console.error(err);
       addToast('Gagal melakukan joki ulang.', 'error');
+    }
+  };
+
+  // Delete Finished History Transaction
+  const handleDeleteHistory = async (customer) => {
+    const name = customer.username || customer.name;
+    if (window.confirm(`Hapus permanen riwayat transaksi ${name}? (Total omset & jam main akan disesuaikan otomatis)`)) {
+      try {
+        await deleteJokiCustomer(customer.id);
+        addToast(`✓ Riwayat transaksi ${name} berhasil dihapus.`, 'info');
+      } catch (err) {
+        console.error(err);
+        addToast('Gagal menghapus riwayat transaksi.', 'error');
+      }
     }
   };
 
@@ -543,7 +559,7 @@ const HistoryTable = () => {
                         </span>
                       </td>
 
-                      {/* Actions: Joki Ulang & Brankas */}
+                      {/* Actions: Joki Ulang, Brankas & Hapus */}
                       <td className="py-3 px-3 text-center">
                         <div className="flex items-center justify-center gap-1.5">
                           {/* Quick Re-Order */}
@@ -566,6 +582,18 @@ const HistoryTable = () => {
                           >
                             <Key size={12} />
                           </button>
+
+                          {/* Hapus Riwayat Transaksi */}
+                          {isAdmin && (
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteHistory(customer)}
+                              title="Hapus riwayat transaksi ini"
+                              className="p-1.5 rounded-lg bg-bg-primary hover:bg-accent-red/20 text-text-dim hover:text-accent-red border border-border-default hover:border-accent-red/30 transition-all cursor-pointer"
+                            >
+                              <Trash2 size={12} />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>

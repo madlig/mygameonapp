@@ -49,6 +49,8 @@ const QueueSidebar = ({ onStartFromQueue, onRequestClearQueue }) => {
   const { 
     queue, 
     customers,
+    enableVvipSlot,
+    priceVvip,
     addJokiQueue, 
     updateJokiQueue, 
     deleteJokiQueue, 
@@ -121,7 +123,7 @@ const QueueSidebar = ({ onStartFromQueue, onRequestClearQueue }) => {
   const calculatedHours = qUnit === 'hour' ? Number(qAmount || 0) : Number(qAmount || 0) / 60;
   const getRate = (srv) => {
     const s = (srv || '').toUpperCase();
-    if (s === 'VVIP') return PRICE_VVIP;
+    if (s === 'VVIP') return priceVvip || PRICE_VVIP;
     if (s === 'VIP') return PRICE_VIP;
     return PRICE_BASIC;
   };
@@ -431,7 +433,9 @@ const QueueSidebar = ({ onStartFromQueue, onRequestClearQueue }) => {
                 >
                   <option value="Basic">Basic (4k/j)</option>
                   <option value="VIP">VIP (6k/j - Priority)</option>
-                  <option value="VVIP">VVIP (10k/j - Super Priority)</option>
+                  {enableVvipSlot && (
+                    <option value="VVIP">VVIP ({priceVvip ? `${priceVvip / 1000}k` : '10k'}/j - Super Priority)</option>
+                  )}
                 </select>
               </div>
 
@@ -487,187 +491,189 @@ const QueueSidebar = ({ onStartFromQueue, onRequestClearQueue }) => {
         {/* 3 STRUCTURED QUEUE SECTIONS: VVIP (Top), VIP (Middle), BASIC (Bottom) */}
         <div className="space-y-4">
           
-          {/* 1. VVIP QUEUE (Super Priority) */}
-          <div>
-            <div className="flex items-center gap-1.5 mb-2 px-1">
-              <Gem size={14} className="text-rose-400" />
-              <span className="text-[11px] font-extrabold uppercase tracking-wider text-rose-400">
-                Antrian VVIP (Super Priority)
-              </span>
-              <span className="text-[10px] font-mono font-bold text-rose-400/80 ml-auto">
-                {vvipQueue.length} Orang {isAdmin && vvipQueue.length > 1 && '(Tarik ⠿)'}
-              </span>
-            </div>
-
-            {vvipQueue.length === 0 ? (
-              <div className="py-2.5 px-3 rounded-xl bg-rose-500/[0.03] border border-dashed border-rose-500/25 flex items-center justify-between text-xs">
-                <span className="text-[11px] text-rose-300/60 font-medium">Belum ada antrean VVIP</span>
-                {isAdmin && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setQService('VVIP');
-                      setIsAddOpen(true);
-                    }}
-                    className="text-[10px] font-black text-rose-400 hover:text-rose-300 px-2 py-0.5 rounded bg-rose-500/15 border border-rose-500/30 cursor-pointer transition-colors"
-                  >
-                    + Tambah VVIP
-                  </button>
-                )}
+          {/* 1. VVIP QUEUE (Super Priority) - Dynamically shown if VVIP is enabled or if VVIP queue exists */}
+          {(enableVvipSlot || vvipQueue.length > 0) && (
+            <div>
+              <div className="flex items-center gap-1.5 mb-2 px-1">
+                <Gem size={14} className="text-rose-400" />
+                <span className="text-[11px] font-extrabold uppercase tracking-wider text-rose-400">
+                  Antrian VVIP (Super Priority)
+                </span>
+                <span className="text-[10px] font-mono font-bold text-rose-400/80 ml-auto">
+                  {vvipQueue.length} Orang {isAdmin && vvipQueue.length > 1 && '(Tarik ⠿)'}
+                </span>
               </div>
-            ) : (
-              <div className="space-y-2">
-                {vvipQueue.map((item, index) => {
-                  const isEditing = editingId === item.id;
-                  const isBeingDragged = draggedItem?.item?.id === item.id;
-                  const isTargetDrop = dragOverIndex === index && draggedItem?.queueType === 'VVIP';
 
-                  if (isEditing) {
-                    return (
-                      <div key={item.id} className="p-3 bg-bg-primary rounded-xl border border-rose-500/40 space-y-2 text-xs">
-                        <input
-                          type="text"
-                          value={editUsername}
-                          onChange={(e) => setEditUsername(e.target.value)}
-                          className="w-full bg-bg-surface border border-border-default rounded px-2 py-1 text-text-primary text-xs font-bold outline-none"
-                          placeholder="Roblox Username"
-                        />
-                        <input
-                          type="text"
-                          value={editTiktok}
-                          onChange={(e) => setEditTiktok(e.target.value)}
-                          className="w-full bg-bg-surface border border-border-default rounded px-2 py-1 text-text-primary text-xs outline-none"
-                          placeholder="TikTok Username"
-                        />
-                        <input
-                          type="password"
-                          value={editPassword}
-                          onChange={(e) => setEditPassword(e.target.value)}
-                          className="w-full bg-bg-surface border border-border-default rounded px-2 py-1 text-text-primary text-xs font-mono outline-none"
-                          placeholder="Password Roblox"
-                        />
-                        <div className="flex justify-end gap-1.5 pt-1">
-                          <button
-                            onClick={cancelEdit}
-                            className="p-1 rounded bg-bg-surface text-text-dim hover:text-text-primary text-xs px-2"
-                          >
-                            Batal
-                          </button>
-                          <button
-                            onClick={() => saveEdit(item.id)}
-                            className="p-1 rounded bg-accent-green text-bg-primary font-bold text-xs px-2.5 flex items-center gap-1"
-                          >
-                            <Check size={12} /> Simpan
-                          </button>
+              {vvipQueue.length === 0 ? (
+                <div className="py-2.5 px-3 rounded-xl bg-rose-500/[0.03] border border-dashed border-rose-500/25 flex items-center justify-between text-xs">
+                  <span className="text-[11px] text-rose-300/60 font-medium">Belum ada antrean VVIP</span>
+                  {isAdmin && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setQService('VVIP');
+                        setIsAddOpen(true);
+                      }}
+                      className="text-[10px] font-black text-rose-400 hover:text-white px-2 py-0.5 rounded bg-rose-500/15 border border-rose-500/30 cursor-pointer transition-colors"
+                    >
+                      + Tambah VVIP
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {vvipQueue.map((item, index) => {
+                    const isEditing = editingId === item.id;
+                    const isBeingDragged = draggedItem?.item?.id === item.id;
+                    const isTargetDrop = dragOverIndex === index && draggedItem?.queueType === 'VVIP';
+
+                    if (isEditing) {
+                      return (
+                        <div key={item.id} className="p-3 bg-bg-primary rounded-xl border border-rose-500/40 space-y-2 text-xs">
+                          <input
+                            type="text"
+                            value={editUsername}
+                            onChange={(e) => setEditUsername(e.target.value)}
+                            className="w-full bg-bg-surface border border-border-default rounded px-2 py-1 text-text-primary text-xs font-bold outline-none"
+                            placeholder="Roblox Username"
+                          />
+                          <input
+                            type="text"
+                            value={editTiktok}
+                            onChange={(e) => setEditTiktok(e.target.value)}
+                            className="w-full bg-bg-surface border border-border-default rounded px-2 py-1 text-text-primary text-xs outline-none"
+                            placeholder="TikTok Username"
+                          />
+                          <input
+                            type="password"
+                            value={editPassword}
+                            onChange={(e) => setEditPassword(e.target.value)}
+                            className="w-full bg-bg-surface border border-border-default rounded px-2 py-1 text-text-primary text-xs font-mono outline-none"
+                            placeholder="Password Roblox"
+                          />
+                          <div className="flex justify-end gap-1.5 pt-1">
+                            <button
+                              onClick={cancelEdit}
+                              className="p-1 rounded bg-bg-surface text-text-dim hover:text-text-primary text-xs px-2"
+                            >
+                              Batal
+                            </button>
+                            <button
+                              onClick={() => saveEdit(item.id)}
+                              className="p-1 rounded bg-accent-green text-bg-primary font-bold text-xs px-2.5 flex items-center gap-1"
+                            >
+                              <Check size={12} /> Simpan
+                            </button>
+                          </div>
                         </div>
+                      );
+                    }
+
+                    return (
+                      <div 
+                        key={item.id}
+                        draggable={isAdmin}
+                        onDragStart={(e) => handleDragStart(e, item, index, 'VVIP')}
+                        onDragOver={(e) => handleDragOver(e, index, 'VVIP')}
+                        onDrop={(e) => handleDrop(e, index, 'VVIP')}
+                        onDragEnd={handleDragEnd}
+                        className={`group p-3 rounded-2xl bg-bg-primary hover:bg-rose-500/[0.02] border transition-all shadow-sm relative ${
+                          isBeingDragged 
+                            ? 'opacity-40 border-dashed border-rose-500' 
+                            : isTargetDrop 
+                            ? 'border-rose-500 ring-2 ring-rose-500 scale-[1.02]' 
+                            : 'border-rose-500/30 hover:border-rose-500/50'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex items-center gap-2 min-w-0">
+                            {isAdmin && (
+                              <div 
+                                className="text-rose-400/50 hover:text-rose-400 cursor-grab active:cursor-grabbing p-0.5 shrink-0"
+                                title="Tarik untuk urutkan antrian"
+                              >
+                                <GripVertical size={15} />
+                              </div>
+                            )}
+
+                            <div className="w-8 h-8 rounded-lg bg-rose-500/15 border border-rose-500/30 flex flex-col items-center justify-center font-black text-rose-300 shrink-0">
+                              <span className="text-[8px] leading-none">VVIP</span>
+                              <span className="text-xs leading-none font-mono text-white">#{index + 1}</span>
+                            </div>
+
+                            <div className="min-w-0">
+                              <div className="font-bold text-sm text-white tracking-tight truncate flex items-center gap-1">
+                                <span className="truncate">{item.username}</span>
+                                <Gem size={12} className="text-rose-400 shrink-0" />
+                              </div>
+                              <div className="text-[11px] text-text-muted truncate">
+                                {item.tiktokName ? (
+                                  <span className="text-rose-300">@{item.tiktokName}</span>
+                                ) : (
+                                  <span className="text-text-faint">Tamu Live</span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="text-right shrink-0">
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-rose-500/15 text-rose-300 font-mono font-bold text-[11px] border border-rose-500/30">
+                              <Clock size={10} />
+                              <span>{formatDuration(item.duration)}</span>
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Admin Actions Bar */}
+                        {isAdmin && (
+                          <div className="flex items-center justify-between gap-1.5 mt-2.5 pt-2 border-t border-rose-500/20">
+                            <button
+                              onClick={() => onStartFromQueue(item)}
+                              className="flex-1 py-1.5 px-2.5 rounded-lg text-xs font-black text-white bg-rose-600 hover:bg-rose-500 active:scale-95 transition-all shadow-sm flex items-center justify-center gap-1 cursor-pointer"
+                            >
+                              <Gem size={13} />
+                              <span>Masuk Slot VVIP</span>
+                            </button>
+
+                            <div className="flex items-center gap-1 shrink-0">
+                              <button
+                                onClick={() => setCredentialCustomer(item)}
+                                title="Buka Brankas Akun (Password/Email)"
+                                className="p-1.5 rounded-lg bg-bg-primary hover:bg-accent-green/20 text-accent-green border border-accent-green/30 transition-colors cursor-pointer"
+                              >
+                                <Key size={12} />
+                              </button>
+                              <button
+                                onClick={() => handleCopyDM(item)}
+                                title="Salin Pesan DM TikTok Siap Kirim"
+                                className="p-1.5 rounded-lg bg-bg-primary hover:bg-accent-cyan/20 text-accent-cyan border border-accent-cyan/30 transition-colors cursor-pointer"
+                              >
+                                <MessageSquare size={12} />
+                              </button>
+                              <button
+                                onClick={() => startEdit(item)}
+                                title="Edit Antrian"
+                                className="p-1.5 rounded-lg bg-bg-primary hover:bg-white/10 text-text-dim hover:text-text-primary border border-border-subtle transition-colors cursor-pointer"
+                              >
+                                <Pencil size={12} />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteItem(item)}
+                                title="Hapus Antrian"
+                                className="p-1.5 rounded-lg bg-bg-primary hover:bg-accent-red/20 text-text-dim hover:text-accent-red border border-border-subtle transition-colors cursor-pointer"
+                              >
+                                <Trash2 size={12} />
+                              </button>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     );
-                  }
-
-                  return (
-                    <div 
-                      key={item.id}
-                      draggable={isAdmin}
-                      onDragStart={(e) => handleDragStart(e, item, index, 'VVIP')}
-                      onDragOver={(e) => handleDragOver(e, index, 'VVIP')}
-                      onDrop={(e) => handleDrop(e, index, 'VVIP')}
-                      onDragEnd={handleDragEnd}
-                      className={`group p-3 rounded-2xl bg-gradient-to-r from-rose-500/[0.1] to-transparent border-2 transition-all shadow-md relative ${
-                        isBeingDragged 
-                          ? 'opacity-40 border-dashed border-rose-500' 
-                          : isTargetDrop 
-                          ? 'border-accent-cyan ring-2 ring-accent-cyan scale-[1.02]' 
-                          : 'border-rose-500/40 hover:border-rose-500/70 shadow-rose-500/5'
-                      }`}
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex items-center gap-2 min-w-0">
-                          {isAdmin && (
-                            <div 
-                              className="text-rose-400/40 hover:text-rose-400 cursor-grab active:cursor-grabbing p-0.5 shrink-0"
-                              title="Tarik untuk urutkan antrian"
-                            >
-                              <GripVertical size={15} />
-                            </div>
-                          )}
-
-                          <div className="w-8 h-8 rounded-lg bg-rose-500/20 border border-rose-500/40 flex flex-col items-center justify-center font-black text-rose-300 shrink-0">
-                            <span className="text-[8px] leading-none">VVIP</span>
-                            <span className="text-xs leading-none font-mono">#{index + 1}</span>
-                          </div>
-
-                          <div className="min-w-0">
-                            <div className="font-black text-sm text-white tracking-tight truncate flex items-center gap-1">
-                              <span>{item.username}</span>
-                              <Gem size={12} className="text-rose-400 shrink-0" />
-                            </div>
-                            <div className="text-[11px] text-text-muted truncate">
-                              {item.tiktokName ? (
-                                <span className="text-accent-cyan">@{item.tiktokName}</span>
-                              ) : (
-                                <span className="text-text-faint">Tamu Live</span>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="text-right shrink-0">
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-rose-500/20 text-rose-300 font-mono font-black text-[11px] border border-rose-500/40">
-                            <Clock size={10} />
-                            <span>{formatDuration(item.duration)}</span>
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Admin Actions Bar */}
-                      {isAdmin && (
-                        <div className="flex items-center justify-between gap-1.5 mt-2.5 pt-2 border-t border-rose-500/20">
-                          <button
-                            onClick={() => onStartFromQueue(item)}
-                            className="flex-1 py-1.5 px-2.5 rounded-lg text-xs font-black text-white bg-rose-600 hover:bg-rose-500 active:scale-95 transition-all shadow-sm flex items-center justify-center gap-1 cursor-pointer"
-                          >
-                            <Gem size={13} />
-                            <span>Masuk Slot VVIP</span>
-                          </button>
-
-                          <div className="flex items-center gap-1 shrink-0">
-                            <button
-                              onClick={() => setCredentialCustomer(item)}
-                              title="Buka Brankas Akun (Password/Email)"
-                              className="p-1.5 rounded-lg bg-bg-primary hover:bg-accent-green/20 text-accent-green border border-accent-green/30 transition-colors cursor-pointer"
-                            >
-                              <Key size={12} />
-                            </button>
-                            <button
-                              onClick={() => handleCopyDM(item)}
-                              title="Salin Pesan DM TikTok Siap Kirim"
-                              className="p-1.5 rounded-lg bg-bg-primary hover:bg-accent-cyan/20 text-accent-cyan border border-accent-cyan/30 transition-colors cursor-pointer"
-                            >
-                              <MessageSquare size={12} />
-                            </button>
-                            <button
-                              onClick={() => startEdit(item)}
-                              title="Edit Antrian"
-                              className="p-1.5 rounded-lg bg-bg-primary hover:bg-white/10 text-text-dim hover:text-text-primary border border-border-subtle transition-colors cursor-pointer"
-                            >
-                              <Pencil size={12} />
-                            </button>
-                            <button
-                              onClick={() => handleDeleteItem(item)}
-                              title="Hapus Antrian"
-                              className="p-1.5 rounded-lg bg-bg-primary hover:bg-accent-red/20 text-text-dim hover:text-accent-red border border-border-subtle transition-colors cursor-pointer"
-                            >
-                              <Trash2 size={12} />
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+                  })}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* 2. VIP QUEUE (Priority) */}
           <div>

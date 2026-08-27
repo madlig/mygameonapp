@@ -11,7 +11,8 @@ import {
   AlertTriangle, 
   Key, 
   Copy, 
-  MoreHorizontal
+  MoreHorizontal,
+  Trash2
 } from 'lucide-react';
 import CredentialModal from '../modals/CredentialModal';
 
@@ -69,6 +70,7 @@ const ActiveTable = ({
   const { 
     customers, 
     updateJokiCustomer, 
+    deleteJokiCustomer,
     filter, 
     sortBy,
     isAdmin, 
@@ -184,6 +186,20 @@ const ActiveTable = ({
     navigator.clipboard.writeText(text);
     setMenuState(null);
     addToast(`✓ Pesan DM untuk ${user} berhasil disalin!`, 'success');
+  };
+  // Delete / Cancel Active Billing Slot
+  const handleDeleteSlot = async (customer) => {
+    const name = customer.username || customer.name;
+    const cleanS = getCleanSlot(customer);
+    if (window.confirm(`Hapus permanen joki ${name} dari Slot ${cleanS}? (Billing akan dibatalkan langsung dan tidak dicatat ke riwayat omset)`)) {
+      try {
+        await deleteJokiCustomer(customer.id);
+        addToast(`✓ Joki ${name} di Slot ${cleanS} berhasil dibatalkan/dihapus.`, 'info');
+      } catch (err) {
+        console.error(err);
+        addToast('Gagal menghapus billing.', 'error');
+      }
+    }
   };
 
   let filteredCustomers = customers.filter(c => {
@@ -411,19 +427,19 @@ const ActiveTable = ({
                               <Key size={13} />
                             </button>
 
-                            {/* 3. Edit Billing & Koreksi Durasi */}
+                            {/* 3. Tambah / Perpanjang Waktu (Shortcut Cepat) */}
                             <button
-                              onClick={() => onOpenEditModal(customer)}
-                              title="Edit data billing / Brankas / Koreksi durasi"
-                              className="p-1.5 rounded-xl bg-white/5 text-text-secondary hover:text-white hover:bg-white/10 border border-border-subtle transition-all cursor-pointer shadow-sm"
+                              onClick={() => onOpenExtendModal(customer)}
+                              title="Tambah / Perpanjang Waktu Billing (+ Jam)"
+                              className="p-1.5 rounded-xl bg-accent-purple/20 text-accent-purple-light hover:bg-accent-purple/30 border border-accent-purple/40 transition-all cursor-pointer shadow-sm"
                             >
-                              <Edit3 size={13} />
+                              <Plus size={13} />
                             </button>
 
                             {/* 4. Menu Titik Tiga [ ⋯ ] (Trigger Floating Popover) */}
                             <button
                               onClick={(e) => handleOpenMenu(e, customer)}
-                              title="Aksi lainnya (Extend, DM, Antrian, Stop)"
+                              title="Aksi lainnya (Edit, DM, Antrian, Stop, Hapus)"
                               className={`p-1.5 rounded-xl border transition-all cursor-pointer shadow-sm ${
                                 isMenuOpen
                                   ? 'bg-accent-cyan/25 text-accent-cyan border-accent-cyan shadow-md shadow-accent-cyan/20'
@@ -456,8 +472,8 @@ const ActiveTable = ({
           {/* Floating Dropdown Card */}
           <div 
             style={{ 
-              top: `${menuState.top}px`, 
-              right: `${menuState.right}px` 
+            top: `${menuState.top}px`, 
+            right: `${menuState.right}px` 
             }}
             className="fixed z-[9999] w-56 bg-[#13151b]/95 backdrop-blur-2xl border border-border-default rounded-2xl shadow-2xl p-1.5 space-y-1 text-left animate-slide-in"
           >
@@ -466,7 +482,21 @@ const ActiveTable = ({
               <strong className="text-white truncate max-w-[110px]">{menuState.customer.username || menuState.customer.name}</strong>
             </div>
 
-            {/* Tambah Waktu */}
+            {/* 1. Edit Billing & Brankas */}
+            <button
+              type="button"
+              onClick={() => {
+                const c = menuState.customer;
+                setMenuState(null);
+                onOpenEditModal(c);
+              }}
+              className="w-full px-2.5 py-2 rounded-xl text-left text-xs font-bold text-white hover:bg-white/10 flex items-center gap-2 cursor-pointer transition-colors"
+            >
+              <Edit3 size={13} className="text-accent-cyan" />
+              <span>Edit Data & Brankas</span>
+            </button>
+
+            {/* 2. Tambah Waktu */}
             <button
               type="button"
               onClick={() => {
@@ -480,7 +510,7 @@ const ActiveTable = ({
               <span>Tambah Waktu (+ Jam)</span>
             </button>
 
-            {/* Kembalikan ke Antrian */}
+            {/* 3. Kembalikan ke Antrian */}
             <button
               type="button"
               onClick={() => {
@@ -494,7 +524,7 @@ const ActiveTable = ({
               <span>Kembalikan ke Antrian</span>
             </button>
 
-            {/* Salin DM TikTok Templates */}
+            {/* 4. Salin DM TikTok Templates */}
             <div className="pt-1 border-t border-border-subtle">
               <div className="text-[9px] font-extrabold uppercase px-2.5 py-0.5 text-text-faint">
                 Salin Pesan DM TikTok:
@@ -522,8 +552,8 @@ const ActiveTable = ({
               </button>
             </div>
 
-            {/* Hentikan Billing */}
-            <div className="pt-1 border-t border-border-subtle">
+            {/* 5. Hentikan Billing & Hapus Permanen */}
+            <div className="pt-1 border-t border-border-subtle space-y-1">
               <button
                 type="button"
                 onClick={() => {
@@ -531,10 +561,23 @@ const ActiveTable = ({
                   setMenuState(null);
                   onRequestStopCustomer(c);
                 }}
-                className="w-full px-2.5 py-2 rounded-xl text-left text-xs font-bold text-accent-red hover:bg-accent-red/15 flex items-center gap-2 cursor-pointer transition-colors"
+                className="w-full px-2.5 py-2 rounded-xl text-left text-xs font-bold text-accent-orange hover:bg-accent-orange/15 flex items-center gap-2 cursor-pointer transition-colors"
               >
                 <Square size={13} />
-                <span>Hentikan Billing Sekarang</span>
+                <span>Hentikan Billing (Selesai)</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  const c = menuState.customer;
+                  setMenuState(null);
+                  handleDeleteSlot(c);
+                }}
+                className="w-full px-2.5 py-2 rounded-xl text-left text-xs font-bold text-accent-red hover:bg-accent-red/15 flex items-center gap-2 cursor-pointer transition-colors"
+              >
+                <Trash2 size={13} />
+                <span>Batalkan & Hapus Slot</span>
               </button>
             </div>
           </div>

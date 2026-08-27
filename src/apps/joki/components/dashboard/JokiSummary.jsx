@@ -3,7 +3,7 @@ import { useJoki } from '../../contexts/JokiContext';
 import { Users, Play, Pause, Clock, DollarSign } from 'lucide-react';
 
 const JokiSummary = () => {
-  const { customers, queue, streamerMode, isAdmin } = useJoki();
+  const { customers, queue, enableVvipSlot, streamerMode, isAdmin } = useJoki();
 
   // Hidden if not admin or if streamer mode is turned on
   if (!isAdmin || streamerMode) return null;
@@ -17,6 +17,8 @@ const JokiSummary = () => {
   const vvipActiveCount = active.filter(c => (c.service || '').toUpperCase().includes('VVIP') || c.slot === 'VVIP').length;
   const vipActiveCount = active.filter(c => ((c.service || '').toUpperCase() === 'VIP' || c.slot === 'VIP') && !((c.service || '').toUpperCase().includes('VVIP') || c.slot === 'VVIP')).length;
   const basicActiveCount = active.filter(c => !(c.service || '').toUpperCase().includes('VIP') && c.slot !== 'VIP' && c.slot !== 'VVIP').length;
+
+  const maxLiveSlots = enableVvipSlot ? 8 : 7;
 
   // Estimasi Omset Berjalan (Active billing + Antrean pending)
   const activeRevenue = active.reduce((total, c) => total + Number(c.price || 0), 0);
@@ -35,7 +37,7 @@ const JokiSummary = () => {
       color: 'text-accent-purple-light',
       bg: 'bg-accent-purple/10',
       border: 'border-accent-purple/20',
-      subtext: `${active.length}/8 Slot Live Terisi`
+      subtext: `${active.length}/${maxLiveSlots} Slot Live Terisi`
     },
     {
       label: 'Running (Aktif)',

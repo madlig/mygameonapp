@@ -463,7 +463,8 @@ const HistoryTable = () => {
               ) : (
                 paginatedData.map((customer, index) => {
                   const cleanService = getCleanService(customer.service);
-                  const isVIP = cleanService === 'VIP';
+                  const isVVIP = cleanService === 'VVIP';
+                  const isVIP = !isVVIP && cleanService === 'VIP';
                   const cleanSlot = getCleanSlot(customer);
                   const globalIndex = startIndex + index + 1;
 

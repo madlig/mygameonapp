@@ -83,12 +83,27 @@ const EditBillingModal = ({ customer, onClose }) => {
   const standardSlots = [1, 2, 3, 4, 5, 6];
   const ratePerHour = isVVIP ? PRICE_VVIP : (isVIP ? PRICE_VIP : PRICE_BASIC);
 
+  // Initial duration in hours
+  const initialDurationHours = Number(customer.duration || 1);
   // Total new duration in hours
   const calculatedTotalHours = Number(durHours || 0) + (Number(durMinutes || 0) / 60);
+  const deltaHours = calculatedTotalHours - initialDurationHours;
+  const deltaSeconds = deltaHours * 3600;
+
+  // Actual current remaining seconds of this customer
+  const currentRemainingSeconds = customer.paused
+    ? (customer.remainingAtPause !== undefined && customer.remainingAtPause !== null 
+        ? customer.remainingAtPause 
+        : Math.max(0, Math.floor(((customer.endTime || Date.now()) - Date.now()) / 1000)))
+    : Math.max(0, Math.floor(((customer.endTime || Date.now()) - Date.now()) / 1000));
+
+  // Adjusted new remaining seconds (preserves paused time; only changes if duration input changed)
+  const newRemainingSeconds = Math.max(0, Math.round(currentRemainingSeconds + deltaSeconds));
 
   // New calculated End Time
-  const newEndTime = (customer.startTime || Date.now()) + (calculatedTotalHours * 3600 * 1000);
-  const newRemainingSeconds = Math.max(0, Math.floor((newEndTime - Date.now()) / 1000));
+  const newEndTime = customer.paused
+    ? ((customer.pauseStarted || Date.now()) + (newRemainingSeconds * 1000))
+    : ((customer.endTime || Date.now()) + (deltaSeconds * 1000));
 
   // Handle service change
   const handleServiceChange = (e) => {
@@ -172,7 +187,7 @@ const EditBillingModal = ({ customer, onClose }) => {
 
     try {
       setLoading(true);
-      const chosenSlot = isVIP ? 'VIP' : slot;
+      const chosenSlot = isVVIP ? 'VVIP' : (isVIP ? 'VIP' : slot);
 
       const updates = {
         username: username.trim(),

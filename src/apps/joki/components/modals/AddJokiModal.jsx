@@ -6,12 +6,13 @@ import {
   User, 
   Lock, 
   Mail, 
-  ShieldCheck, 
   Clock, 
-  CheckCircle2, 
-  AlertCircle, 
-  DollarSign,
-  Sparkles
+  Sparkles,
+  Play,
+  Users,
+  Gem,
+  Crown,
+  Gamepad2
 } from 'lucide-react';
 
 const PRICE_BASIC = 4000;
@@ -27,13 +28,6 @@ const formatDuration = (hours) => {
   return `${m} Menit`;
 };
 
-const formatTime = (seconds) => {
-  seconds = Math.max(0, Math.floor(seconds));
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
-  return `${m}m ${s}s`;
-};
-
 const DURATION_PRESETS = [
   { label: '30m', hours: 0.5 },
   { label: '1 Jam', hours: 1 },
@@ -44,7 +38,8 @@ const DURATION_PRESETS = [
 ];
 
 const AddJokiModal = ({ isOpen, onClose }) => {
-  const { customers, addJokiCustomer, globalPaused, suggestSlot, addToast } = useJoki();
+  const { customers, addJokiCustomer, addJokiQueue, globalPaused, suggestSlot, addToast } = useJoki();
+  const [destination, setDestination] = useState('SLOT'); // 'SLOT' | 'QUEUE'
   const [username, setUsername] = useState('');
   const [tiktokName, setTiktokName] = useState('');
   const [passwordRoblox, setPasswordRoblox] = useState('');
@@ -58,6 +53,7 @@ const AddJokiModal = ({ isOpen, onClose }) => {
 
   useEffect(() => {
     if (isOpen) {
+      setDestination('SLOT');
       setUsername('');
       setTiktokName('');
       setPasswordRoblox('');
@@ -156,8 +152,28 @@ const AddJokiModal = ({ isOpen, onClose }) => {
     try {
       setLoading(true);
       const now = Date.now();
+
+      // OPTION 1: MASUK ANTREAN (QUEUE)
+      if (destination === 'QUEUE') {
+        await addJokiQueue({
+          username: username.trim(),
+          tiktokName: tiktokName.trim().replace(/^@/, ''),
+          passwordRoblox: passwordRoblox.trim(),
+          emailRoblox: emailRoblox.trim(),
+          service: service,
+          duration: calculatedHours,
+          price: totalPrice,
+          paymentStatus: 'Lunas',
+          createdAt: now
+        });
+        addToast(`Customer ${username} (${service}) berhasil masuk antrean!`, 'success');
+        onClose();
+        return;
+      }
+
+      // OPTION 2: MULAI DI SLOT LIVE
       const durationSeconds = calculatedHours * 3600;
-      const chosenSlot = isVIP ? 'VIP' : slot;
+      const chosenSlot = isVVIP ? 'VVIP' : (isVIP ? 'VIP' : slot);
 
       const customer = {
         username: username.trim(),
@@ -213,7 +229,7 @@ const AddJokiModal = ({ isOpen, onClose }) => {
         </button>
 
         {/* Header */}
-        <div className="flex items-center gap-3 mb-4">
+        <div className="flex items-center gap-3 mb-3">
           <div className="w-10 h-10 rounded-2xl bg-accent-purple/15 border border-accent-purple/30 flex items-center justify-center text-accent-purple shrink-0">
             <Plus size={20} />
           </div>
@@ -222,9 +238,37 @@ const AddJokiModal = ({ isOpen, onClose }) => {
               Tambah Order Joki Baru
             </h3>
             <p className="text-xs text-text-tertiary mt-0.5 m-0">
-              Input data customer & alokasikan langsung ke slot live
+              Input data customer Roblox & alokasikan ke slot live atau antrean
             </p>
           </div>
+        </div>
+
+        {/* Destination Switcher: Live Slot vs Queue */}
+        <div className="grid grid-cols-2 gap-2 p-1 bg-bg-primary rounded-2xl border border-border-default mb-3.5">
+          <button
+            type="button"
+            onClick={() => setDestination('SLOT')}
+            className={`py-2 px-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+              destination === 'SLOT'
+                ? 'bg-accent-purple text-white shadow-md'
+                : 'text-text-muted hover:text-white'
+            }`}
+          >
+            <Play size={13} />
+            <span>Mulai di Slot Live</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setDestination('QUEUE')}
+            className={`py-2 px-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+              destination === 'QUEUE'
+                ? 'bg-accent-cyan/20 text-accent-cyan border border-accent-cyan/40 shadow-md'
+                : 'text-text-muted hover:text-white'
+            }`}
+          >
+            <Users size={13} />
+            <span>Masukkan ke Antrean</span>
+          </button>
         </div>
 
         <form onSubmit={handleSave} className="space-y-4">
@@ -266,16 +310,15 @@ const AddJokiModal = ({ isOpen, onClose }) => {
                         onClick={() => handleSelectSuggestion(sug)}
                         className="w-full px-3 py-2 text-left text-xs text-white hover:bg-accent-purple/15 flex items-center justify-between border-b border-border-subtle last:border-0 cursor-pointer"
                       >
-                        <span className="font-black">{sug.username}</span>
-                        <span className="text-[11px] text-accent-cyan">
-                          {sug.tiktokName ? `@${sug.tiktokName}` : ''}
-                        </span>
+                        <span className="font-bold">{sug.username}</span>
+                        <span className="text-[11px] text-accent-cyan">{sug.tiktokName ? `@${sug.tiktokName}` : ''}</span>
                       </button>
                     ))}
                   </div>
                 )}
               </div>
 
+              {/* TikTok Account */}
               <div>
                 <label className="block text-[10.5px] font-bold text-text-dim mb-1">
                   Akun TikTok (Opsional)
@@ -287,18 +330,18 @@ const AddJokiModal = ({ isOpen, onClose }) => {
                     placeholder="username_tiktok"
                     value={tiktokName}
                     onChange={(e) => setTiktokName(e.target.value)}
-                    className="w-full bg-bg-surface border border-border-default rounded-xl py-2 pl-7 pr-3 text-xs text-text-primary outline-none focus:border-accent-purple/50 shadow-inner"
+                    className="w-full bg-bg-surface border border-border-default rounded-xl py-2 pl-8 pr-3 text-xs text-text-primary outline-none focus:border-accent-purple/50 shadow-inner"
                   />
                 </div>
               </div>
             </div>
 
-            {/* Brankas Fields: Password & Email */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1 border-t border-border-subtle">
+            {/* Brankas Credentials: Password & Email */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2 border-t border-border-subtle">
               <div>
                 <label className="block text-[10.5px] font-bold text-text-dim mb-1 flex items-center gap-1">
                   <Lock size={11} className="text-accent-cyan" />
-                  <span>Password Roblox (Brankas Aman)</span>
+                  <span>Password Akun Roblox (Opsional)</span>
                 </label>
                 <input
                   type="password"
@@ -389,74 +432,96 @@ const AddJokiModal = ({ isOpen, onClose }) => {
             ))}
           </div>
 
-          {/* Section 3: Visual Slot Selector */}
-          <div className="pt-2 border-t border-border-subtle">
-            {isVVIP ? (
-              <div className="bg-rose-500/10 border border-rose-500/30 rounded-2xl p-3 text-center">
-                <div className="text-xs font-black text-rose-300">💎 SLOT VVIP (Alokasi Super Priority)</div>
-              </div>
-            ) : isVIP ? (
-              <div className="bg-accent-yellow/10 border border-accent-yellow/30 rounded-2xl p-3 text-center">
-                <div className="text-xs font-black text-accent-yellow">👑 SLOT VIP (Alokasi Khusus)</div>
-              </div>
-            ) : (
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <label className="text-[10.5px] font-extrabold text-text-dim uppercase tracking-wider">
-                    Pilih Slot AFK (1 - 6)
-                  </label>
-                  <span className="text-[10.5px] text-text-dim">
-                    Slot Terpilih: <strong className="text-accent-purple-light font-mono">SLOT {slot}</strong>
-                  </span>
+          {/* Section 3: Visual Slot Selector (Only if destination === 'SLOT') */}
+          {destination === 'SLOT' ? (
+            <div className="pt-2 border-t border-border-subtle">
+              {isVVIP ? (
+                <div className="bg-rose-500/10 border border-rose-500/30 rounded-2xl p-3 text-center">
+                  <div className="text-xs font-black text-rose-300 flex items-center justify-center gap-1.5">
+                    <Gem size={14} className="text-rose-400" />
+                    <span>💎 SLOT VVIP (Alokasi Super Priority)</span>
+                  </div>
                 </div>
+              ) : isVIP ? (
+                <div className="bg-accent-yellow/10 border border-accent-yellow/30 rounded-2xl p-3 text-center">
+                  <div className="text-xs font-black text-accent-yellow flex items-center justify-center gap-1.5">
+                    <Crown size={14} className="text-accent-yellow" />
+                    <span>👑 SLOT VIP (Alokasi Khusus)</span>
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="text-[10.5px] font-extrabold text-text-dim uppercase tracking-wider">
+                      Pilih Slot AFK (1 - 6)
+                    </label>
+                    <span className="text-[10.5px] text-text-dim">
+                      Slot Terpilih: <strong className="text-accent-purple-light font-mono">SLOT {slot}</strong>
+                    </span>
+                  </div>
 
-                <div className="grid grid-cols-3 gap-2">
-                  {standardSlots.map((s) => {
-                    const sStr = s.toString();
-                    const occupied = occupiedSlots[sStr];
-                    const isSelected = slot.toString() === sStr;
+                  <div className="grid grid-cols-3 gap-2">
+                    {standardSlots.map((s) => {
+                      const sStr = s.toString();
+                      const occupied = occupiedSlots[sStr];
+                      const isSelected = slot.toString() === sStr;
 
-                    return (
-                      <button
-                        key={s}
-                        type="button"
-                        onClick={() => setSlot(s)}
-                        className={`p-2 rounded-xl border text-left transition-all cursor-pointer relative flex flex-col justify-between min-h-[56px] ${
-                          isSelected
-                            ? 'bg-accent-purple/20 border-accent-purple ring-1 ring-accent-purple'
-                            : occupied
-                            ? 'bg-bg-primary border-accent-red/25'
-                            : 'bg-bg-primary border-border-default hover:border-border-muted'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <span className={`font-mono text-xs font-black ${
-                            isSelected ? 'text-accent-purple-light' : occupied ? 'text-text-primary' : 'text-text-secondary'
-                          }`}>
-                            SLOT {s}
-                          </span>
+                      return (
+                        <button
+                          key={s}
+                          type="button"
+                          onClick={() => setSlot(s)}
+                          className={`p-2 rounded-xl border text-left transition-all cursor-pointer relative flex flex-col justify-between min-h-[56px] ${
+                            isSelected
+                              ? 'bg-accent-purple/20 border-accent-purple ring-1 ring-accent-purple'
+                              : occupied
+                              ? 'bg-bg-primary border-accent-red/25'
+                              : 'bg-bg-primary border-border-default hover:border-border-muted'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className={`font-mono text-xs font-black ${
+                              isSelected ? 'text-accent-purple-light' : occupied ? 'text-text-primary' : 'text-text-secondary'
+                            }`}>
+                              SLOT {s}
+                            </span>
+                            {occupied ? (
+                              <span className="w-1.5 h-1.5 rounded-full bg-accent-red" />
+                            ) : (
+                              <span className="w-1.5 h-1.5 rounded-full bg-accent-green" />
+                            )}
+                          </div>
                           {occupied ? (
-                            <span className="w-1.5 h-1.5 rounded-full bg-accent-red" />
+                            <div className="text-[10px] font-bold text-text-muted truncate mt-0.5">
+                              {occupied.username}
+                            </div>
                           ) : (
-                            <span className="w-1.5 h-1.5 rounded-full bg-accent-green" />
+                            <div className="text-[9.5px] font-bold text-accent-green mt-0.5">
+                              🟢 Kosong
+                            </div>
                           )}
-                        </div>
-                        {occupied ? (
-                          <div className="text-[10px] font-bold text-text-muted truncate mt-0.5">
-                            {occupied.username}
-                          </div>
-                        ) : (
-                          <div className="text-[9.5px] font-bold text-accent-green mt-0.5">
-                            🟢 Kosong
-                          </div>
-                        )}
-                      </button>
-                    );
-                  })}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-            )}
-          </div>
+              )}
+            </div>
+          ) : (
+            /* Banner Destination Antrean */
+            <div className={`p-3 rounded-2xl border text-xs font-bold flex items-center gap-2 ${
+              isVVIP
+                ? 'bg-rose-500/10 border-rose-500/30 text-rose-300'
+                : isVIP
+                ? 'bg-accent-yellow/10 border-accent-yellow/30 text-accent-yellow'
+                : 'bg-accent-cyan/10 border-accent-cyan/30 text-accent-cyan'
+            }`}>
+              {isVVIP ? <Gem size={15} /> : isVIP ? <Crown size={15} /> : <Gamepad2 size={15} />}
+              <span>
+                Customer akan dimasukkan ke <strong>ANTREAN {isVVIP ? 'VVIP (SUPER PRIORITY)' : isVIP ? 'VIP (PRIORITY)' : 'BASIC'}</strong> di sidebar.
+              </span>
+            </div>
+          )}
 
           {/* Pricing Preview Banner */}
           <div className="p-3 rounded-2xl bg-bg-primary border border-border-default flex items-center justify-between shadow-inner">
@@ -478,10 +543,20 @@ const AddJokiModal = ({ isOpen, onClose }) => {
             <button
               type="submit"
               disabled={loading}
-              className="flex items-center gap-1.5 px-6 py-2.5 rounded-xl text-xs font-black text-white bg-accent-purple hover:bg-accent-purple-light active:scale-95 transition-all shadow-lg shadow-accent-purple/25 cursor-pointer disabled:opacity-50"
+              className={`flex items-center gap-1.5 px-6 py-2.5 rounded-xl text-xs font-black text-white transition-all shadow-lg cursor-pointer disabled:opacity-50 ${
+                destination === 'QUEUE'
+                  ? 'bg-accent-cyan text-bg-primary hover:bg-accent-cyan/90 shadow-accent-cyan/25'
+                  : 'bg-accent-purple hover:bg-accent-purple-light shadow-accent-purple/25'
+              }`}
             >
               <Plus size={15} />
-              <span>{loading ? 'Menyimpan...' : 'Mulai Billing Sekarang'}</span>
+              <span>
+                {loading 
+                  ? 'Menyimpan...' 
+                  : destination === 'QUEUE'
+                  ? `+ Masukkan ke Antrean ${isVVIP ? 'VVIP' : (isVIP ? 'VIP' : 'Basic')}`
+                  : `Mulai Billing ${isVVIP ? 'VVIP' : (isVIP ? 'VIP' : 'Slot ' + slot)}`}
+              </span>
             </button>
           </div>
         </form>

@@ -14,10 +14,7 @@ import {
   Lock, 
   Mail, 
   GripVertical, 
-  DollarSign, 
   Key, 
-  Copy, 
-  Flame, 
   MessageSquare,
   Gem
 } from 'lucide-react';
@@ -57,7 +54,6 @@ const QueueSidebar = ({ onStartFromQueue, onRequestClearQueue }) => {
     deleteJokiQueue, 
     reorderQueue, 
     isAdmin, 
-    activeWorkspaceId,
     addToast 
   } = useJoki();
 
@@ -169,7 +165,7 @@ const QueueSidebar = ({ onStartFromQueue, onRequestClearQueue }) => {
       setQAmount(1);
       setQUnit('hour');
       setIsAddOpen(false);
-      addToast(`Customer ${qUsername} (${qService}) berhasil masuk antrian!`, 'success');
+      addToast(`Customer ${qUsername} (${qService}) berhasil masuk antrean!`, 'success');
     } catch (err) {
       console.error(err);
       addToast('Gagal menambahkan ke antrian.', 'error');
@@ -483,27 +479,43 @@ const QueueSidebar = ({ onStartFromQueue, onRequestClearQueue }) => {
               className="w-full py-2 rounded-xl text-xs font-black text-white bg-accent-purple hover:bg-accent-purple-light active:scale-95 transition-all shadow-md shadow-accent-purple/20 cursor-pointer disabled:opacity-50 flex items-center justify-center gap-1.5"
             >
               <Check size={13} />
-              <span>{loadingAdd ? 'Menyimpan...' : 'Masukan ke Antrian'}</span>
+              <span>{loadingAdd ? 'Menyimpan...' : `Masukan ke Antrian ${qService}`}</span>
             </button>
           </form>
         )}
 
-        {/* 3 QUEUE SECTIONS: VVIP (Top), VIP (Middle), BASIC (Bottom) */}
+        {/* 3 STRUCTURED QUEUE SECTIONS: VVIP (Top), VIP (Middle), BASIC (Bottom) */}
         <div className="space-y-4">
           
           {/* 1. VVIP QUEUE (Super Priority) */}
-          {vvipQueue.length > 0 && (
-            <div>
-              <div className="flex items-center gap-1.5 mb-2 px-1">
-                <Gem size={14} className="text-rose-400" />
-                <span className="text-[11px] font-extrabold uppercase tracking-wider text-rose-400">
-                  Antrian VVIP (Super Priority)
-                </span>
-                <span className="text-[10px] font-mono font-bold text-rose-400/80 ml-auto">
-                  {vvipQueue.length} Orang {isAdmin && '(Tarik ⠿)'}
-                </span>
-              </div>
+          <div>
+            <div className="flex items-center gap-1.5 mb-2 px-1">
+              <Gem size={14} className="text-rose-400" />
+              <span className="text-[11px] font-extrabold uppercase tracking-wider text-rose-400">
+                Antrian VVIP (Super Priority)
+              </span>
+              <span className="text-[10px] font-mono font-bold text-rose-400/80 ml-auto">
+                {vvipQueue.length} Orang {isAdmin && vvipQueue.length > 1 && '(Tarik ⠿)'}
+              </span>
+            </div>
 
+            {vvipQueue.length === 0 ? (
+              <div className="py-2.5 px-3 rounded-xl bg-rose-500/[0.03] border border-dashed border-rose-500/25 flex items-center justify-between text-xs">
+                <span className="text-[11px] text-rose-300/60 font-medium">Belum ada antrean VVIP</span>
+                {isAdmin && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setQService('VVIP');
+                      setIsAddOpen(true);
+                    }}
+                    className="text-[10px] font-black text-rose-400 hover:text-rose-300 px-2 py-0.5 rounded bg-rose-500/15 border border-rose-500/30 cursor-pointer transition-colors"
+                  >
+                    + Tambah VVIP
+                  </button>
+                )}
+              </div>
+            ) : (
               <div className="space-y-2">
                 {vvipQueue.map((item, index) => {
                   const isEditing = editingId === item.id;
@@ -654,22 +666,38 @@ const QueueSidebar = ({ onStartFromQueue, onRequestClearQueue }) => {
                   );
                 })}
               </div>
-            </div>
-          )}
+            )}
+          </div>
 
           {/* 2. VIP QUEUE (Priority) */}
-          {vipQueue.length > 0 && (
-            <div>
-              <div className="flex items-center gap-1.5 mb-2 px-1">
-                <Crown size={14} className="text-accent-yellow" />
-                <span className="text-[11px] font-extrabold uppercase tracking-wider text-accent-yellow">
-                  Antrian VIP (Priority)
-                </span>
-                <span className="text-[10px] font-mono font-bold text-accent-yellow/80 ml-auto">
-                  {vipQueue.length} Orang {isAdmin && '(Tarik ⠿)'}
-                </span>
-              </div>
+          <div>
+            <div className="flex items-center gap-1.5 mb-2 px-1">
+              <Crown size={14} className="text-accent-yellow" />
+              <span className="text-[11px] font-extrabold uppercase tracking-wider text-accent-yellow">
+                Antrian VIP (Priority)
+              </span>
+              <span className="text-[10px] font-mono font-bold text-accent-yellow/80 ml-auto">
+                {vipQueue.length} Orang {isAdmin && vipQueue.length > 1 && '(Tarik ⠿)'}
+              </span>
+            </div>
 
+            {vipQueue.length === 0 ? (
+              <div className="py-2.5 px-3 rounded-xl bg-accent-yellow/[0.03] border border-dashed border-accent-yellow/25 flex items-center justify-between text-xs">
+                <span className="text-[11px] text-accent-yellow/60 font-medium">Belum ada antrean VIP</span>
+                {isAdmin && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setQService('VIP');
+                      setIsAddOpen(true);
+                    }}
+                    className="text-[10px] font-black text-accent-yellow hover:text-accent-yellow-light px-2 py-0.5 rounded bg-accent-yellow/15 border border-accent-yellow/30 cursor-pointer transition-colors"
+                  >
+                    + Tambah VIP
+                  </button>
+                )}
+              </div>
+            ) : (
               <div className="space-y-2">
                 {vipQueue.map((item, index) => {
                   const isEditing = editingId === item.id;
@@ -781,7 +809,7 @@ const QueueSidebar = ({ onStartFromQueue, onRequestClearQueue }) => {
                             className="flex-1 py-1.5 px-2.5 rounded-lg text-xs font-black text-bg-primary bg-accent-yellow hover:bg-accent-yellow-light active:scale-95 transition-all shadow-sm flex items-center justify-center gap-1 cursor-pointer"
                           >
                             <Gamepad2 size={13} />
-                            <span>Masuk Slot</span>
+                            <span>Masuk Slot VIP</span>
                           </button>
 
                           <div className="flex items-center gap-1 shrink-0">
@@ -820,8 +848,8 @@ const QueueSidebar = ({ onStartFromQueue, onRequestClearQueue }) => {
                   );
                 })}
               </div>
-            </div>
-          )}
+            )}
+          </div>
 
           {/* 3. BASIC QUEUE (Standard) */}
           <div>
@@ -831,23 +859,25 @@ const QueueSidebar = ({ onStartFromQueue, onRequestClearQueue }) => {
                 Antrian Basic
               </span>
               <span className="text-[10px] font-mono font-bold text-accent-cyan/80 ml-auto">
-                {basicQueue.length} Orang {isAdmin && '(Tarik ⠿)'}
+                {basicQueue.length} Orang {isAdmin && basicQueue.length > 1 && '(Tarik ⠿)'}
               </span>
             </div>
 
-            {basicQueue.length === 0 && vipQueue.length === 0 && vvipQueue.length === 0 ? (
-              <div className="py-8 px-4 text-center rounded-2xl bg-bg-primary border border-border-subtle">
-                <div className="w-10 h-10 mx-auto mb-2 rounded-xl bg-white/[0.03] border border-border-subtle flex items-center justify-center text-text-faint">
-                  <Users size={18} />
-                </div>
-                <div className="text-xs font-bold text-text-muted">Antrian Masih Kosong</div>
-                <p className="text-[11px] text-text-faint mt-0.5 m-0">
-                  {isAdmin ? 'Klik tombol + Tambah di atas untuk memasukkan pemain.' : 'Siap menerima joki baru dari penonton live.'}
-                </p>
-              </div>
-            ) : basicQueue.length === 0 ? (
-              <div className="py-3 px-3 text-center rounded-xl bg-bg-primary/50 border border-border-subtle text-[11px] text-text-faint">
-                Tidak ada antrian basic saat ini.
+            {basicQueue.length === 0 ? (
+              <div className="py-2.5 px-3 rounded-xl bg-accent-cyan/[0.03] border border-dashed border-accent-cyan/25 flex items-center justify-between text-xs">
+                <span className="text-[11px] text-text-dim font-medium">Belum ada antrean basic</span>
+                {isAdmin && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setQService('Basic');
+                      setIsAddOpen(true);
+                    }}
+                    className="text-[10px] font-black text-accent-cyan hover:text-white px-2 py-0.5 rounded bg-accent-cyan/15 border border-accent-cyan/30 cursor-pointer transition-colors"
+                  >
+                    + Tambah Basic
+                  </button>
+                )}
               </div>
             ) : (
               <div className="space-y-2">

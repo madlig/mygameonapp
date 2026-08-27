@@ -16,6 +16,7 @@ import {
 
 const PRICE_BASIC = 4000;
 const PRICE_VIP = 6000;
+const PRICE_VVIP = 10000;
 
 const formatDuration = (hours) => {
   const totalMinutes = Math.round(Number(hours) * 60);
@@ -72,7 +73,9 @@ const AddJokiModal = ({ isOpen, onClose }) => {
   const handleServiceChange = (e) => {
     const val = e.target.value;
     setService(val);
-    if (val === 'VIP') {
+    if (val === 'VVIP') {
+      setSlot('VVIP');
+    } else if (val === 'VIP') {
       setSlot('VIP');
     } else {
       setSlot(suggestSlot());
@@ -81,7 +84,8 @@ const AddJokiModal = ({ isOpen, onClose }) => {
 
   if (!isOpen) return null;
 
-  const isVIP = service === 'VIP';
+  const isVVIP = service === 'VVIP';
+  const isVIP = !isVVIP && service === 'VIP';
   const standardSlots = [1, 2, 3, 4, 5, 6];
 
   // Unique repeat customer list for autocomplete
@@ -134,7 +138,7 @@ const AddJokiModal = ({ isOpen, onClose }) => {
     ? Number(durationValue || 0)
     : Number(durationValue || 0) / 60;
 
-  const pricePerHour = isVIP ? PRICE_VIP : PRICE_BASIC;
+  const pricePerHour = isVVIP ? PRICE_VVIP : (isVIP ? PRICE_VIP : PRICE_BASIC);
   const totalPrice = Math.round(calculatedHours * pricePerHour);
 
   const handleSave = async (e) => {
@@ -334,6 +338,7 @@ const AddJokiModal = ({ isOpen, onClose }) => {
               >
                 <option value="Basic">Basic (Rp 4.000 / Jam)</option>
                 <option value="VIP">VIP (Rp 6.000 / Jam - Priority)</option>
+                <option value="VVIP">VVIP (Rp 10.000 / Jam - Super Priority)</option>
               </select>
             </div>
 
@@ -384,9 +389,13 @@ const AddJokiModal = ({ isOpen, onClose }) => {
             ))}
           </div>
 
-          {/* Section 3: Visual Slot Selector (1 - 6) */}
+          {/* Section 3: Visual Slot Selector */}
           <div className="pt-2 border-t border-border-subtle">
-            {isVIP ? (
+            {isVVIP ? (
+              <div className="bg-rose-500/10 border border-rose-500/30 rounded-2xl p-3 text-center">
+                <div className="text-xs font-black text-rose-300">💎 SLOT VVIP (Alokasi Super Priority)</div>
+              </div>
+            ) : isVIP ? (
               <div className="bg-accent-yellow/10 border border-accent-yellow/30 rounded-2xl p-3 text-center">
                 <div className="text-xs font-black text-accent-yellow">👑 SLOT VIP (Alokasi Khusus)</div>
               </div>

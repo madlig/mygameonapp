@@ -21,6 +21,7 @@ import {
 
 const PRICE_BASIC = 4000;
 const PRICE_VIP = 6000;
+const PRICE_VVIP = 10000;
 
 const formatTime = (seconds) => {
   seconds = Math.max(0, Math.floor(seconds));
@@ -77,9 +78,10 @@ const EditBillingModal = ({ customer, onClose }) => {
 
   if (!customer) return null;
 
-  const isVIP = service === 'VIP';
+  const isVVIP = service === 'VVIP';
+  const isVIP = !isVVIP && service === 'VIP';
   const standardSlots = [1, 2, 3, 4, 5, 6];
-  const ratePerHour = isVIP ? PRICE_VIP : PRICE_BASIC;
+  const ratePerHour = isVVIP ? PRICE_VVIP : (isVIP ? PRICE_VIP : PRICE_BASIC);
 
   // Total new duration in hours
   const calculatedTotalHours = Number(durHours || 0) + (Number(durMinutes || 0) / 60);
@@ -87,6 +89,21 @@ const EditBillingModal = ({ customer, onClose }) => {
   // New calculated End Time
   const newEndTime = (customer.startTime || Date.now()) + (calculatedTotalHours * 3600 * 1000);
   const newRemainingSeconds = Math.max(0, Math.floor((newEndTime - Date.now()) / 1000));
+
+  // Handle service change
+  const handleServiceChange = (e) => {
+    const newService = e.target.value;
+    setService(newService);
+    const newRate = newService === 'VVIP' ? PRICE_VVIP : (newService === 'VIP' ? PRICE_VIP : PRICE_BASIC);
+    setPrice(Math.round(calculatedTotalHours * newRate));
+    if (newService === 'VVIP') {
+      setSlot('VVIP');
+    } else if (newService === 'VIP') {
+      setSlot('VIP');
+    } else if (slot === 'VIP' || slot === 'VVIP') {
+      setSlot(1);
+    }
+  };
 
   // Auto-hide password after 5 seconds
   const handleToggleShowPassword = () => {
@@ -140,18 +157,6 @@ const EditBillingModal = ({ customer, onClose }) => {
       };
     }
   });
-
-  const handleServiceChange = (e) => {
-    const val = e.target.value;
-    setService(val);
-    const newRate = val === 'VIP' ? PRICE_VIP : PRICE_BASIC;
-    setPrice(Math.round(calculatedTotalHours * newRate));
-    if (val === 'VIP') {
-      setSlot('VIP');
-    } else if (slot === 'VIP') {
-      setSlot(1);
-    }
-  };
 
   const handleSave = async (e) => {
     if (e) e.preventDefault();
@@ -444,6 +449,7 @@ const EditBillingModal = ({ customer, onClose }) => {
               >
                 <option value="Basic">Basic (4k/j)</option>
                 <option value="VIP">VIP (6k/j)</option>
+                <option value="VVIP">VVIP (10k/j)</option>
               </select>
             </div>
 
@@ -456,7 +462,7 @@ const EditBillingModal = ({ customer, onClose }) => {
                 <input
                   type="number"
                   min="0"
-                  step="500"
+                  step="any"
                   value={price}
                   onChange={(e) => setPrice(e.target.value)}
                   className="w-full bg-bg-primary border border-border-default rounded-xl py-2 pl-8 pr-2 text-xs text-accent-yellow font-mono font-black outline-none focus:border-accent-yellow/50"
@@ -483,7 +489,11 @@ const EditBillingModal = ({ customer, onClose }) => {
 
           {/* SECTION 4: PINDAH SLOT VISUAL */}
           <div className="pt-2 border-t border-border-subtle">
-            {isVIP ? (
+            {isVVIP ? (
+              <div className="bg-rose-500/10 border border-rose-500/30 rounded-2xl p-3 text-center">
+                <div className="text-xs font-black text-rose-300">💎 SLOT VVIP AKTIF (SUPER PRIORITY)</div>
+              </div>
+            ) : isVIP ? (
               <div className="bg-accent-yellow/10 border border-accent-yellow/30 rounded-2xl p-3 text-center">
                 <div className="text-xs font-black text-accent-yellow">👑 SLOT VIP AKTIF</div>
               </div>

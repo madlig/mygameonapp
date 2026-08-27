@@ -42,16 +42,20 @@ const formatDuration = (hours) => {
   return `${m} Menit`;
 };
 
-// Clean helper to strictly display Basic or VIP
+// Clean helper to strictly display Basic, VIP, or VVIP
 const getCleanService = (service) => {
   if (!service) return 'Basic';
-  return service.toString().toUpperCase().includes('VIP') ? 'VIP' : 'Basic';
+  const s = service.toString().toUpperCase();
+  if (s.includes('VVIP')) return 'VVIP';
+  if (s.includes('VIP')) return 'VIP';
+  return 'Basic';
 };
 
 // Clean helper to strictly display Slot Badge
 const getCleanSlot = (customer) => {
-  const isVIP = getCleanService(customer.service) === 'VIP' || customer.slot === 'VIP';
-  if (isVIP) return 'VIP';
+  const srv = getCleanService(customer.service);
+  if (srv === 'VVIP' || customer.slot === 'VVIP') return 'VVIP';
+  if (srv === 'VIP' || customer.slot === 'VIP') return 'VIP';
   return customer.slot || '1';
 };
 
@@ -206,9 +210,13 @@ const ActiveTable = ({
       return remA - remB; // Shortest remaining time on top ("Nu Sakedeng Dei")
     }
     if (sortBy === 'SLOT') {
-      const slotA = a.slot === 'VIP' ? 99 : Number(a.slot || 1);
-      const slotB = b.slot === 'VIP' ? 99 : Number(b.slot || 1);
-      return slotA - slotB;
+      const getSlotVal = (c) => {
+        const s = getCleanSlot(c);
+        if (s === 'VVIP') return -2;
+        if (s === 'VIP') return -1;
+        return Number(s) || 99;
+      };
+      return getSlotVal(a) - getSlotVal(b);
     }
     if (sortBy === 'NAME') {
       const nameA = (a.username || a.name || '').toLowerCase();
@@ -253,9 +261,11 @@ const ActiveTable = ({
                   const remaining = getRemaining(customer);
                   const isWarning = !customer.paused && remaining <= 300; // <= 5 menit
                   const cleanService = getCleanService(customer.service);
-                  const isVIP = cleanService === 'VIP';
+                  const isVVIP = cleanService === 'VVIP';
+                  const isVIP = !isVVIP && cleanService === 'VIP';
                   const cleanSlot = getCleanSlot(customer);
-                  const isDuplicateSlot = !isVIP && (slotCounts[cleanSlot] > 1);
+                  const isSpecialSlot = cleanSlot === 'VVIP' || cleanSlot === 'VIP';
+                  const isDuplicateSlot = !isSpecialSlot && (slotCounts[cleanSlot] > 1);
                   const isMenuOpen = menuState?.customer?.id === customer.id;
                   
                   return (
@@ -297,11 +307,13 @@ const ActiveTable = ({
                       {/* Layanan */}
                       <td className="py-3 px-3 text-center">
                         <span className={`inline-block px-2.5 py-0.5 rounded-full text-[10.5px] font-extrabold uppercase tracking-wide ${
-                          isVIP 
+                          isVVIP
+                            ? 'text-rose-400 bg-rose-500/20 border border-rose-500/40 shadow-sm shadow-rose-500/10'
+                            : isVIP 
                             ? 'text-accent-yellow bg-accent-yellow/15 border border-accent-yellow/30' 
                             : 'text-accent-purple-light bg-accent-purple/15 border border-accent-purple/30'
                         }`}>
-                          {cleanService}
+                          {isVVIP ? '💎 VVIP' : (isVIP ? '👑 VIP' : cleanService)}
                         </span>
                       </td>
 
@@ -309,13 +321,15 @@ const ActiveTable = ({
                       <td className="py-3 px-3 text-center">
                         <div className="inline-flex items-center gap-1">
                           <span className={`inline-flex items-center justify-center min-w-[32px] px-2 py-0.5 rounded-lg text-xs font-extrabold font-mono tracking-tight ${
-                            isVIP
+                            cleanSlot === 'VVIP'
+                              ? 'bg-rose-500/20 text-rose-300 border border-rose-500/50 shadow-sm'
+                              : cleanSlot === 'VIP'
                               ? 'bg-accent-yellow/15 text-accent-yellow border border-accent-yellow/35'
                               : isDuplicateSlot
                               ? 'bg-accent-red/20 text-accent-red border border-accent-red/40 animate-pulse'
                               : 'bg-accent-cyan/15 text-accent-cyan border border-accent-cyan/35'
                           }`}>
-                            {cleanSlot === 'VIP' ? '👑 VIP' : `SLOT ${cleanSlot}`}
+                            {cleanSlot === 'VVIP' ? '💎 VVIP' : (cleanSlot === 'VIP' ? '👑 VIP' : `SLOT ${cleanSlot}`)}
                           </span>
                           {isDuplicateSlot && (
                             <span title="Slot ini terduplikasi! Klik menu ⋯ untuk kembalikan ke antrian" className="text-accent-red">

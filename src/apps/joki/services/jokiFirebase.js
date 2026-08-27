@@ -38,11 +38,17 @@ export const subscribeJokiCustomers = (workspaceId = DEFAULT_WORKSPACE_ID, callb
 // ── Queue Listener per Workspace ──
 export const subscribeJokiQueue = (workspaceId = DEFAULT_WORKSPACE_ID, callback) => {
   const colRef = collection(db, "joki_workspaces", workspaceId, "queue");
-  const q = query(colRef, orderBy("orderIndex", "asc"));
-  return onSnapshot(q, (snapshot) => {
+  return onSnapshot(colRef, (snapshot) => {
     const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    // Fallback sort if orderIndex is not set
-    data.sort((a, b) => (a.orderIndex ?? a.createdAt ?? 0) - (b.orderIndex ?? b.createdAt ?? 0));
+    // Robust in-memory sorting: orderIndex first, then createdAt asc
+    data.sort((a, b) => {
+      const idxA = a.orderIndex !== undefined && a.orderIndex !== null ? a.orderIndex : null;
+      const idxB = b.orderIndex !== undefined && b.orderIndex !== null ? b.orderIndex : null;
+      if (idxA !== null && idxB !== null) return idxA - idxB;
+      if (idxA !== null) return -1;
+      if (idxB !== null) return 1;
+      return (a.createdAt || 0) - (b.createdAt || 0);
+    });
     callback(data);
   });
 };
@@ -105,13 +111,15 @@ export const addJokiQueue = async (workspaceId = DEFAULT_WORKSPACE_ID, queueData
   const colRef = collection(db, "joki_workspaces", workspaceId, "queue");
   const newDocRef = doc(colRef);
   const ticketId = queueData.ticketId || generateTicketId();
+  const now = Date.now();
   await setDoc(newDocRef, {
     ...queueData,
     workspaceId,
     ticketId,
     passwordRoblox: queueData.passwordRoblox || '',
     emailRoblox: queueData.emailRoblox || '',
-    createdAt: Date.now()
+    orderIndex: queueData.orderIndex !== undefined ? queueData.orderIndex : now,
+    createdAt: now
   });
   return newDocRef.id;
 };

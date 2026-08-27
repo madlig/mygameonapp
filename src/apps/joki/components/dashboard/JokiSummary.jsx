@@ -14,8 +14,9 @@ const JokiSummary = () => {
   
   // Total Playtime Jam Billing Aktif
   const totalActiveHours = active.reduce((sum, c) => sum + Number(c.duration || 0), 0);
-  const vipActiveCount = active.filter(c => (c.service || '').toUpperCase().includes('VIP') || c.slot === 'VIP').length;
-  const basicActiveCount = active.filter(c => !(c.service || '').toUpperCase().includes('VIP') && c.slot !== 'VIP').length;
+  const vvipActiveCount = active.filter(c => (c.service || '').toUpperCase().includes('VVIP') || c.slot === 'VVIP').length;
+  const vipActiveCount = active.filter(c => ((c.service || '').toUpperCase() === 'VIP' || c.slot === 'VIP') && !((c.service || '').toUpperCase().includes('VVIP') || c.slot === 'VVIP')).length;
+  const basicActiveCount = active.filter(c => !(c.service || '').toUpperCase().includes('VIP') && c.slot !== 'VIP' && c.slot !== 'VVIP').length;
 
   // Estimasi Omset Berjalan (Active billing + Antrean pending)
   const activeRevenue = active.reduce((total, c) => total + Number(c.price || 0), 0);
@@ -34,7 +35,7 @@ const JokiSummary = () => {
       color: 'text-accent-purple-light',
       bg: 'bg-accent-purple/10',
       border: 'border-accent-purple/20',
-      subtext: `${active.length}/7 Slot Live Terisi`
+      subtext: `${active.length}/8 Slot Live Terisi`
     },
     {
       label: 'Running (Aktif)',
@@ -61,7 +62,9 @@ const JokiSummary = () => {
       color: 'text-accent-cyan',
       bg: 'bg-accent-cyan/10',
       border: 'border-accent-cyan/20',
-      subtext: `${vipActiveCount} VIP • ${basicActiveCount} Basic`
+      subtext: vvipActiveCount > 0 
+        ? `${vvipActiveCount} VVIP • ${vipActiveCount} VIP • ${basicActiveCount} Basic`
+        : `${vipActiveCount} VIP • ${basicActiveCount} Basic`
     },
     {
       label: 'Estimasi Omset Berjalan',

@@ -22,7 +22,8 @@ import {
   Radio, 
   Flame, 
   Coffee,
-  Moon
+  Moon,
+  Gem
 } from 'lucide-react';
 import { computeLiveStatus } from '../services/jokiFirebase';
 
@@ -82,8 +83,7 @@ const TicketPage = () => {
         : allWs;
 
       let found = false;
-
-      // Subscribe to all workspace subcollections to track ticket in real-time
+      const allSettingsMap = {};
       const subUnsubs = [];
 
       targetWorkspaces.forEach(ws => {
@@ -94,7 +94,14 @@ const TicketPage = () => {
         // Settings listener
         const uSettings = onSnapshot(settingsDoc, (sSnap) => {
           if (sSnap.exists()) {
-            setWorkspaceSettings(sSnap.data());
+            const sData = sSnap.data();
+            allSettingsMap[ws.id] = sData;
+            setTicketData(prev => {
+              if (prev && prev.workspaceId === ws.id) {
+                setWorkspaceSettings(sData);
+              }
+              return prev;
+            });
           }
         });
         subUnsubs.push(uSettings);
@@ -102,7 +109,6 @@ const TicketPage = () => {
         // Customers listener (Active / Finished)
         const uCust = onSnapshot(custCol, (cSnap) => {
           const custs = cSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-          setActiveCustomers(custs.filter(c => !c.finished));
 
           // Check if ticket is in customers
           const matchCust = custs.find(c => {
@@ -112,8 +118,12 @@ const TicketPage = () => {
 
           if (matchCust) {
             found = true;
+            setActiveCustomers(custs.filter(c => !c.finished));
             setTicketData({ ...matchCust, type: 'CUSTOMER', workspaceId: ws.id });
             setWorkspaceInfo(ws);
+            if (allSettingsMap[ws.id]) {
+              setWorkspaceSettings(allSettingsMap[ws.id]);
+            }
             setLoading(false);
           }
         });
@@ -123,7 +133,6 @@ const TicketPage = () => {
         const uQueue = onSnapshot(queueCol, (qSnap) => {
           const qItems = qSnap.docs.map(d => ({ id: d.id, ...d.data() }));
           qItems.sort((a, b) => (a.orderIndex ?? a.createdAt ?? 0) - (b.orderIndex ?? b.createdAt ?? 0));
-          setQueueList(qItems);
 
           // Check if ticket is in queue
           const matchQueue = qItems.find(q => {
@@ -133,8 +142,12 @@ const TicketPage = () => {
 
           if (matchQueue) {
             found = true;
+            setQueueList(qItems);
             setTicketData({ ...matchQueue, type: 'QUEUE', workspaceId: ws.id });
             setWorkspaceInfo(ws);
+            if (allSettingsMap[ws.id]) {
+              setWorkspaceSettings(allSettingsMap[ws.id]);
+            }
             setLoading(false);
           }
         });
@@ -233,11 +246,13 @@ const TicketPage = () => {
   }
 
   // Determine Customer State
-  const isVIP = (ticketData.service || '').toUpperCase().includes('VIP');
+  const serviceUpper = (ticketData.service || '').toUpperCase();
+  const isVVIP = serviceUpper.includes('VVIP') || ticketData.slot === 'VVIP';
+  const isVIP = !isVVIP && (serviceUpper.includes('VIP') || ticketData.slot === 'VIP');
   const streamerName = workspaceInfo?.name || 'Kadal Gaming';
 
-  // Compute Time-Based Semi-Automatic Stream Status
-  const liveState = computeLiveStatus(workspaceSettings);
+  // Compute Time-Based & Active-Slot Live Status
+  const liveState = computeLiveStatus(workspaceSettings, activeCustomers);
   const streamStatus = liveState.status;
   const nextSchedule = liveState.subtext || '';
 
@@ -248,26 +263,33 @@ const TicketPage = () => {
   let estimatedStartTimeStr = '--:--';
 
   if (ticketData.type === 'QUEUE') {
-    const subQueue = isVIP 
-      ? queueList.filter(q => (q.service || '').toUpperCase().includes('VIP'))
-      : queueList.filter(q => !(q.service || '').toUpperCase().includes('VIP'));
+    const subQueue = isVVIP
+      ? queueList.filter(q => (q.service || '').toUpperCase() === 'VVIP')
+      : isVIP 
+      ? queueList.filter(q => (q.service || '').toUpperCase() === 'VIP')
+      : queueList.filter(q => {
+          const s = (q.service || '').toUpperCase();
+          return s !== 'VIP' && s !== 'VVIP';
+        });
 
     const myIndex = subQueue.findIndex(q => q.id === ticketData.id);
     queuePosition = myIndex >= 0 ? myIndex + 1 : 1;
 
     // Filter relevant active slots
-    const relevantSlots = isVIP
-      ? activeCustomers.filter(c => (c.service || '').toUpperCase().includes('VIP') || c.slot === 'VIP')
-      : activeCustomers.filter(c => !(c.service || '').toUpperCase().includes('VIP') && c.slot !== 'VIP');
+    const relevantSlots = isVVIP
+      ? activeCustomers.filter(c => (c.service || '').toUpperCase().includes('VVIP') || c.slot === 'VVIP')
+      : isVIP
+      ? activeCustomers.filter(c => ((c.service || '').toUpperCase() === 'VIP' || c.slot === 'VIP') && !((c.service || '').toUpperCase().includes('VVIP') || c.slot === 'VVIP'))
+      : activeCustomers.filter(c => !(c.service || '').toUpperCase().includes('VIP') && c.slot !== 'VIP' && c.slot !== 'VVIP');
 
     if (streamStatus === 'OFFLINE') {
       estimatedWaitMinutes = 0;
-      estimatedSlotName = isVIP ? 'SLOT VIP' : 'Slot Live';
+      estimatedSlotName = isVVIP ? 'SLOT VVIP' : (isVIP ? 'SLOT VIP' : 'Slot Live');
       estimatedStartTimeStr = liveState.liveStartTime ? `Pukul ${liveState.liveStartTime} WIB` : 'Sesi Live Berikutnya';
     } else if (relevantSlots.length === 0) {
       // Slot is currently vacant
       estimatedWaitMinutes = 0;
-      estimatedSlotName = isVIP ? 'SLOT VIP' : 'Slot Siap!';
+      estimatedSlotName = isVVIP ? 'SLOT VVIP' : (isVIP ? 'SLOT VIP' : 'Slot Siap!');
       estimatedStartTimeStr = 'Segera (Slot Siap)';
     } else {
       // Sort active slots by remaining finish time
@@ -285,7 +307,7 @@ const TicketPage = () => {
         : Math.max(0, Math.floor(((targetCustomer?.endTime || now) - now) / 1000));
 
       estimatedWaitMinutes = Math.max(1, Math.round(remSec / 60));
-      estimatedSlotName = isVIP ? 'SLOT VIP' : `SLOT ${targetCustomer?.slot || '1'}`;
+      estimatedSlotName = isVVIP ? 'SLOT VVIP' : (isVIP ? 'SLOT VIP' : `SLOT ${targetCustomer?.slot || '1'}`);
       estimatedStartTimeStr = formatClock(now + (remSec * 1000));
     }
   }
@@ -356,7 +378,7 @@ const TicketPage = () => {
             <p className="text-[11.5px] text-text-dim m-0 leading-relaxed">
               {ticketData.type === 'CUSTOMER' && !ticketData.finished ? (
                 <span>
-                  Sesi live sudah selesai. Joki di <strong className="text-white">{ticketData.slot === 'VIP' ? 'Slot VIP' : `Slot ${ticketData.slot}`}</strong> dijeda dan <strong className="text-accent-green">sisa waktu aman</strong> untuk dilanjutkan saat live berikutnya!
+                  Sesi live sudah selesai. Joki di <strong className="text-white">{ticketData.slot === 'VVIP' ? 'Slot VVIP' : (ticketData.slot === 'VIP' ? 'Slot VIP' : `Slot ${ticketData.slot}`)}</strong> dijeda dan <strong className="text-accent-green">sisa waktu aman</strong> untuk dilanjutkan saat live berikutnya!
                 </span>
               ) : (
                 <span>
@@ -371,7 +393,9 @@ const TicketPage = () => {
 
         {/* MAIN TICKET CARD */}
         <div className={`rounded-3xl p-5 border-2 shadow-2xl relative overflow-hidden backdrop-blur-xl ${
-          isVIP
+          isVVIP
+            ? 'bg-gradient-to-b from-[#211116] to-[#121318] border-rose-500/50 shadow-rose-500/10'
+            : isVIP
             ? 'bg-gradient-to-b from-[#181611] to-[#121318] border-accent-yellow/40 shadow-accent-yellow/5'
             : 'bg-gradient-to-b from-[#14151f] to-[#0f1015] border-accent-cyan/30 shadow-accent-cyan/5'
         }`}>
@@ -384,7 +408,11 @@ const TicketPage = () => {
               </div>
               <div className="text-lg font-black text-white tracking-tight truncate flex items-center gap-1.5">
                 <span>{ticketData.username || ticketData.name}</span>
-                {isVIP && <Crown size={16} className="text-accent-yellow shrink-0" />}
+                {isVVIP ? (
+                  <Gem size={16} className="text-rose-400 shrink-0" />
+                ) : isVIP ? (
+                  <Crown size={16} className="text-accent-yellow shrink-0" />
+                ) : null}
               </div>
               {ticketData.tiktokName && (
                 <span className="text-xs text-accent-cyan font-bold">
@@ -395,11 +423,13 @@ const TicketPage = () => {
 
             <div className="text-right shrink-0">
               <span className={`inline-block px-3 py-1 rounded-xl text-xs font-black uppercase tracking-wider border ${
-                isVIP
+                isVVIP
+                  ? 'bg-rose-500/20 text-rose-300 border-rose-500/50 shadow-sm'
+                  : isVIP
                   ? 'bg-accent-yellow/20 text-accent-yellow border-accent-yellow/40'
                   : 'bg-accent-purple/20 text-accent-purple-light border-accent-purple/40'
               }`}>
-                {isVIP ? '👑 VIP' : 'Basic'}
+                {isVVIP ? '💎 VVIP' : (isVIP ? '👑 VIP' : 'Basic')}
               </span>
               <div className="text-[11px] font-mono text-text-muted font-bold mt-1">
                 {formatDuration(ticketData.duration)}
@@ -462,13 +492,15 @@ const TicketPage = () => {
                 <div className={`font-mono text-4xl md:text-5xl font-black tracking-tight ${
                   isPaused && streamStatus === 'OFFLINE' 
                     ? 'text-accent-purple-light' 
-                    : isPaused ? 'text-accent-orange' : 'text-accent-green'
+                    : isPaused ? 'text-accent-orange' : isVVIP ? 'text-rose-400' : 'text-accent-green'
                 }`}>
                   {formatTime(remainingSeconds)}
                 </div>
                 <div className="text-[11px] font-bold text-text-tertiary mt-1.5 flex items-center justify-center gap-1">
                   <span>Slot Bermain:</span>
-                  <strong className="text-white font-mono">{ticketData.slot === 'VIP' ? '👑 VIP' : `SLOT ${ticketData.slot}`}</strong>
+                  <strong className="text-white font-mono">
+                    {ticketData.slot === 'VVIP' ? '💎 VVIP (SUPER PRIORITY)' : (ticketData.slot === 'VIP' ? '👑 VIP' : `SLOT ${ticketData.slot}`)}
+                  </strong>
                 </div>
               </div>
 
@@ -522,10 +554,10 @@ const TicketPage = () => {
               {/* Position Banner */}
               <div className="p-4 rounded-2xl bg-bg-primary/90 border border-white/10 text-center shadow-inner">
                 <div className="text-[11px] font-extrabold uppercase tracking-widest text-text-dim mb-1">
-                  Urutan Antrean Kamu
+                  Urutan Antrean Kamu {isVVIP ? '(VVIP Super Priority)' : isVIP ? '(VIP Priority)' : ''}
                 </div>
                 <div className={`font-mono text-4xl md:text-5xl font-black tracking-tight ${
-                  queuePosition === 1 ? 'text-accent-yellow' : 'text-accent-cyan'
+                  isVVIP ? 'text-rose-400' : queuePosition === 1 ? 'text-accent-yellow' : 'text-accent-cyan'
                 }`}>
                   #{queuePosition}
                 </div>
@@ -542,7 +574,7 @@ const TicketPage = () => {
               <div className="p-3.5 rounded-2xl bg-white/[0.03] border border-white/10 space-y-2 text-xs">
                 <div className="flex items-center justify-between">
                   <span className="text-text-dim">⏳ Estimasi Waktu Tunggu:</span>
-                  <strong className="text-accent-yellow font-mono text-sm">
+                  <strong className={`font-mono text-sm ${isVVIP ? 'text-rose-400' : 'text-accent-yellow'}`}>
                     {streamStatus === 'OFFLINE' ? 'Saat Live Mulai' : `~${estimatedWaitMinutes} Menit lagi`}
                   </strong>
                 </div>
@@ -554,15 +586,19 @@ const TicketPage = () => {
                 </div>
                 <div className="flex items-center justify-between pt-1 border-t border-white/5">
                   <span className="text-text-dim">🎰 Target Slot:</span>
-                  <strong className="text-accent-cyan font-mono">
+                  <strong className={`font-mono ${isVVIP ? 'text-rose-400' : 'text-accent-cyan'}`}>
                     {estimatedSlotName}
                   </strong>
                 </div>
               </div>
 
               {queuePosition === 1 && streamStatus !== 'OFFLINE' && (
-                <div className="p-3 rounded-xl bg-accent-yellow/10 border border-accent-yellow/30 text-xs text-accent-yellow font-medium">
-                  ⚡ <strong>Siap-siap bro!</strong> Streamer akan segera memasukkan akunmu ke slot live begitu slot berikutnya kosong.
+                <div className={`p-3 rounded-xl border text-xs font-medium ${
+                  isVVIP 
+                    ? 'bg-rose-500/10 border-rose-500/30 text-rose-300' 
+                    : 'bg-accent-yellow/10 border-accent-yellow/30 text-accent-yellow'
+                }`}>
+                  ⚡ <strong>Siap-siap bro!</strong> Streamer akan segera memasukkan akunmu ke slot live begitu slot kosong.
                 </div>
               )}
             </div>
@@ -571,7 +607,7 @@ const TicketPage = () => {
           {/* Footer Note */}
           <div className="mt-4 pt-3 border-t border-white/10 flex items-center justify-between text-[10.5px] text-text-dim">
             <span>🔒 Transaksi Lunas Terverifikasi</span>
-            <span>PT. KADAL GAMING</span>
+            <span>{isVVIP ? '💎 VVIP MEMBER' : isVIP ? '👑 VIP MEMBER' : 'STANDARD'}</span>
           </div>
         </div>
 

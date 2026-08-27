@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useJoki } from '../../contexts/JokiContext';
-import { Play, X, User, Layers, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Play, X, User, Layers, CheckCircle2, AlertCircle, Crown, Gem } from 'lucide-react';
 
 const formatDuration = (hours) => {
   const totalMinutes = Math.round(Number(hours) * 60);
@@ -23,19 +23,23 @@ const StartBillingModal = ({ queueItem, onClose }) => {
   const [slot, setSlot] = useState(1);
   const [loading, setLoading] = useState(false);
 
+  const cleanService = (queueItem?.service || 'Basic').toUpperCase();
+  const isVVIP = cleanService === 'VVIP';
+  const isVIP = !isVVIP && cleanService === 'VIP';
+
   useEffect(() => {
     if (queueItem) {
-      if (queueItem.service === 'VIP') {
+      if (isVVIP) {
+        setSlot('VVIP');
+      } else if (isVIP) {
         setSlot('VIP');
       } else {
         setSlot(suggestSlot());
       }
     }
-  }, [queueItem, customers]);
+  }, [queueItem, customers, isVVIP, isVIP]);
 
   if (!queueItem) return null;
-
-  const isVIP = queueItem.service === 'VIP';
 
   // Map active customers by slot
   const occupiedSlots = {};
@@ -57,7 +61,7 @@ const StartBillingModal = ({ queueItem, onClose }) => {
     if (e) e.preventDefault();
     try {
       setLoading(true);
-      const chosenSlot = isVIP ? 'VIP' : slot;
+      const chosenSlot = isVVIP ? 'VVIP' : (isVIP ? 'VIP' : slot);
       await startBillingFromQueue(queueItem, chosenSlot);
       addToast(`Customer ${queueItem.username} berhasil dimasukkan ke Slot ${chosenSlot}!`, 'success');
       onClose();
@@ -112,11 +116,13 @@ const StartBillingModal = ({ queueItem, onClose }) => {
 
           <div className="text-right">
             <span className={`inline-block font-bold px-2 py-0.5 rounded-full text-[10px] mb-1 ${
-              isVIP 
+              isVVIP
+                ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40'
+                : isVIP 
                 ? 'bg-accent-yellow/15 text-accent-yellow border border-accent-yellow/30' 
                 : 'bg-accent-purple/15 text-accent-purple-light border border-accent-purple/30'
             }`}>
-              {queueItem.service}
+              {isVVIP ? '💎 VVIP' : (isVIP ? '👑 VIP' : queueItem.service)}
             </span>
             <div className="text-text-muted font-mono font-bold text-xs">{formatDuration(queueItem.duration)}</div>
           </div>
@@ -124,9 +130,22 @@ const StartBillingModal = ({ queueItem, onClose }) => {
 
         {/* Visual Slot Selector */}
         <form onSubmit={handleConfirm} className="space-y-4">
-          {isVIP ? (
+          {isVVIP ? (
+            <div className="bg-rose-500/10 border border-rose-500/30 rounded-xl p-4 text-center">
+              <div className="text-lg font-black text-rose-300 mb-1 flex items-center justify-center gap-1.5">
+                <Gem size={18} className="text-rose-400" />
+                <span>💎 SLOT VVIP (SUPER PRIORITY)</span>
+              </div>
+              <p className="text-xs text-text-muted m-0">
+                Customer layanan VVIP akan langsung dialokasikan ke Slot VVIP khusus.
+              </p>
+            </div>
+          ) : isVIP ? (
             <div className="bg-accent-yellow/10 border border-accent-yellow/30 rounded-xl p-4 text-center">
-              <div className="text-lg font-black text-accent-yellow mb-1">👑 SLOT VIP</div>
+              <div className="text-lg font-black text-accent-yellow mb-1 flex items-center justify-center gap-1.5">
+                <Crown size={18} className="text-accent-yellow" />
+                <span>👑 SLOT VIP</span>
+              </div>
               <p className="text-xs text-text-muted m-0">
                 Customer layanan VIP akan langsung dialokasikan ke Slot VIP khusus.
               </p>
@@ -159,11 +178,11 @@ const StartBillingModal = ({ queueItem, onClose }) => {
                           <span>SLOT {s}</span>
                           <span className="w-1.5 h-1.5 rounded-full bg-accent-red" />
                         </div>
-                        <div className="text-[10px] text-text-muted truncate font-semibold mt-1">
-                          {occupied.username}
-                        </div>
-                        <div className="text-[9.5px] text-accent-red/90 font-mono">
-                          Sisa {formatTime(occupied.remaining)}
+                        <div>
+                          <div className="text-[10px] text-white font-bold truncate">{occupied.username}</div>
+                          <div className="text-[9.5px] text-text-dim font-mono">
+                            {occupied.paused ? '⏸ Di-pause' : `Sisa ${formatTime(occupied.remaining)}`}
+                          </div>
                         </div>
                       </div>
                     );
@@ -174,18 +193,15 @@ const StartBillingModal = ({ queueItem, onClose }) => {
                       key={s}
                       type="button"
                       onClick={() => setSlot(s)}
-                      className={`p-2.5 rounded-xl border transition-all text-left flex flex-col justify-between min-h-[64px] cursor-pointer ${
+                      className={`p-2.5 rounded-xl border text-left flex flex-col justify-between min-h-[64px] transition-all cursor-pointer ${
                         isSelected
-                          ? 'border-accent-cyan bg-accent-cyan/15 shadow-lg shadow-accent-cyan/20 ring-2 ring-accent-cyan/50'
-                          : 'border-border-default hover:border-accent-green/40 bg-bg-primary/80 hover:bg-accent-green/5'
+                          ? 'border-accent-green bg-accent-green/15 shadow-md shadow-accent-green/10'
+                          : 'border-border-default bg-bg-primary hover:border-accent-cyan/50 hover:bg-white/[0.02]'
                       }`}
                     >
-                      <div className="flex justify-between items-center text-[11px] font-extrabold text-text-primary">
-                        <span>SLOT {s}</span>
-                        <span className="w-2 h-2 rounded-full bg-accent-green animate-pulse" />
-                      </div>
-                      <div className="text-[11px] font-bold text-accent-green mt-1">
-                        🟢 KOSONG
+                      <div className="flex justify-between items-center text-[11px] font-black">
+                        <span className={isSelected ? 'text-accent-green' : 'text-text-secondary'}>SLOT {s}</span>
+                        <span className={`w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-accent-green animate-ping' : 'bg-accent-cyan'}`} />
                       </div>
                       <div className="text-[9.5px] text-text-dim">
                         {isSelected ? '✓ Terpilih' : 'Klik untuk pilih'}
@@ -226,7 +242,7 @@ const StartBillingModal = ({ queueItem, onClose }) => {
               className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl text-xs font-extrabold text-white bg-accent-green hover:bg-accent-green-dark active:scale-95 transition-all shadow-lg shadow-accent-green/20 disabled:opacity-50"
             >
               <Play size={14} />
-              <span>{loading ? 'Memproses...' : `✔ Mulai Billing ${isVIP ? 'VIP' : 'Slot ' + slot}`}</span>
+              <span>{loading ? 'Memproses...' : `✔ Mulai Billing ${isVVIP ? 'VVIP' : (isVIP ? 'VIP' : 'Slot ' + slot)}`}</span>
             </button>
           </div>
         </form>

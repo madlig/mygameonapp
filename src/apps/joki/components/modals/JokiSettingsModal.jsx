@@ -211,7 +211,23 @@ const JokiSettingsModal = ({ isOpen, onClose }) => {
                   </span>
                 </div>
 
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setManualOverride(true);
+                      setStreamStatus('LIVE');
+                    }}
+                    className={`p-2 rounded-xl border text-xs font-black transition-all flex flex-col items-center gap-0.5 cursor-pointer ${
+                      manualOverride && streamStatus === 'LIVE'
+                        ? 'bg-accent-red/20 text-accent-red border-accent-red/50 shadow-sm'
+                        : 'bg-bg-surface text-text-muted hover:text-white border-border-default'
+                    }`}
+                  >
+                    <span>🔴 Live Sekarang</span>
+                    <span className="text-[9px] text-text-dim font-normal">Sedang Live</span>
+                  </button>
+
                   <button
                     type="button"
                     onClick={() => {
@@ -255,8 +271,8 @@ const JokiSettingsModal = ({ isOpen, onClose }) => {
                         : 'bg-bg-surface text-text-muted hover:text-white border-border-default'
                     }`}
                   >
-                    <span>😴 Paksa Off</span>
-                    <span className="text-[9px] text-text-dim font-normal">Off Lebih Awal</span>
+                    <span>😴 Off Stream</span>
+                    <span className="text-[9px] text-text-dim font-normal">Selesai Live</span>
                   </button>
                 </div>
               </div>

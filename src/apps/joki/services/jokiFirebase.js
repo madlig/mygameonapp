@@ -1,119 +1,86 @@
-import { 
-  db 
-} from "../../../config/firebaseConfig";
+import { db } from "../../../config/firebaseConfig";
 import { 
   collection, 
   doc, 
-  getDoc,
   setDoc, 
   updateDoc, 
   deleteDoc, 
   onSnapshot, 
   query, 
-  where,
-  orderBy,
-  writeBatch
+  orderBy, 
+  writeBatch 
 } from "firebase/firestore";
 
-export const DEFAULT_WORKSPACE_ID = 'mygameon';
+// Default workspace ID if none specified
+export const DEFAULT_WORKSPACE_ID = "kadal";
 
-export const generateTicketId = () => {
-  const num = Math.floor(10000 + Math.random() * 90000);
-  return `JK-${num}`;
-};
-
-// ── Workspaces Subscription ──
+// ── Workspaces Listener ──
 export const subscribeJokiWorkspaces = (callback) => {
   const colRef = collection(db, "joki_workspaces");
-  const q = query(colRef, orderBy("createdAt", "asc"));
-  return onSnapshot(q, (snapshot) => {
+  return onSnapshot(colRef, (snapshot) => {
     const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    // Sort so default is first
+    data.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
     callback(data);
-  }, (error) => {
-    console.error("Error subscribing to joki workspaces:", error);
   });
 };
 
-// ── Auto Create Workspace if not exists ──
-export const createWorkspaceIfNotExists = async (workspaceId, name, ownerEmail) => {
-  if (!workspaceId) return;
-  try {
-    const wsRef = doc(db, "joki_workspaces", workspaceId);
-    const snap = await getDoc(wsRef);
-    if (!snap.exists()) {
-      await setDoc(wsRef, {
-        id: workspaceId,
-        name: name || `${workspaceId.toUpperCase()} Live`,
-        slug: workspaceId,
-        ownerEmail: ownerEmail || null,
-        createdAt: Date.now()
-      });
-
-      // Initialize default settings doc
-      await setDoc(doc(db, "joki_workspaces", workspaceId, "settings", "global"), {
-        globalPaused: false,
-        globalPauseStarted: null,
-        streamStatus: 'OFFLINE',
-        nextStreamSchedule: '',
-        streamNote: '',
-        updatedAt: Date.now()
-      });
-    }
-  } catch (err) {
-    console.error(`Error creating workspace ${workspaceId}:`, err);
-  }
-};
-
-// ── Customers Subscription per Workspace ──
+// ── Customers Listener per Workspace ──
 export const subscribeJokiCustomers = (workspaceId = DEFAULT_WORKSPACE_ID, callback) => {
   const colRef = collection(db, "joki_workspaces", workspaceId, "customers");
   const q = query(colRef, orderBy("createdAt", "desc"));
   return onSnapshot(q, (snapshot) => {
     const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     callback(data);
-  }, (error) => {
-    console.error(`Error subscribing to customers for workspace ${workspaceId}:`, error);
   });
 };
 
-// ── Queue Subscription per Workspace ──
+// ── Queue Listener per Workspace ──
 export const subscribeJokiQueue = (workspaceId = DEFAULT_WORKSPACE_ID, callback) => {
   const colRef = collection(db, "joki_workspaces", workspaceId, "queue");
-  return onSnapshot(colRef, (snapshot) => {
+  const q = query(colRef, orderBy("orderIndex", "asc"));
+  return onSnapshot(q, (snapshot) => {
     const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    // Sort by orderIndex if present, fallback to createdAt
-    data.sort((a, b) => {
-      const orderA = a.orderIndex !== undefined ? a.orderIndex : (a.createdAt || 0);
-      const orderB = b.orderIndex !== undefined ? b.orderIndex : (b.createdAt || 0);
-      return orderA - orderB;
-    });
+    // Fallback sort if orderIndex is not set
+    data.sort((a, b) => (a.orderIndex ?? a.createdAt ?? 0) - (b.orderIndex ?? b.createdAt ?? 0));
     callback(data);
-  }, (error) => {
-    console.error(`Error subscribing to queue for workspace ${workspaceId}:`, error);
   });
 };
 
-// ── Settings Subscription per Workspace ──
+// ── Settings Listener per Workspace ──
 export const subscribeJokiSettings = (workspaceId = DEFAULT_WORKSPACE_ID, callback) => {
   const docRef = doc(db, "joki_workspaces", workspaceId, "settings", "global");
-  return onSnapshot(docRef, (docSnap) => {
-    if (docSnap.exists()) {
-      callback(docSnap.data());
+  return onSnapshot(docRef, (snapshot) => {
+    if (snapshot.exists()) {
+      callback(snapshot.data());
     } else {
-      callback({ globalPaused: false, globalPauseStarted: null, streamStatus: 'OFFLINE', nextStreamSchedule: '' });
+      callback({
+        streamStatus: "LIVE",
+        nextStreamSchedule: "",
+        globalPaused: false,
+        globalPauseStarted: null
+      });
     }
-  }, (error) => {
-    console.error(`Error subscribing to settings for workspace ${workspaceId}:`, error);
   });
 };
 
-// ── Customer CRUD per Workspace ──
+// Helper: Generate Unique 5-char Ticket ID (e.g., JK-B5BT4)
+export const generateTicketId = () => {
+  const chars = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
+  let result = '';
+  for (let i = 0; i < 5; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return `JK-${result}`;
+};
+
+// ── Customers CRUD per Workspace ──
 export const addJokiCustomer = async (workspaceId = DEFAULT_WORKSPACE_ID, customerData) => {
   const colRef = collection(db, "joki_workspaces", workspaceId, "customers");
   const newDocRef = doc(colRef);
   const ticketId = customerData.ticketId || generateTicketId();
-  await setDoc(newDocRef, { 
-    ...customerData, 
+  await setDoc(newDocRef, {
+    ...customerData,
     workspaceId,
     ticketId,
     passwordRoblox: customerData.passwordRoblox || '',
@@ -177,46 +144,65 @@ export const updateJokiSettings = async (workspaceId = DEFAULT_WORKSPACE_ID, dat
 };
 
 // ── Semi-Automatic Time-Based Live Status Engine ──
-export const computeLiveStatus = (settings) => {
+export const computeLiveStatus = (settings, activeCustomers = []) => {
+  // If there are customers currently running in live slots (not paused)
+  const hasRunningSlots = activeCustomers && activeCustomers.some(c => !c.finished && !c.paused);
+
   if (!settings) {
-    return {
-      status: 'OFFLINE',
-      label: 'Off Stream',
-      subtext: 'Akun aman di antrean dan akan dimainkan pada sesi live berikutnya.'
-    };
-  }
-
-  const { liveStartTime, liveEndTime, manualOverride, streamStatus, nextStreamSchedule } = settings;
-
-  // 1. Manual override (if streamer forces Break or Live/Offline manually)
-  if (manualOverride && streamStatus) {
-    if (streamStatus === 'LIVE') {
+    if (hasRunningSlots) {
       return {
         status: 'LIVE',
         label: 'Live Stream',
         subtext: 'Sedang live streaming sekarang! Pantau slot dan tiket kamu di sini.'
       };
     }
-    if (streamStatus === 'BREAK') {
-      return {
-        status: 'BREAK',
-        label: 'Break / Istirahat',
-        subtext: 'Streamer lagi istirahat/makan sebentar. Joki segera dilanjutkan!'
-      };
-    }
-    if (streamStatus === 'OFFLINE') {
-      return {
-        status: 'OFFLINE',
-        label: 'Off Stream',
-        subtext: nextStreamSchedule 
-          ? `Jadwal live berikutnya: ${nextStreamSchedule}`
-          : 'Akun aman di antrean dan akan dimainkan pada sesi live berikutnya.'
-      };
-    }
+    return {
+      status: 'LIVE',
+      label: 'Live Stream',
+      subtext: 'Sedang live streaming sekarang! Pantau slot dan tiket kamu di sini.'
+    };
   }
 
-  // 2. Time-based automated schedule
-  if (liveStartTime && liveEndTime) {
+  const { liveStartTime, liveEndTime, manualOverride, streamStatus, nextStreamSchedule } = settings;
+
+  // 1. Explicit Stream Status Override (LIVE, BREAK, OFFLINE)
+  if (streamStatus === 'LIVE') {
+    return {
+      status: 'LIVE',
+      label: 'Live Stream',
+      subtext: nextStreamSchedule ? nextStreamSchedule : 'Sedang live streaming sekarang! Pantau slot dan tiket kamu di sini.'
+    };
+  }
+
+  if (streamStatus === 'BREAK') {
+    return {
+      status: 'BREAK',
+      label: 'Break / Istirahat',
+      subtext: nextStreamSchedule ? nextStreamSchedule : 'Streamer lagi istirahat/makan sebentar. Joki segera dilanjutkan!'
+    };
+  }
+
+  if (manualOverride && streamStatus === 'OFFLINE') {
+    return {
+      status: 'OFFLINE',
+      label: 'Off Stream',
+      subtext: nextStreamSchedule 
+        ? `Jadwal live berikutnya: ${nextStreamSchedule}`
+        : 'Akun aman di antrean dan akan dimainkan pada sesi live berikutnya.'
+    };
+  }
+
+  // 2. If active slots are currently running, streamer is unequivocally LIVE!
+  if (hasRunningSlots) {
+    return {
+      status: 'LIVE',
+      label: 'Live Stream',
+      subtext: nextStreamSchedule ? nextStreamSchedule : 'Sedang live streaming sekarang! Pantau slot dan tiket kamu di sini.'
+    };
+  }
+
+  // 3. Time-based automated schedule (if enabled without manual override)
+  if (liveStartTime && liveEndTime && !manualOverride) {
     const now = new Date();
     const currentMinutes = now.getHours() * 60 + now.getMinutes();
 
@@ -240,7 +226,7 @@ export const computeLiveStatus = (settings) => {
         label: 'Live Stream',
         liveStartTime,
         liveEndTime,
-        subtext: `Streamer sedang live sampai pukul ${liveEndTime} WIB.`
+        subtext: nextStreamSchedule ? nextStreamSchedule : `Streamer sedang live sampai pukul ${liveEndTime} WIB.`
       };
     } else if (currentMinutes < startMinutes) {
       return {
@@ -248,7 +234,7 @@ export const computeLiveStatus = (settings) => {
         label: 'Off Stream',
         liveStartTime,
         liveEndTime,
-        subtext: `Jadwal live hari ini: pukul ${liveStartTime} - ${liveEndTime} WIB.`
+        subtext: nextStreamSchedule ? nextStreamSchedule : `Jadwal live hari ini: pukul ${liveStartTime} - ${liveEndTime} WIB.`
       };
     } else {
       return {
@@ -256,16 +242,24 @@ export const computeLiveStatus = (settings) => {
         label: 'Off Stream',
         liveStartTime,
         liveEndTime,
-        subtext: `Sesi live hari ini telah selesai (berakhir pukul ${liveEndTime} WIB). Live lagi besok pukul ${liveStartTime} WIB.`
+        subtext: nextStreamSchedule ? nextStreamSchedule : `Sesi live hari ini telah selesai (berakhir pukul ${liveEndTime} WIB). Live lagi besok pukul ${liveStartTime} WIB.`
       };
     }
   }
 
-  // 3. Fallback
-  const st = streamStatus || 'OFFLINE';
+  // 4. Default fallback: If streamStatus is set to OFFLINE explicitly
+  if (streamStatus === 'OFFLINE') {
+    return {
+      status: 'OFFLINE',
+      label: 'Off Stream',
+      subtext: nextStreamSchedule ? nextStreamSchedule : 'Akun aman di antrean dan akan dimainkan pada live berikutnya.'
+    };
+  }
+
+  // Default to LIVE
   return {
-    status: st,
-    label: st === 'LIVE' ? 'Live Stream' : (st === 'BREAK' ? 'Break' : 'Off Stream'),
-    subtext: nextStreamSchedule ? `Jadwal live berikutnya: ${nextStreamSchedule}` : 'Akun aman di antrean dan akan dimainkan pada live berikutnya.'
+    status: 'LIVE',
+    label: 'Live Stream',
+    subtext: nextStreamSchedule ? nextStreamSchedule : 'Sedang live streaming sekarang! Pantau slot dan tiket kamu di sini.'
   };
 };

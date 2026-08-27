@@ -4,7 +4,7 @@ import { EyeOff, AlertOctagon, Coffee, Moon, Clock, Radio, Megaphone, Edit3 } fr
 import { computeLiveStatus } from '../../services/jokiFirebase';
 
 export const StreamerBanner = ({ onOpenSettings }) => {
-  const { streamerMode, globalPaused, isAdmin, globalSettings, activeWorkspace } = useJoki();
+  const { streamerMode, globalPaused, isAdmin, globalSettings, activeWorkspace, customers } = useJoki();
   const [now, setNow] = useState(Date.now());
 
   // Periodically evaluate live time range
@@ -13,7 +13,7 @@ export const StreamerBanner = ({ onOpenSettings }) => {
     return () => clearInterval(timer);
   }, []);
 
-  const liveState = computeLiveStatus(globalSettings);
+  const liveState = computeLiveStatus(globalSettings, customers);
   const streamStatus = liveState.status;
   const streamerName = activeWorkspace?.name || 'Streamer';
   const customNote = globalSettings?.nextStreamSchedule?.trim();

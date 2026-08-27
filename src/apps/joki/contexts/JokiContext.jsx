@@ -20,6 +20,7 @@ const JokiContext = createContext();
 
 const PRICE_BASIC = 4000;
 const PRICE_VIP = 6000;
+const PRICE_VVIP = 10000;
 
 export const JokiProvider = ({ children }) => {
   const { currentUser, logout } = useAuth();
@@ -188,6 +189,9 @@ export const JokiProvider = ({ children }) => {
     setStreamerMode((prev) => {
       const val = !prev;
       localStorage.setItem("jokiStreamerMode", val.toString());
+      if (val) {
+        fbUpdateSettings(activeWorkspaceId, { streamStatus: "LIVE", manualOverride: false });
+      }
       return val;
     });
     addToast(!streamerMode ? "Streamer mode aktif (Omset & data sensitif disensor)" : "Streamer mode dinonaktifkan", "info");
@@ -197,7 +201,7 @@ export const JokiProvider = ({ children }) => {
   const suggestSlot = () => {
     const usedSlots = new Set();
     customers.forEach((c) => {
-      if (!c.finished && c.slot && c.slot !== 'VIP') {
+      if (!c.finished && c.slot && c.slot !== 'VIP' && c.slot !== 'VVIP') {
         const num = parseInt(c.slot, 10);
         if (!isNaN(num)) {
           usedSlots.add(num);
@@ -217,9 +221,11 @@ export const JokiProvider = ({ children }) => {
     const now = Date.now();
     const duration = Number(queueItem.duration || 1);
     const durationSeconds = duration * 3600;
-    const isVIP = queueItem.service === 'VIP' || selectedSlot === 'VIP';
-    const finalSlot = isVIP ? 'VIP' : (selectedSlot || suggestSlot());
-    const pricePerHour = isVIP ? PRICE_VIP : PRICE_BASIC;
+    const isVVIP = (queueItem.service || '').toUpperCase() === 'VVIP' || selectedSlot === 'VVIP';
+    const isVIP = (queueItem.service || '').toUpperCase() === 'VIP' || selectedSlot === 'VIP';
+    const finalService = isVVIP ? 'VVIP' : (isVIP ? 'VIP' : 'Basic');
+    const finalSlot = isVVIP ? 'VVIP' : (isVIP ? 'VIP' : (selectedSlot || suggestSlot()));
+    const pricePerHour = isVVIP ? PRICE_VVIP : (isVIP ? PRICE_VIP : PRICE_BASIC);
     const price = Math.round(duration * pricePerHour);
 
     const customerData = {
@@ -229,7 +235,7 @@ export const JokiProvider = ({ children }) => {
       passwordRoblox: queueItem.passwordRoblox || '',
       emailRoblox: queueItem.emailRoblox || '',
       name: queueItem.username,
-      service: isVIP ? 'VIP' : 'Basic',
+      service: finalService,
       slot: finalSlot,
       duration: duration,
       price: price,
@@ -265,6 +271,8 @@ export const JokiProvider = ({ children }) => {
       
       const remainingHours = Number((remainingSeconds / 3600).toFixed(2));
       const finalDuration = remainingHours > 0 ? remainingHours : (customer.duration || 1);
+      const srv = (customer.service || 'Basic').toUpperCase();
+      const rate = srv === 'VVIP' ? PRICE_VVIP : (srv === 'VIP' ? PRICE_VIP : PRICE_BASIC);
 
       await fbAddQueue(activeWorkspaceId, {
         ticketId: customer.ticketId || `JK-${customer.id.slice(-5)}`,
@@ -274,7 +282,7 @@ export const JokiProvider = ({ children }) => {
         emailRoblox: customer.emailRoblox || '',
         service: customer.service || 'Basic',
         duration: finalDuration,
-        price: Math.round(customer.price || (finalDuration * (customer.service === 'VIP' ? PRICE_VIP : PRICE_BASIC))),
+        price: Math.round(customer.price || (finalDuration * rate)),
         paymentStatus: 'Lunas',
         createdAt: Date.now()
       });

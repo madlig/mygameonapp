@@ -42,16 +42,20 @@ const formatRupiah = (value) => {
   return "Rp " + Number(value || 0).toLocaleString("id-ID");
 };
 
-// Clean helper to strictly display Basic or VIP
+// Clean helper to strictly display Basic, VIP, or VVIP
 const getCleanService = (service) => {
   if (!service) return 'Basic';
-  return service.toString().toUpperCase().includes('VIP') ? 'VIP' : 'Basic';
+  const s = service.toString().toUpperCase();
+  if (s.includes('VVIP')) return 'VVIP';
+  if (s.includes('VIP')) return 'VIP';
+  return 'Basic';
 };
 
 // Clean helper to strictly display Slot Badge
 const getCleanSlot = (customer) => {
-  const isVIP = getCleanService(customer.service) === 'VIP' || customer.slot === 'VIP';
-  if (isVIP) return 'VIP';
+  const srv = getCleanService(customer.service);
+  if (srv === 'VVIP' || customer.slot === 'VVIP') return 'VVIP';
+  if (srv === 'VIP' || customer.slot === 'VIP') return 'VIP';
   return customer.slot || '1';
 };
 
@@ -118,8 +122,9 @@ const HistoryTable = () => {
   const totalOmsetValid = filteredFinished.reduce((sum, c) => sum + Number(c.price || 0), 0);
   const totalSuccessCount = filteredFinished.length;
   const totalPlaytimeHours = filteredFinished.reduce((sum, c) => sum + Number(c.duration || 0), 0);
+  const vvipCount = filteredFinished.filter(c => getCleanService(c.service) === 'VVIP').length;
   const vipCount = filteredFinished.filter(c => getCleanService(c.service) === 'VIP').length;
-  const basicCount = totalSuccessCount - vipCount;
+  const basicCount = totalSuccessCount - vvipCount - vipCount;
 
   // Pagination Logic
   const totalPages = Math.max(1, Math.ceil(filteredFinished.length / PAGE_SIZE));
@@ -131,22 +136,23 @@ const HistoryTable = () => {
   const handleQuickReorder = async (customer) => {
     try {
       const dur = Number(customer.duration || 1);
-      const isVIP = getCleanService(customer.service) === 'VIP';
-      const price = Math.round(dur * (isVIP ? 6000 : 4000));
+      const srv = getCleanService(customer.service);
+      const rate = srv === 'VVIP' ? 10000 : (srv === 'VIP' ? 6000 : 4000);
+      const price = Math.round(dur * rate);
 
       await addJokiQueue({
         username: customer.username || customer.name,
         tiktokName: customer.tiktokName || '',
         passwordRoblox: customer.passwordRoblox || '',
         emailRoblox: customer.emailRoblox || '',
-        service: isVIP ? 'VIP' : 'Basic',
+        service: srv,
         duration: dur,
         price: price,
         paymentStatus: 'Lunas',
         createdAt: Date.now()
       });
 
-      addToast(`✓ ${customer.username || customer.name} berhasil masuk antrean baru (Joki Ulang)!`, 'success');
+      addToast(`✓ ${customer.username || customer.name} (${srv}) berhasil masuk antrean baru (Joki Ulang)!`, 'success');
     } catch (err) {
       console.error(err);
       addToast('Gagal melakukan joki ulang.', 'error');
@@ -491,22 +497,26 @@ const HistoryTable = () => {
                       {/* Layanan */}
                       <td className="py-3 px-3 text-center">
                         <span className={`inline-block px-2.5 py-0.5 rounded-full text-[10.5px] font-extrabold uppercase ${
-                          isVIP 
+                          isVVIP
+                            ? 'text-rose-400 bg-rose-500/15 border border-rose-500/40 shadow-sm shadow-rose-500/10'
+                            : isVIP 
                             ? 'text-accent-yellow bg-accent-yellow/15 border border-accent-yellow/30' 
                             : 'text-accent-purple-light bg-accent-purple/15 border border-accent-purple/30'
                         }`}>
-                          {cleanService}
+                          {isVVIP ? '💎 VVIP' : (isVIP ? '👑 VIP' : cleanService)}
                         </span>
                       </td>
 
                       {/* Slot */}
                       <td className="py-3 px-3 text-center">
                         <span className={`inline-flex items-center justify-center min-w-[28px] px-1.5 py-0.5 rounded text-[10.5px] font-extrabold font-mono ${
-                          isVIP
+                          cleanSlot === 'VVIP'
+                            ? 'bg-rose-500/15 text-rose-300 border border-rose-500/40'
+                            : cleanSlot === 'VIP'
                             ? 'bg-accent-yellow/10 text-accent-yellow border border-accent-yellow/30'
                             : 'bg-accent-cyan/10 text-accent-cyan border border-accent-cyan/30'
                         }`}>
-                          {cleanSlot === 'VIP' ? '👑 VIP' : `SLOT ${cleanSlot}`}
+                          {cleanSlot === 'VVIP' ? '💎 VVIP' : (cleanSlot === 'VIP' ? '👑 VIP' : `SLOT ${cleanSlot}`)}
                         </span>
                       </td>
 

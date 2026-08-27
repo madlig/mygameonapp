@@ -4,6 +4,7 @@ import { Clock, X, Plus, DollarSign, Check } from 'lucide-react';
 
 const PRICE_BASIC = 4000;
 const PRICE_VIP = 6000;
+const PRICE_VVIP = 10000;
 
 const EXTEND_PRESETS = [
   { label: '+15 Menit', minutes: 15, hint: 'Free' },
@@ -29,9 +30,11 @@ const ExtendModal = ({ customer, onClose }) => {
 
   if (!customer) return null;
 
-  const isVIP = customer.service && customer.service.toUpperCase().includes('VIP');
-  const pricePerHour = isVIP ? PRICE_VIP : PRICE_BASIC;
-  const pricePerHalfHour = pricePerHour / 2; // Rp 2.000 (Basic) or Rp 3.000 (VIP)
+  const srv = (customer.service || 'Basic').toUpperCase();
+  const isVVIP = srv.includes('VVIP');
+  const isVIP = !isVVIP && srv.includes('VIP');
+  const pricePerHour = isVVIP ? PRICE_VVIP : (isVIP ? PRICE_VIP : PRICE_BASIC);
+  const pricePerHalfHour = pricePerHour / 2;
 
   // Total additional minutes
   const totalMinutesAdded = unit === 'hour' ? Number(amount || 0) * 60 : Number(amount || 0);

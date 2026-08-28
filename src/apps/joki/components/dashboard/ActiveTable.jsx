@@ -34,6 +34,14 @@ const formatClock = (timestamp) => {
   });
 };
 
+const formatClockClean = (timestamp) => {
+  if (!timestamp) return '--:--';
+  const d = new Date(timestamp);
+  const h = String(d.getHours()).padStart(2, '0');
+  const m = String(d.getMinutes()).padStart(2, '0');
+  return `${h}:${m}`;
+};
+
 const formatDuration = (hours) => {
   const totalMinutes = Math.round(Number(hours) * 60);
   const h = Math.floor(totalMinutes / 60);
@@ -283,7 +291,7 @@ const ActiveTable = ({
                 <th className="py-2.5 px-2.5">Customer</th>
                 <th className="py-2.5 px-2 text-center">Slot</th>
                 <th className="py-2.5 px-2 text-center">Durasi</th>
-                <th className="py-2.5 px-2 text-center">Mulai - Beres</th>
+                <th className="py-2.5 px-2 text-center">Mulai ➔ Beres</th>
                 <th className="py-2.5 px-2.5 text-center">Sisa Waktu</th>
                 <th className="py-2.5 px-2 text-center">Status</th>
                 {isAdmin && <th className="py-2.5 px-2 text-center w-28">Aksi</th>}
@@ -375,10 +383,17 @@ const ActiveTable = ({
                         {formatDuration(customer.duration)}
                       </td>
 
-                      {/* Time Schedule (Mulai -> Beres) */}
-                      <td className="py-2.5 px-2 text-center font-mono text-[11px] text-text-secondary">
-                        <div className="text-text-dim text-[10px]">{formatClock(customer.startTime)}</div>
-                        <div className="font-bold text-text-primary text-xs">{formatClock(getEndTime(customer))}</div>
+                      {/* Timeline Flow Badge (Mulai ➔ Beres) */}
+                      <td className="py-2.5 px-2 text-center font-mono">
+                        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-bg-primary/90 border border-border-default shadow-sm">
+                          <span className="text-text-muted text-[11px]" title={`Mulai: ${formatClock(customer.startTime)}`}>
+                            {formatClockClean(customer.startTime)}
+                          </span>
+                          <span className="text-accent-cyan text-[11px] font-black">➔</span>
+                          <span className="font-bold text-white text-[11px]" title={`Estimasi Beres: ${formatClock(getEndTime(customer))}`}>
+                            {formatClockClean(getEndTime(customer))}
+                          </span>
+                        </div>
                       </td>
 
                       {/* Countdown / Remaining Time */}

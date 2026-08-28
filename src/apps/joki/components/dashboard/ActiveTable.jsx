@@ -283,18 +283,18 @@ const ActiveTable = ({
   return (
     <div className="flex flex-col gap-2.5">
       <div className="bg-bg-surface border border-border-default rounded-b-3xl overflow-hidden shadow-2xl">
-        <div className="w-full overflow-x-auto lg:overflow-x-visible">
-          <table className="w-full border-collapse text-left">
+        <div className="w-full overflow-x-auto scrollbar-thin">
+          <table className="w-full border-collapse text-left min-w-[780px]">
             <thead>
               <tr className="bg-bg-primary/90 border-b border-border-default text-text-tertiary text-[10.5px] font-black uppercase tracking-wider">
-                <th className="py-2.5 px-2 text-center w-8">#</th>
+                <th className="py-2.5 pl-3 pr-2 text-center w-8">#</th>
                 <th className="py-2.5 px-2.5">Customer</th>
                 <th className="py-2.5 px-2 text-center">Slot</th>
                 <th className="py-2.5 px-2 text-center">Durasi</th>
                 <th className="py-2.5 px-2 text-center">Mulai ➔ Beres</th>
                 <th className="py-2.5 px-2.5 text-center">Sisa Waktu</th>
                 <th className="py-2.5 px-2 text-center">Status</th>
-                {isAdmin && <th className="py-2.5 px-2 text-center w-28">Aksi</th>}
+                {isAdmin && <th className="py-2.5 pl-2 pr-4 text-center min-w-[165px]">Aksi</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-border-subtle text-xs font-medium">
@@ -325,14 +325,14 @@ const ActiveTable = ({
                       key={customer.id} 
                       className={`transition-all duration-300 group ${
                         isFinished
-                          ? 'bg-emerald-500/[0.12] hover:bg-emerald-500/[0.18] border-l-4 border-l-emerald-400 border-b border-emerald-500/30 shadow-inner'
+                          ? 'bg-rose-950/30 hover:bg-rose-950/45 border-l-4 border-l-rose-500 border-b border-rose-500/40 shadow-inner'
                           : isWarning
                           ? 'bg-rose-950/30 border-l-4 border-l-rose-500 border-b border-rose-500/40 ring-1 ring-rose-500/40 animate-pulse hover:bg-rose-950/40'
                           : 'hover:bg-white/[0.02] border-b border-border-subtle'
                       }`}
                     >
                       {/* No */}
-                      <td className="py-2.5 px-2 text-center text-text-dim font-mono text-xs">
+                      <td className="py-2.5 pl-3 pr-2 text-center text-text-dim font-mono text-xs">
                         {index + 1}
                       </td>
 
@@ -399,7 +399,7 @@ const ActiveTable = ({
                       {/* Countdown / Remaining Time */}
                       <td className="py-2.5 px-2.5 text-center">
                         {isFinished ? (
-                          <span className="font-mono text-xs font-black tracking-tight px-2.5 py-1.5 rounded-xl bg-emerald-400 text-black border border-emerald-300 shadow-md shadow-emerald-500/30 flex items-center justify-center gap-1">
+                          <span className="font-mono text-xs font-black tracking-tight px-2.5 py-1.5 rounded-xl bg-rose-600 text-white border border-rose-400 shadow-md shadow-rose-600/30 flex items-center justify-center gap-1">
                             🏁 00:00:00
                           </span>
                         ) : (
@@ -418,7 +418,7 @@ const ActiveTable = ({
                       {/* Status Badge */}
                       <td className="py-2.5 px-2 text-center">
                         {isFinished ? (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black uppercase bg-emerald-400/20 text-emerald-300 border border-emerald-400/50 shadow-sm">
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black uppercase bg-rose-500/20 text-rose-300 border border-rose-500/50 shadow-sm">
                             <CheckCheck size={12} />
                             <span>HABIS (SELESAI)</span>
                           </span>
@@ -436,16 +436,16 @@ const ActiveTable = ({
 
                       {/* SMART PRIORITY ACTION COLUMN */}
                       {isAdmin && (
-                        <td className="py-2.5 px-2 text-center">
+                        <td className="py-2.5 pl-2 pr-4 text-center">
                           {isFinished ? (
-                            <div className="flex items-center justify-center gap-1.5">
+                            <div className="flex items-center justify-center gap-1.5 whitespace-nowrap">
                               {/* Single Powerful Action: Finish & Copy Done DM */}
                               <button
                                 onClick={() => handleFinishAndCopyDM(customer)}
                                 title="Pindahkan ke Riwayat Transaksi & Salin Pesan DM Selesai"
-                                className="px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-emerald-400 via-emerald-500 to-teal-500 hover:from-emerald-300 hover:to-teal-400 text-black font-black text-[11px] transition-all shadow-md shadow-emerald-500/25 flex items-center gap-1.5 cursor-pointer active:scale-95 shrink-0"
+                                className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-rose-500 via-rose-600 to-rose-700 hover:from-rose-400 hover:to-rose-600 text-white font-black text-[11px] transition-all shadow-md shadow-rose-600/25 flex items-center gap-1.5 cursor-pointer active:scale-95 shrink-0 border border-rose-400/40"
                               >
-                                <CheckCheck size={13} />
+                                <CheckCheck size={13} className="shrink-0" />
                                 <span>Selesai & Salin DM</span>
                               </button>
 
@@ -453,13 +453,13 @@ const ActiveTable = ({
                               <button
                                 onClick={() => setCredentialCustomer(customer)}
                                 title="Buka Brankas Akun"
-                                className="p-1.5 rounded-lg bg-white/5 text-text-dim hover:text-white border border-white/10 transition-all cursor-pointer"
+                                className="p-1.5 rounded-lg bg-white/5 text-text-dim hover:text-white border border-white/10 transition-all cursor-pointer shrink-0"
                               >
                                 <Key size={12} />
                               </button>
                             </div>
                           ) : (
-                            <div className="flex items-center justify-center gap-1">
+                            <div className="flex items-center justify-center gap-1 whitespace-nowrap">
                               {/* 1. Pause / Resume */}
                               {customer.paused ? (
                                 <button

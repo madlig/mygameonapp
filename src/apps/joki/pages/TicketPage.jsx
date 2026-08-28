@@ -479,7 +479,7 @@ const TicketPage = () => {
         )}
 
         {/* MAIN TICKET CARD */}
-        <div className={`rounded-3xl p-4.5 border-2 shadow-2xl relative overflow-hidden backdrop-blur-xl ${
+        <div className={`rounded-3xl p-5 sm:p-6 border-2 shadow-2xl relative overflow-hidden backdrop-blur-xl ${
           isVVIP
             ? 'bg-gradient-to-b from-[#211116] to-[#121318] border-rose-500/50 shadow-rose-500/10'
             : isVIP
@@ -488,28 +488,28 @@ const TicketPage = () => {
         }`}>
 
           {/* User Profile Header */}
-          <div className="flex items-center justify-between pb-3 mb-3 border-b border-white/10">
-            <div className="min-w-0">
-              <div className="text-[10.5px] font-extrabold uppercase tracking-wider text-text-dim mb-0.5">
-                Customer Roblox
+          <div className="flex items-start justify-between pb-3.5 mb-3.5 border-b border-white/10 gap-2">
+            <div className="min-w-0 flex-1">
+              <div className="text-[10px] font-black uppercase tracking-wider text-text-dim mb-0.5">
+                CUSTOMER ROBLOX
               </div>
-              <div className="text-base font-black text-white tracking-tight truncate flex items-center gap-1.5">
-                <span>{ticketData.username || ticketData.name}</span>
+              <div className="text-lg font-black text-white tracking-tight truncate flex items-center gap-1.5">
+                <span className="truncate">{ticketData.username || ticketData.name}</span>
                 {isVVIP ? (
-                  <Gem size={15} className="text-rose-400 shrink-0" />
+                  <Gem size={16} className="text-rose-400 shrink-0" />
                 ) : isVIP ? (
-                  <Crown size={15} className="text-accent-yellow shrink-0" />
+                  <Crown size={16} className="text-accent-yellow shrink-0" />
                 ) : null}
               </div>
               {ticketData.tiktokName && (
-                <span className="text-xs text-accent-cyan font-bold">
-                  @{ticketData.tiktokName}
-                </span>
+                <div className="text-xs text-accent-cyan font-bold truncate">
+                  @{ticketData.tiktokName.replace(/^@/, '')}
+                </div>
               )}
             </div>
 
-            <div className="text-right shrink-0">
-              <span className={`inline-block px-2.5 py-0.5 rounded-xl text-xs font-black uppercase tracking-wider border ${
+            <div className="text-right shrink-0 flex flex-col items-end">
+              <span className={`inline-block px-2.5 py-0.5 rounded-xl text-[11px] font-black uppercase tracking-wider border shadow-sm ${
                 isVVIP
                   ? 'bg-rose-500/20 text-rose-300 border-rose-500/50 shadow-sm'
                   : isVIP
@@ -735,9 +735,9 @@ const TicketPage = () => {
           )}
 
           {/* Footer Note */}
-          <div className="mt-3.5 pt-2.5 border-t border-white/10 flex items-center justify-between text-[10px] text-text-dim">
+          <div className="mt-4 pt-3 border-t border-white/10 flex items-center justify-between text-[10.5px] text-text-dim">
             <span>🔒 Transaksi Lunas Terverifikasi</span>
-            <span>{isVVIP ? '💎 VVIP MEMBER' : isVIP ? '👑 VIP MEMBER' : 'STANDARD'}</span>
+            <span className="font-bold">{isVVIP ? '💎 VVIP MEMBER' : isVIP ? '👑 VIP MEMBER' : 'STANDARD'}</span>
           </div>
         </div>
 

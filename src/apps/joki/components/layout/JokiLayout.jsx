@@ -11,7 +11,7 @@ const JokiLayout = ({ children }) => {
         className="pointer-events-none fixed bottom-0 right-1/4 w-[400px] h-[400px] rounded-full bg-accent-yellow/5 blur-[120px] -z-10" 
       />
 
-      <div className="w-[96%] max-w-[1550px] mx-auto pt-5">
+      <div className="w-full px-3 sm:px-4 md:px-6 xl:px-8 mx-auto pt-4">
         {children}
       </div>
     </div>

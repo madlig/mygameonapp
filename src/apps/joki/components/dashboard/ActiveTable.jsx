@@ -156,18 +156,27 @@ const ActiveTable = ({
     addToast(`✓ Link tiket ${targetName} (${tId}) disalin!`, 'success');
   };
 
-  // Clearance Handlers for Finished Slot
-  const handleFillFromQueue = async (customer) => {
-    await finishAndArchiveCustomer(customer.id);
-    if (queue && queue.length > 0 && onStartQueueItem) {
-      onStartQueueItem(queue[0]);
-    } else {
-      addToast('Slot telah diarsipkan ke Riwayat. Antrean saat ini kosong.', 'info');
-    }
-  };
+  // 1-Click Finish, Archive to History, and Copy Completion DM to Clipboard
+  const handleFinishAndCopyDM = async (customer) => {
+    const tId = customer.ticketId || `JK-${customer.id.slice(-5)}`;
+    const ticketUrl = `${window.location.origin}/ticket/${tId}`;
+    const user = customer.username || customer.name;
+    const tt = customer.tiktokName 
+      ? `@${customer.tiktokName.replace(/^@/, '')}` 
+      : `@${user}`;
 
-  const handleFinishAndArchive = async (customer) => {
+    const copyText = `Tiket Billing ${tt}: ${ticketUrl}\n\nHalo ${tt}! Akun Roblox kamu (${user}) sudah selesai dimainkan ya. Terima kasih banyak sudah order di live! Selamat bermain dan have fun di Roblox! ✨🎮`;
+
+    try {
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(copyText);
+      }
+    } catch (err) {
+      console.warn('Clipboard write error:', err);
+    }
+
     await finishAndArchiveCustomer(customer.id);
+    addToast(`✓ Joki ${user} selesai & diarsipkan! Pesan DM berhasil disalin ke clipboard.`, 'success');
   };
 
   // Open Floating Menu
@@ -309,11 +318,11 @@ const ActiveTable = ({
                   return (
                     <tr 
                       key={customer.id} 
-                      className={`transition-colors group ${
+                      className={`transition-all duration-300 group ${
                         isFinished
-                          ? 'bg-emerald-950/20 border-b border-emerald-500/20 hover:bg-emerald-950/30'
+                          ? 'bg-emerald-500/[0.12] hover:bg-emerald-500/[0.18] border-l-4 border-l-emerald-400 border-b border-emerald-500/30 shadow-inner'
                           : isWarning
-                          ? 'bg-rose-950/25 border-b border-rose-500/30 ring-1 ring-rose-500/40 animate-pulse hover:bg-rose-950/35'
+                          ? 'bg-rose-950/30 border-l-4 border-l-rose-500 border-b border-rose-500/40 ring-1 ring-rose-500/40 animate-pulse hover:bg-rose-950/40'
                           : 'hover:bg-white/[0.02] border-b border-border-subtle'
                       }`}
                     >
@@ -378,7 +387,7 @@ const ActiveTable = ({
                       {/* Countdown / Remaining Time */}
                       <td className="py-2.5 px-2.5 text-center">
                         {isFinished ? (
-                          <span className="font-mono text-xs font-black tracking-tight px-2 py-1 rounded-lg bg-accent-green/20 text-accent-green border border-accent-green/40 shadow-sm">
+                          <span className="font-mono text-xs font-black tracking-tight px-2.5 py-1.5 rounded-xl bg-emerald-400 text-black border border-emerald-300 shadow-md shadow-emerald-500/30 flex items-center justify-center gap-1">
                             🏁 00:00:00
                           </span>
                         ) : (
@@ -397,12 +406,12 @@ const ActiveTable = ({
                       {/* Status Badge */}
                       <td className="py-2.5 px-2 text-center">
                         {isFinished ? (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9.5px] font-black uppercase bg-accent-green/20 text-accent-green border border-accent-green/40">
-                            <CheckCheck size={11} />
-                            <span>SELESAI</span>
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black uppercase bg-emerald-400/20 text-emerald-300 border border-emerald-400/50 shadow-sm">
+                            <CheckCheck size={12} />
+                            <span>HABIS (SELESAI)</span>
                           </span>
                         ) : (
-                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9.5px] font-black uppercase ${
+                          <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[9.5px] font-black uppercase ${
                             customer.paused 
                               ? 'bg-accent-orange/15 text-accent-orange border border-accent-orange/30' 
                               : 'bg-accent-green/15 text-accent-green border border-accent-green/30'
@@ -417,31 +426,22 @@ const ActiveTable = ({
                       {isAdmin && (
                         <td className="py-2.5 px-2 text-center">
                           {isFinished ? (
-                            <div className="flex items-center justify-center gap-1">
-                              {/* 1. Isi dari Antrean */}
+                            <div className="flex items-center justify-center gap-1.5">
+                              {/* Single Powerful Action: Finish & Copy Done DM */}
                               <button
-                                onClick={() => handleFillFromQueue(customer)}
-                                title="Arsipkan & Isi Slot ini dari Antrean Teratas"
-                                className="px-2 py-1 rounded-lg bg-accent-green hover:bg-accent-green-light text-black font-black text-[11px] transition-all shadow flex items-center gap-1 cursor-pointer"
+                                onClick={() => handleFinishAndCopyDM(customer)}
+                                title="Pindahkan ke Riwayat Transaksi & Salin Pesan DM Selesai"
+                                className="px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-emerald-400 via-emerald-500 to-teal-500 hover:from-emerald-300 hover:to-teal-400 text-black font-black text-[11px] transition-all shadow-md shadow-emerald-500/25 flex items-center gap-1.5 cursor-pointer active:scale-95 shrink-0"
                               >
-                                <Rocket size={11} />
-                                <span>Isi Slot</span>
+                                <CheckCheck size={13} />
+                                <span>Selesai & Salin DM</span>
                               </button>
 
-                              {/* 2. Selesaikan & Arsipkan */}
-                              <button
-                                onClick={() => handleFinishAndArchive(customer)}
-                                title="Arsipkan ke Riwayat Transaksi (Kosongkan Slot)"
-                                className="p-1 rounded-lg bg-white/10 text-white hover:bg-white/20 border border-white/20 transition-all cursor-pointer"
-                              >
-                                <Square size={12} />
-                              </button>
-
-                              {/* 3. Brankas Akun */}
+                              {/* Brankas Akun */}
                               <button
                                 onClick={() => setCredentialCustomer(customer)}
                                 title="Buka Brankas Akun"
-                                className="p-1 rounded-lg bg-white/5 text-text-dim hover:text-white border border-white/10 transition-all cursor-pointer"
+                                className="p-1.5 rounded-lg bg-white/5 text-text-dim hover:text-white border border-white/10 transition-all cursor-pointer"
                               >
                                 <Key size={12} />
                               </button>

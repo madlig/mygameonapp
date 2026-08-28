@@ -577,99 +577,92 @@ const QueueSidebar = ({ onStartFromQueue, onRequestClearQueue }) => {
                         onDragOver={(e) => handleDragOver(e, index, 'VVIP')}
                         onDrop={(e) => handleDrop(e, index, 'VVIP')}
                         onDragEnd={handleDragEnd}
-                        className={`group p-3 rounded-2xl bg-bg-primary hover:bg-rose-500/[0.02] border transition-all shadow-sm relative ${
+                        className={`group p-2.5 rounded-2xl bg-bg-primary hover:bg-rose-500/[0.04] border transition-all shadow-sm flex items-center justify-between gap-2 relative ${
                           isBeingDragged 
                             ? 'opacity-40 border-dashed border-rose-500' 
                             : isTargetDrop 
-                            ? 'border-rose-500 ring-2 ring-rose-500 scale-[1.02]' 
-                            : 'border-rose-500/30 hover:border-rose-500/50'
+                            ? 'border-rose-500 ring-2 ring-rose-500 scale-[1.01]' 
+                            : 'border-rose-500/30 hover:border-rose-500/60'
                         }`}
                       >
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="flex items-center gap-2 min-w-0">
-                            {isAdmin && (
-                              <div 
-                                className="text-rose-400/50 hover:text-rose-400 cursor-grab active:cursor-grabbing p-0.5 shrink-0"
-                                title="Tarik untuk urutkan antrian"
-                              >
-                                <GripVertical size={15} />
-                              </div>
-                            )}
-
-                            <div className="w-8 h-8 rounded-lg bg-rose-500/15 border border-rose-500/30 flex flex-col items-center justify-center font-black text-rose-300 shrink-0">
-                              <span className="text-[8px] leading-none">VVIP</span>
-                              <span className="text-xs leading-none font-mono text-white">#{index + 1}</span>
+                        {/* Left: Drag Handle + Number + User Info */}
+                        <div className="flex items-center gap-2 min-w-0 flex-1">
+                          {isAdmin && (
+                            <div 
+                              className="text-rose-400/50 hover:text-rose-400 cursor-grab active:cursor-grabbing p-0.5 shrink-0"
+                              title="Tarik untuk urutkan antrian"
+                            >
+                              <GripVertical size={14} />
                             </div>
+                          )}
 
-                            <div className="min-w-0">
-                              <div className="font-bold text-sm text-white tracking-tight truncate flex items-center gap-1.5">
-                                <span className="truncate">{item.username}</span>
-                                <Gem size={12} className="text-rose-400 shrink-0" />
-                                {index === 0 && (
-                                  <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[8.5px] font-black uppercase tracking-wider bg-rose-500 text-white animate-pulse shadow-sm">
-                                    ⚡ UP NEXT
-                                  </span>
-                                )}
-                              </div>
-                              <div className="text-[11px] text-text-muted truncate">
-                                {item.tiktokName ? (
-                                  <span className="text-rose-300">@{item.tiktokName}</span>
-                                ) : (
-                                  <span className="text-text-faint">Tamu Live</span>
-                                )}
-                              </div>
-                            </div>
+                          <div className="w-7 h-7 rounded-lg bg-rose-500/20 border border-rose-500/40 flex flex-col items-center justify-center font-black text-rose-300 shrink-0">
+                            <span className="text-[7.5px] leading-none">VVIP</span>
+                            <span className="text-[11px] leading-none font-mono text-white">#{index + 1}</span>
                           </div>
 
-                          <div className="text-right shrink-0">
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-rose-500/15 text-rose-300 font-mono font-bold text-[11px] border border-rose-500/30">
-                              <Clock size={10} />
-                              <span>{formatDuration(item.duration)}</span>
-                            </span>
+                          <div className="min-w-0 flex-1">
+                            <div className="font-black text-xs text-white tracking-tight truncate flex items-center gap-1.5">
+                              <span className="truncate">{item.username}</span>
+                              <Gem size={11} className="text-rose-400 shrink-0" />
+                              {index === 0 && (
+                                <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[8px] font-black uppercase tracking-wider bg-rose-500 text-white animate-pulse shadow-sm shrink-0">
+                                  ⚡ UP NEXT
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-[10.5px] text-text-dim truncate flex items-center gap-1.5">
+                              {item.tiktokName ? (
+                                <span className="text-rose-300 truncate">@{item.tiktokName}</span>
+                              ) : (
+                                <span className="text-text-faint">Tamu</span>
+                              )}
+                              <span>•</span>
+                              <span className="font-mono font-bold text-rose-200/80">{formatDuration(item.duration)}</span>
+                            </div>
                           </div>
                         </div>
 
-                        {/* Admin Actions Bar */}
+                        {/* Right: Actions in 1 Compact Row */}
                         {isAdmin && (
-                          <div className="flex items-center justify-between gap-1.5 mt-2.5 pt-2 border-t border-rose-500/20">
+                          <div className="flex items-center gap-1 shrink-0">
                             <button
                               onClick={() => onStartFromQueue(item)}
-                              className="flex-1 py-1.5 px-2.5 rounded-lg text-xs font-black text-white bg-rose-600 hover:bg-rose-500 active:scale-95 transition-all shadow-sm flex items-center justify-center gap-1 cursor-pointer"
+                              title="Pilih Slot & Mulai Mainkan"
+                              className="py-1 px-2 rounded-lg text-xs font-black text-white bg-rose-600 hover:bg-rose-500 active:scale-95 transition-all shadow-sm flex items-center gap-1 cursor-pointer"
                             >
-                              <Gem size={13} />
-                              <span>Masuk Slot VVIP</span>
+                              <Gem size={11} />
+                              <span>Slot</span>
                             </button>
 
-                            <div className="flex items-center gap-1 shrink-0">
-                              <button
-                                onClick={() => setCredentialCustomer(item)}
-                                title="Buka Brankas Akun (Password/Email)"
-                                className="p-1.5 rounded-lg bg-bg-primary hover:bg-accent-green/20 text-accent-green border border-accent-green/30 transition-colors cursor-pointer"
-                              >
-                                <Key size={12} />
-                              </button>
-                              <button
-                                onClick={() => handleCopyDM(item)}
-                                title="Salin Pesan DM TikTok Siap Kirim"
-                                className="p-1.5 rounded-lg bg-bg-primary hover:bg-accent-cyan/20 text-accent-cyan border border-accent-cyan/30 transition-colors cursor-pointer"
-                              >
-                                <MessageSquare size={12} />
-                              </button>
-                              <button
-                                onClick={() => startEdit(item)}
-                                title="Edit Antrian"
-                                className="p-1.5 rounded-lg bg-bg-primary hover:bg-white/10 text-text-dim hover:text-text-primary border border-border-subtle transition-colors cursor-pointer"
-                              >
-                                <Pencil size={12} />
-                              </button>
-                              <button
-                                onClick={() => handleDeleteItem(item)}
-                                title="Hapus Antrian"
-                                className="p-1.5 rounded-lg bg-bg-primary hover:bg-accent-red/20 text-text-dim hover:text-accent-red border border-border-subtle transition-colors cursor-pointer"
-                              >
-                                <Trash2 size={12} />
-                              </button>
-                            </div>
+                            <button
+                              onClick={() => setCredentialCustomer(item)}
+                              title="Buka Brankas Akun (Password/Email)"
+                              className="p-1.5 rounded-lg bg-bg-surface hover:bg-accent-green/20 text-accent-green border border-border-subtle transition-colors cursor-pointer"
+                            >
+                              <Key size={11} />
+                            </button>
+                            <button
+                              onClick={() => handleCopyDM(item)}
+                              title="Salin Pesan DM TikTok"
+                              className="p-1.5 rounded-lg bg-bg-surface hover:bg-accent-cyan/20 text-accent-cyan border border-border-subtle transition-colors cursor-pointer"
+                            >
+                              <MessageSquare size={11} />
+                            </button>
+                            <button
+                              onClick={() => startEdit(item)}
+                              title="Edit"
+                              className="p-1.5 rounded-lg bg-bg-surface hover:bg-white/10 text-text-dim hover:text-white border border-border-subtle transition-colors cursor-pointer"
+                            >
+                              <Pencil size={11} />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteItem(item)}
+                              title="Hapus"
+                              className="p-1.5 rounded-lg bg-bg-surface hover:bg-accent-red/20 text-text-dim hover:text-accent-red border border-border-subtle transition-colors cursor-pointer"
+                            >
+                              <Trash2 size={11} />
+                            </button>
                           </div>
                         )}
                       </div>
@@ -765,99 +758,92 @@ const QueueSidebar = ({ onStartFromQueue, onRequestClearQueue }) => {
                       onDragOver={(e) => handleDragOver(e, index, 'VIP')}
                       onDrop={(e) => handleDrop(e, index, 'VIP')}
                       onDragEnd={handleDragEnd}
-                      className={`group p-3 rounded-2xl bg-gradient-to-r from-accent-yellow/[0.08] to-transparent border-2 transition-all shadow-md relative ${
+                      className={`group p-2.5 rounded-2xl bg-gradient-to-r from-accent-yellow/[0.08] to-transparent border transition-all shadow-sm flex items-center justify-between gap-2 relative ${
                         isBeingDragged 
                           ? 'opacity-40 border-dashed border-accent-yellow' 
                           : isTargetDrop 
-                          ? 'border-accent-cyan ring-2 ring-accent-cyan scale-[1.02]' 
+                          ? 'border-accent-cyan ring-2 ring-accent-cyan scale-[1.01]' 
                           : 'border-accent-yellow/35 hover:border-accent-yellow/60'
                       }`}
                     >
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex items-center gap-2 min-w-0">
-                          {isAdmin && (
-                            <div 
-                              className="text-accent-yellow/40 hover:text-accent-yellow cursor-grab active:cursor-grabbing p-0.5 shrink-0"
-                              title="Tarik untuk urutkan antrian"
-                            >
-                              <GripVertical size={15} />
-                            </div>
-                          )}
-
-                          <div className="w-8 h-8 rounded-lg bg-accent-yellow/20 border border-accent-yellow/40 flex flex-col items-center justify-center font-black text-accent-yellow shrink-0">
-                            <span className="text-[9px] leading-none">VIP</span>
-                            <span className="text-xs leading-none font-mono">#{index + 1}</span>
+                      {/* Left: Drag Handle + Number + User Info */}
+                      <div className="flex items-center gap-2 min-w-0 flex-1">
+                        {isAdmin && (
+                          <div 
+                            className="text-accent-yellow/40 hover:text-accent-yellow cursor-grab active:cursor-grabbing p-0.5 shrink-0"
+                            title="Tarik untuk urutkan antrian"
+                          >
+                            <GripVertical size={14} />
                           </div>
+                        )}
 
-                          <div className="min-w-0">
-                            <div className="font-black text-sm text-white tracking-tight truncate flex items-center gap-1.5">
-                              <span>{item.username}</span>
-                              <Crown size={12} className="text-accent-yellow shrink-0" />
-                              {index === 0 && (
-                                <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[8.5px] font-black uppercase tracking-wider bg-accent-yellow text-black animate-pulse shadow-sm">
-                                  ⚡ UP NEXT
-                                </span>
-                              )}
-                            </div>
-                            <div className="text-[11px] text-text-muted truncate">
-                              {item.tiktokName ? (
-                                <span className="text-accent-cyan">@{item.tiktokName}</span>
-                              ) : (
-                                <span className="text-text-faint">Tamu Live</span>
-                              )}
-                            </div>
-                          </div>
+                        <div className="w-7 h-7 rounded-lg bg-accent-yellow/20 border border-accent-yellow/40 flex flex-col items-center justify-center font-black text-accent-yellow shrink-0">
+                          <span className="text-[8px] leading-none">VIP</span>
+                          <span className="text-[11px] leading-none font-mono">#{index + 1}</span>
                         </div>
 
-                        <div className="text-right shrink-0">
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-accent-yellow/15 text-accent-yellow font-mono font-black text-[11px] border border-accent-yellow/30">
-                            <Clock size={10} />
-                            <span>{formatDuration(item.duration)}</span>
-                          </span>
+                        <div className="min-w-0 flex-1">
+                          <div className="font-black text-xs text-white tracking-tight truncate flex items-center gap-1.5">
+                            <span className="truncate">{item.username}</span>
+                            <Crown size={11} className="text-accent-yellow shrink-0" />
+                            {index === 0 && (
+                              <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[8px] font-black uppercase tracking-wider bg-accent-yellow text-black animate-pulse shadow-sm shrink-0">
+                                ⚡ UP NEXT
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-[10.5px] text-text-dim truncate flex items-center gap-1.5">
+                            {item.tiktokName ? (
+                              <span className="text-accent-cyan truncate">@{item.tiktokName}</span>
+                            ) : (
+                              <span className="text-text-faint">Tamu</span>
+                            )}
+                            <span>•</span>
+                            <span className="font-mono font-bold text-accent-yellow/90">{formatDuration(item.duration)}</span>
+                          </div>
                         </div>
                       </div>
 
-                      {/* Admin Actions Bar */}
+                      {/* Right: Actions in 1 Compact Row */}
                       {isAdmin && (
-                        <div className="flex items-center justify-between gap-1.5 mt-2.5 pt-2 border-t border-accent-yellow/20">
+                        <div className="flex items-center gap-1 shrink-0">
                           <button
                             onClick={() => onStartFromQueue(item)}
-                            className="flex-1 py-1.5 px-2.5 rounded-lg text-xs font-black text-bg-primary bg-accent-yellow hover:bg-accent-yellow-light active:scale-95 transition-all shadow-sm flex items-center justify-center gap-1 cursor-pointer"
+                            title="Pilih Slot VIP & Mulai Mainkan"
+                            className="py-1 px-2 rounded-lg text-xs font-black text-bg-primary bg-accent-yellow hover:bg-accent-yellow-light active:scale-95 transition-all shadow-sm flex items-center gap-1 cursor-pointer"
                           >
-                            <Gamepad2 size={13} />
-                            <span>Masuk Slot VIP</span>
+                            <Gamepad2 size={11} />
+                            <span>Slot</span>
                           </button>
 
-                          <div className="flex items-center gap-1 shrink-0">
-                            <button
-                              onClick={() => setCredentialCustomer(item)}
-                              title="Buka Brankas Akun (Password/Email)"
-                              className="p-1.5 rounded-lg bg-bg-primary hover:bg-accent-green/20 text-accent-green border border-accent-green/30 transition-colors cursor-pointer"
-                            >
-                              <Key size={12} />
-                            </button>
-                            <button
-                              onClick={() => handleCopyDM(item)}
-                              title="Salin Pesan DM TikTok Siap Kirim"
-                              className="p-1.5 rounded-lg bg-bg-primary hover:bg-accent-cyan/20 text-accent-cyan border border-accent-cyan/30 transition-colors cursor-pointer"
-                            >
-                              <MessageSquare size={12} />
-                            </button>
-                            <button
-                              onClick={() => startEdit(item)}
-                              title="Edit Antrian"
-                              className="p-1.5 rounded-lg bg-bg-primary hover:bg-white/10 text-text-dim hover:text-text-primary border border-border-subtle transition-colors cursor-pointer"
-                            >
-                              <Pencil size={12} />
-                            </button>
-                            <button
-                              onClick={() => handleDeleteItem(item)}
-                              title="Hapus Antrian"
-                              className="p-1.5 rounded-lg bg-bg-primary hover:bg-accent-red/20 text-text-dim hover:text-accent-red border border-border-subtle transition-colors cursor-pointer"
-                            >
-                              <Trash2 size={12} />
-                            </button>
-                          </div>
+                          <button
+                            onClick={() => setCredentialCustomer(item)}
+                            title="Buka Brankas Akun (Password/Email)"
+                            className="p-1.5 rounded-lg bg-bg-surface hover:bg-accent-green/20 text-accent-green border border-border-subtle transition-colors cursor-pointer"
+                          >
+                            <Key size={11} />
+                          </button>
+                          <button
+                            onClick={() => handleCopyDM(item)}
+                            title="Salin Pesan DM TikTok"
+                            className="p-1.5 rounded-lg bg-bg-surface hover:bg-accent-cyan/20 text-accent-cyan border border-border-subtle transition-colors cursor-pointer"
+                          >
+                            <MessageSquare size={11} />
+                          </button>
+                          <button
+                            onClick={() => startEdit(item)}
+                            title="Edit"
+                            className="p-1.5 rounded-lg bg-bg-surface hover:bg-white/10 text-text-dim hover:text-white border border-border-subtle transition-colors cursor-pointer"
+                          >
+                            <Pencil size={11} />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteItem(item)}
+                            title="Hapus"
+                            className="p-1.5 rounded-lg bg-bg-surface hover:bg-accent-red/20 text-text-dim hover:text-accent-red border border-border-subtle transition-colors cursor-pointer"
+                          >
+                            <Trash2 size={11} />
+                          </button>
                         </div>
                       )}
                     </div>
@@ -952,98 +938,91 @@ const QueueSidebar = ({ onStartFromQueue, onRequestClearQueue }) => {
                       onDragOver={(e) => handleDragOver(e, index, 'BASIC')}
                       onDrop={(e) => handleDrop(e, index, 'BASIC')}
                       onDragEnd={handleDragEnd}
-                      className={`group p-3 rounded-2xl bg-bg-primary hover:bg-white/[0.02] border transition-all shadow-sm relative ${
+                      className={`group p-2.5 rounded-2xl bg-bg-primary hover:bg-white/[0.04] border transition-all shadow-sm flex items-center justify-between gap-2 relative ${
                         isBeingDragged 
                           ? 'opacity-40 border-dashed border-accent-cyan' 
                           : isTargetDrop 
-                          ? 'border-accent-purple ring-2 ring-accent-purple scale-[1.02]' 
+                          ? 'border-accent-purple ring-2 ring-accent-purple scale-[1.01]' 
                           : 'border-border-default hover:border-border-muted'
                       }`}
                     >
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex items-center gap-2 min-w-0">
-                          {isAdmin && (
-                            <div 
-                              className="text-text-faint hover:text-accent-cyan cursor-grab active:cursor-grabbing p-0.5 shrink-0"
-                              title="Tarik untuk urutkan antrian"
-                            >
-                              <GripVertical size={15} />
-                            </div>
-                          )}
-
-                          <div className="w-8 h-8 rounded-lg bg-white/5 border border-border-subtle flex flex-col items-center justify-center font-black text-text-tertiary shrink-0">
-                            <span className="text-[9px] leading-none">REG</span>
-                            <span className="text-xs leading-none font-mono text-white">#{index + 1}</span>
+                      {/* Left: Drag Handle + Number + User Info */}
+                      <div className="flex items-center gap-2 min-w-0 flex-1">
+                        {isAdmin && (
+                          <div 
+                            className="text-text-faint hover:text-accent-cyan cursor-grab active:cursor-grabbing p-0.5 shrink-0"
+                            title="Tarik untuk urutkan antrian"
+                          >
+                            <GripVertical size={14} />
                           </div>
+                        )}
 
-                          <div className="min-w-0">
-                            <div className="font-bold text-sm text-white tracking-tight truncate flex items-center gap-1.5">
-                              <span>{item.username}</span>
-                              {index === 0 && (
-                                <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[8.5px] font-black uppercase tracking-wider bg-accent-cyan text-black animate-pulse shadow-sm">
-                                  ⚡ UP NEXT
-                                </span>
-                              )}
-                            </div>
-                            <div className="text-[11px] text-text-muted truncate">
-                              {item.tiktokName ? (
-                                <span className="text-accent-cyan">@{item.tiktokName}</span>
-                              ) : (
-                                <span className="text-text-faint">Tamu Live</span>
-                              )}
-                            </div>
-                          </div>
+                        <div className="w-7 h-7 rounded-lg bg-white/5 border border-border-subtle flex flex-col items-center justify-center font-black text-text-tertiary shrink-0">
+                          <span className="text-[7.5px] leading-none">REG</span>
+                          <span className="text-[11px] leading-none font-mono text-white">#{index + 1}</span>
                         </div>
 
-                        <div className="text-right shrink-0">
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-white/5 text-text-secondary font-mono font-bold text-[11px] border border-border-subtle">
-                            <Clock size={10} />
-                            <span>{formatDuration(item.duration)}</span>
-                          </span>
+                        <div className="min-w-0 flex-1">
+                          <div className="font-black text-xs text-white tracking-tight truncate flex items-center gap-1.5">
+                            <span className="truncate">{item.username}</span>
+                            {index === 0 && (
+                              <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[8px] font-black uppercase tracking-wider bg-accent-cyan text-black animate-pulse shadow-sm shrink-0">
+                                ⚡ UP NEXT
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-[10.5px] text-text-dim truncate flex items-center gap-1.5">
+                            {item.tiktokName ? (
+                              <span className="text-accent-cyan truncate">@{item.tiktokName}</span>
+                            ) : (
+                              <span className="text-text-faint">Tamu</span>
+                            )}
+                            <span>•</span>
+                            <span className="font-mono font-bold text-text-muted">{formatDuration(item.duration)}</span>
+                          </div>
                         </div>
                       </div>
 
-                      {/* Admin Actions Bar */}
+                      {/* Right: Actions in 1 Compact Row */}
                       {isAdmin && (
-                        <div className="flex items-center justify-between gap-1.5 mt-2.5 pt-2 border-t border-border-subtle">
+                        <div className="flex items-center gap-1 shrink-0">
                           <button
                             onClick={() => onStartFromQueue(item)}
-                            className="flex-1 py-1.5 px-2.5 rounded-lg text-xs font-black text-white bg-accent-green/20 hover:bg-accent-green/30 border border-accent-green/40 active:scale-95 transition-all shadow-sm flex items-center justify-center gap-1 cursor-pointer"
+                            title="Pilih Slot & Mulai Mainkan"
+                            className="py-1 px-2 rounded-lg text-xs font-black text-white bg-accent-green/25 hover:bg-accent-green/35 text-accent-green border border-accent-green/40 active:scale-95 transition-all shadow-sm flex items-center gap-1 cursor-pointer"
                           >
-                            <Gamepad2 size={13} className="text-accent-green" />
-                            <span className="text-accent-green">Pilih Slot</span>
+                            <Gamepad2 size={11} />
+                            <span>Slot</span>
                           </button>
 
-                          <div className="flex items-center gap-1 shrink-0">
-                            <button
-                              onClick={() => setCredentialCustomer(item)}
-                              title="Buka Brankas Akun (Password/Email)"
-                              className="p-1.5 rounded-lg bg-bg-surface hover:bg-accent-green/20 text-accent-green border border-border-subtle transition-colors cursor-pointer"
-                            >
-                              <Key size={12} />
-                            </button>
-                            <button
-                              onClick={() => handleCopyDM(item)}
-                              title="Salin Pesan DM TikTok Siap Kirim"
-                              className="p-1.5 rounded-lg bg-bg-surface hover:bg-accent-cyan/20 text-accent-cyan border border-border-subtle transition-colors cursor-pointer"
-                            >
-                              <MessageSquare size={12} />
-                            </button>
-                            <button
-                              onClick={() => startEdit(item)}
-                              title="Edit Antrian"
-                              className="p-1.5 rounded-lg bg-bg-surface hover:bg-white/10 text-text-dim hover:text-text-primary border border-border-subtle transition-colors cursor-pointer"
-                            >
-                              <Pencil size={12} />
-                            </button>
-                            <button
-                              onClick={() => handleDeleteItem(item)}
-                              title="Hapus Antrian"
-                              className="p-1.5 rounded-lg bg-bg-surface hover:bg-accent-red/20 text-text-dim hover:text-accent-red border border-border-subtle transition-colors cursor-pointer"
-                            >
-                              <Trash2 size={12} />
-                            </button>
-                          </div>
+                          <button
+                            onClick={() => setCredentialCustomer(item)}
+                            title="Buka Brankas Akun (Password/Email)"
+                            className="p-1.5 rounded-lg bg-bg-surface hover:bg-accent-green/20 text-accent-green border border-border-subtle transition-colors cursor-pointer"
+                          >
+                            <Key size={11} />
+                          </button>
+                          <button
+                            onClick={() => handleCopyDM(item)}
+                            title="Salin Pesan DM TikTok"
+                            className="p-1.5 rounded-lg bg-bg-surface hover:bg-accent-cyan/20 text-accent-cyan border border-border-subtle transition-colors cursor-pointer"
+                          >
+                            <MessageSquare size={11} />
+                          </button>
+                          <button
+                            onClick={() => startEdit(item)}
+                            title="Edit"
+                            className="p-1.5 rounded-lg bg-bg-surface hover:bg-white/10 text-text-dim hover:text-white border border-border-subtle transition-colors cursor-pointer"
+                          >
+                            <Pencil size={11} />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteItem(item)}
+                            title="Hapus"
+                            className="p-1.5 rounded-lg bg-bg-surface hover:bg-accent-red/20 text-text-dim hover:text-accent-red border border-border-subtle transition-colors cursor-pointer"
+                          >
+                            <Trash2 size={11} />
+                          </button>
                         </div>
                       )}
                     </div>

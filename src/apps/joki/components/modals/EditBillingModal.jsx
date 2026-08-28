@@ -42,7 +42,7 @@ const formatClock = (timestamp) => {
 };
 
 const EditBillingModal = ({ customer, onClose }) => {
-  const { customers, updateJokiCustomer, moveCustomerToQueue, addToast } = useJoki();
+  const { customers, updateJokiCustomer, moveCustomerToQueue, enableVvipSlot, priceVvip, addToast } = useJoki();
 
   const [username, setUsername] = useState('');
   const [tiktokName, setTiktokName] = useState('');
@@ -81,7 +81,7 @@ const EditBillingModal = ({ customer, onClose }) => {
   const isVVIP = service === 'VVIP';
   const isVIP = !isVVIP && service === 'VIP';
   const standardSlots = [1, 2, 3, 4, 5, 6];
-  const ratePerHour = isVVIP ? PRICE_VVIP : (isVIP ? PRICE_VIP : PRICE_BASIC);
+  const ratePerHour = isVVIP ? (priceVvip || PRICE_VVIP) : (isVIP ? PRICE_VIP : PRICE_BASIC);
 
   // Initial duration in hours
   const initialDurationHours = Number(customer.duration || 1);
@@ -109,7 +109,7 @@ const EditBillingModal = ({ customer, onClose }) => {
   const handleServiceChange = (e) => {
     const newService = e.target.value;
     setService(newService);
-    const newRate = newService === 'VVIP' ? PRICE_VVIP : (newService === 'VIP' ? PRICE_VIP : PRICE_BASIC);
+    const newRate = newService === 'VVIP' ? (priceVvip || PRICE_VVIP) : (newService === 'VIP' ? PRICE_VIP : PRICE_BASIC);
     setPrice(Math.round(calculatedTotalHours * newRate));
     if (newService === 'VVIP') {
       setSlot('VVIP');
@@ -464,7 +464,9 @@ const EditBillingModal = ({ customer, onClose }) => {
               >
                 <option value="Basic">Basic (4k/j)</option>
                 <option value="VIP">VIP (6k/j)</option>
-                <option value="VVIP">VVIP (10k/j)</option>
+                {(enableVvipSlot || service === 'VVIP') && (
+                  <option value="VVIP">VVIP ({priceVvip ? `${Math.round(priceVvip/1000)}k` : '10k'}/j)</option>
+                )}
               </select>
             </div>
 

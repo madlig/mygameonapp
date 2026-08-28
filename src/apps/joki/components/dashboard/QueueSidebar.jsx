@@ -225,17 +225,17 @@ const QueueSidebar = ({ onStartFromQueue, onRequestClearQueue }) => {
     }
   };
 
-  // Copy TikTok DM template
+  // Copy TikTok DM template with labelled ticket link
   const handleCopyDM = (item) => {
     const tId = item.ticketId || `JK-${item.id.slice(-5)}`;
     const ticketUrl = `${window.location.origin}/ticket/${tId}`;
     const user = item.username || item.name;
-    const tt = item.tiktokName ? `@${item.tiktokName}` : '';
+    const tt = item.tiktokName ? `@${item.tiktokName.replace(/^@/, '')}` : user;
 
-    const text = `Halo bro ${tt}! Akun Roblox kamu (${user}) udah masuk antrean joki ya bro. Ini link tiket live kamu untuk pantau antrean & jam mulai: ${ticketUrl}. Standby ya bro!`;
+    const text = `Tiket Billing ${tt}: ${ticketUrl}\n\nHalo ${tt}! Akun Roblox kamu (${user}) sudah masuk antrean joki ya. Kamu bisa pantau giliran jam mulai di link tiket ini ya! ✨🎮`;
 
     navigator.clipboard.writeText(text);
-    addToast(`✓ Pesan DM untuk ${user} berhasil disalin!`, 'success');
+    addToast(`✓ Link tiket & pesan DM untuk ${user} berhasil disalin!`, 'success');
   };
 
   // Drag and drop handlers
@@ -602,9 +602,14 @@ const QueueSidebar = ({ onStartFromQueue, onRequestClearQueue }) => {
                             </div>
 
                             <div className="min-w-0">
-                              <div className="font-bold text-sm text-white tracking-tight truncate flex items-center gap-1">
+                              <div className="font-bold text-sm text-white tracking-tight truncate flex items-center gap-1.5">
                                 <span className="truncate">{item.username}</span>
                                 <Gem size={12} className="text-rose-400 shrink-0" />
+                                {index === 0 && (
+                                  <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[8.5px] font-black uppercase tracking-wider bg-rose-500 text-white animate-pulse shadow-sm">
+                                    ⚡ UP NEXT
+                                  </span>
+                                )}
                               </div>
                               <div className="text-[11px] text-text-muted truncate">
                                 {item.tiktokName ? (
@@ -785,9 +790,14 @@ const QueueSidebar = ({ onStartFromQueue, onRequestClearQueue }) => {
                           </div>
 
                           <div className="min-w-0">
-                            <div className="font-black text-sm text-white tracking-tight truncate flex items-center gap-1">
+                            <div className="font-black text-sm text-white tracking-tight truncate flex items-center gap-1.5">
                               <span>{item.username}</span>
                               <Crown size={12} className="text-accent-yellow shrink-0" />
+                              {index === 0 && (
+                                <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[8.5px] font-black uppercase tracking-wider bg-accent-yellow text-black animate-pulse shadow-sm">
+                                  ⚡ UP NEXT
+                                </span>
+                              )}
                             </div>
                             <div className="text-[11px] text-text-muted truncate">
                               {item.tiktokName ? (
@@ -967,8 +977,13 @@ const QueueSidebar = ({ onStartFromQueue, onRequestClearQueue }) => {
                           </div>
 
                           <div className="min-w-0">
-                            <div className="font-bold text-sm text-white tracking-tight truncate">
-                              {item.username}
+                            <div className="font-bold text-sm text-white tracking-tight truncate flex items-center gap-1.5">
+                              <span>{item.username}</span>
+                              {index === 0 && (
+                                <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[8.5px] font-black uppercase tracking-wider bg-accent-cyan text-black animate-pulse shadow-sm">
+                                  ⚡ UP NEXT
+                                </span>
+                              )}
                             </div>
                             <div className="text-[11px] text-text-muted truncate">
                               {item.tiktokName ? (

@@ -280,7 +280,7 @@ export const JokiProvider = ({ children }) => {
       const remainingHours = Number((remainingSeconds / 3600).toFixed(2));
       const finalDuration = remainingHours > 0 ? remainingHours : (customer.duration || 1);
       const srv = (customer.service || 'Basic').toUpperCase();
-      const rate = srv === 'VVIP' ? PRICE_VVIP : (srv === 'VIP' ? PRICE_VIP : PRICE_BASIC);
+      const rate = srv === 'VVIP' ? (priceVvip || PRICE_VVIP) : (srv === 'VIP' ? PRICE_VIP : PRICE_BASIC);
 
       await fbAddQueue(activeWorkspaceId, {
         ticketId: customer.ticketId || `JK-${customer.id.slice(-5)}`,
@@ -300,6 +300,26 @@ export const JokiProvider = ({ children }) => {
     } catch (err) {
       console.error('Error moving customer to queue:', err);
       addToast('Gagal memindahkan customer ke antrian.', 'error');
+    }
+  };
+
+  // Archive and mark finished customer
+  const finishAndArchiveCustomer = async (customerId, additionalData = {}) => {
+    try {
+      await fbUpdateCustomer(activeWorkspaceId, customerId, {
+        finished: true,
+        isPendingClearance: false,
+        stopped: false,
+        finishedTime: Date.now(),
+        paused: false,
+        pauseStarted: null,
+        remainingAtPause: null,
+        ...additionalData
+      });
+      addToast('Slot berhasil diselesaikan dan diarsipkan ke Riwayat.', 'success');
+    } catch (err) {
+      console.error('Error archiving finished customer:', err);
+      addToast('Gagal menyelesaikan slot billing.', 'error');
     }
   };
 
@@ -366,6 +386,7 @@ export const JokiProvider = ({ children }) => {
     suggestSlot,
     startBillingFromQueue,
     moveCustomerToQueue,
+    finishAndArchiveCustomer,
     reorderQueue,
     addJokiCustomer,
     updateJokiCustomer,

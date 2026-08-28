@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useJoki } from '../contexts/JokiContext';
 import JokiLayout from '../components/layout/JokiLayout';
 import JokiHeader from '../components/layout/JokiHeader';
@@ -17,6 +17,7 @@ import JokiLoginModal from '../components/modals/JokiLoginModal';
 import ManageAdminsModal from '../components/modals/ManageAdminsModal';
 import JokiSettingsModal from '../components/modals/JokiSettingsModal';
 import EditBillingModal from '../components/modals/EditBillingModal';
+import SecretVaultModal from '../components/modals/SecretVaultModal';
 import Toast from '../components/ui/Toast';
 
 const JokiDashboard = () => {
@@ -41,11 +42,24 @@ const JokiDashboard = () => {
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [isManageAdminsOpen, setIsManageAdminsOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isSecretVaultOpen, setIsSecretVaultOpen] = useState(false);
   const [extendCustomer, setExtendCustomer] = useState(null);
   const [editCustomer, setEditCustomer] = useState(null);
   const [startQueueItem, setStartQueueItem] = useState(null);
   const [finishedQueue, setFinishedQueue] = useState([]);
   const [popupShowing, setPopupShowing] = useState(false);
+
+  // Global Shortcut Listener for Secret Master Vault (Ctrl + Shift + V)
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'v' || e.key === 'V')) {
+        e.preventDefault();
+        setIsSecretVaultOpen(prev => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   // Set Document Title
   useEffect(() => {
@@ -93,25 +107,29 @@ const JokiDashboard = () => {
     }
   };
 
-  // Timer: Check for Finished Billing
+  // Anti-Race Condition Set for Expired Timers
+  const processedFinishedRef = useRef(new Set());
+
+  // Timer: Check for Finished Billing (Marks isPendingClearance without deleting from active table)
   useEffect(() => {
     const timer = setInterval(() => {
       const newlyFinished = [];
 
       customers.forEach(customer => {
-        if (customer.finished || customer.paused) return;
+        if (customer.finished || customer.isPendingClearance || customer.paused || processedFinishedRef.current.has(customer.id)) return;
 
         const remaining = Math.max(0, Math.floor((customer.endTime - Date.now()) / 1000));
         if (remaining <= 0) {
+          processedFinishedRef.current.add(customer.id);
           newlyFinished.push(customer);
         }
       });
 
       if (newlyFinished.length > 0) {
         newlyFinished.forEach(async (customer) => {
+          // Keep customer in active table with isPendingClearance: true & finishedTime
           await updateJokiCustomer(customer.id, {
-            finished: true,
-            stopped: false,
+            isPendingClearance: true,
             finishedTime: Date.now(),
             paused: false,
             pauseStarted: null,
@@ -141,7 +159,7 @@ const JokiDashboard = () => {
 
   // ── Actions with Custom Confirmation Modals ──
 
-  // 1. Pause All
+  // 1. Pause All (Parallelized)
   const handleRequestPauseAll = () => {
     const active = customers.filter(c => !c.finished && !c.paused);
     if (active.length === 0) {
@@ -161,20 +179,21 @@ const JokiDashboard = () => {
         const now = Date.now();
         await updateJokiSettings({ globalPaused: true, globalPauseStarted: now });
         
-        for (const customer of active) {
+        await Promise.all(active.map(customer => {
           const remaining = Math.max(0, Math.floor((customer.endTime - now) / 1000));
-          await updateJokiCustomer(customer.id, {
+          return updateJokiCustomer(customer.id, {
             remainingAtPause: remaining,
             pauseStarted: now,
             paused: true
           });
-        }
+        }));
+
         addToast('Semua billing berhasil di-pause!', 'success');
       }
     });
   };
 
-  // 2. Resume All
+  // 2. Resume All (Parallelized)
   const handleRequestResumeAll = () => {
     const paused = customers.filter(c => c.paused && !c.finished);
     if (paused.length === 0) {
@@ -194,17 +213,18 @@ const JokiDashboard = () => {
         const now = Date.now();
         await updateJokiSettings({ globalPaused: false, globalPauseStarted: null });
 
-        for (const customer of paused) {
+        await Promise.all(paused.map(customer => {
           const pauseDuration = Math.max(0, Math.floor((now - (customer.pauseStarted || now)) / 1000));
           const newEndTime = now + ((customer.remainingAtPause || 0) * 1000);
-          await updateJokiCustomer(customer.id, {
+          return updateJokiCustomer(customer.id, {
             totalPausedSeconds: (customer.totalPausedSeconds || 0) + pauseDuration,
             endTime: newEndTime,
             paused: false,
             pauseStarted: null,
             remainingAtPause: null
           });
-        }
+        }));
+
         addToast('Semua billing berhasil dilanjutkan! Jam selesai telah diperbarui.', 'success');
       }
     });
@@ -363,10 +383,10 @@ const JokiDashboard = () => {
       {/* Metric Summary Cards (Admin Only) */}
       <JokiSummary />
 
-      {/* Main 2-Column Grid: Billing Tables (Left) + Queue Sidebar (Right) */}
-      <div className="flex flex-col lg:flex-row gap-4 items-start">
-        {/* Left Column: Tables */}
-        <div className="w-full lg:flex-1 min-w-0">
+      {/* Main Split Deck (60 : 40 Sejajar): Active Table (Left 60%) + Queue Sidebar (Right 40%) */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start mb-6">
+        {/* Left Column: Active Table (60% / 7 cols) */}
+        <div className="w-full lg:col-span-7 xl:col-span-7 space-y-3 min-w-0">
           <JokiToolbar />
           <ActiveTable
             onOpenExtendModal={setExtendCustomer}
@@ -374,15 +394,22 @@ const JokiDashboard = () => {
             onRequestMoveToQueue={handleRequestMoveToQueue}
             onRequestStopCustomer={handleRequestStopCustomer}
             onRequestClearActiveBillings={handleRequestClearActiveBillings}
+            onStartQueueItem={setStartQueueItem}
           />
-          <HistoryTable />
         </div>
 
-        {/* Right Column: Queue Sidebar */}
-        <QueueSidebar
-          onStartFromQueue={setStartQueueItem}
-          onRequestClearQueue={handleRequestClearQueue}
-        />
+        {/* Right Column: Queue Sidebar (40% / 5 cols) */}
+        <div className="w-full lg:col-span-5 xl:col-span-5 min-w-0">
+          <QueueSidebar
+            onStartFromQueue={setStartQueueItem}
+            onRequestClearQueue={handleRequestClearQueue}
+          />
+        </div>
+      </div>
+
+      {/* Bottom Area (100% Full Width): History Table & Leaderboard */}
+      <div className="w-full mb-8">
+        <HistoryTable />
       </div>
 
       {/* Modals */}
@@ -420,6 +447,11 @@ const JokiDashboard = () => {
       <JokiSettingsModal
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
+      />
+
+      <SecretVaultModal
+        isOpen={isSecretVaultOpen}
+        onClose={() => setIsSecretVaultOpen(false)}
       />
 
       <ConfirmModal

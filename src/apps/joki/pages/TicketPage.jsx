@@ -1,8 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { 
-  db 
-} from '../../../config/firebaseConfig';
+import { db } from '../../../config/firebaseConfig';
 import { 
   collection, 
   onSnapshot,
@@ -10,20 +8,15 @@ import {
 } from 'firebase/firestore';
 import { 
   Gamepad2, 
-  Clock, 
   Crown, 
-  Sparkles, 
-  Tv, 
   AlertCircle, 
   CheckCircle2, 
-  Pause, 
-  Hourglass, 
-  ShieldCheck, 
-  Radio, 
-  Flame, 
   Coffee,
   Moon,
-  Gem
+  Gem,
+  Bell,
+  BellRing,
+  Lock
 } from 'lucide-react';
 import { computeLiveStatus } from '../services/jokiFirebase';
 
@@ -53,6 +46,35 @@ const formatDuration = (hours) => {
   return `${m} Menit`;
 };
 
+// Web Audio API Synthesizer Chime (Works 100% offline & without external audio files)
+const playNotificationChime = () => {
+  try {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    const now = ctx.currentTime;
+
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(659.25, now);
+    osc.frequency.setValueAtTime(783.99, now + 0.12);
+
+    gain.gain.setValueAtTime(0, now);
+    gain.gain.linearRampToValueAtTime(0.3, now + 0.05);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    osc.start(now);
+    osc.stop(now + 0.5);
+  } catch (err) {
+    console.warn('Audio chime warning:', err);
+  }
+};
+
 const TicketPage = () => {
   const { ticketId: rawTicketId, workspaceId: paramWorkspaceId } = useParams();
   const searchTicketId = (rawTicketId || '').trim().toUpperCase();
@@ -64,6 +86,17 @@ const TicketPage = () => {
   const [activeCustomers, setActiveCustomers] = useState([]);
   const [queueList, setQueueList] = useState([]);
   const [now, setNow] = useState(Date.now());
+
+  // Notification State
+  const [notificationsEnabled, setNotificationsEnabled] = useState(() => {
+    return localStorage.getItem(`notify_${searchTicketId}`) === 'true';
+  });
+
+  // Track state transitions for smart notifications
+  const prevTypeRef = useRef(null);
+  const prevLiveStatusRef = useRef(null);
+  const prevPausedRef = useRef(null);
+  const prevFinishedRef = useRef(null);
 
   // 1-second ticker for live countdowns
   useEffect(() => {
@@ -77,7 +110,6 @@ const TicketPage = () => {
     const unsubWs = onSnapshot(wsRef, (snap) => {
       const allWs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
 
-      // If workspace is specified in URL, use it; otherwise search across all workspaces
       const targetWorkspaces = paramWorkspaceId 
         ? allWs.filter(w => w.id === paramWorkspaceId) 
         : allWs;
@@ -110,7 +142,6 @@ const TicketPage = () => {
         const uCust = onSnapshot(custCol, (cSnap) => {
           const custs = cSnap.docs.map(d => ({ id: d.id, ...d.data() }));
 
-          // Check if ticket is in customers
           const matchCust = custs.find(c => {
             const tId = (c.ticketId || `JK-${c.id.slice(-5)}`).toUpperCase();
             return tId === searchTicketId || c.id === rawTicketId;
@@ -134,7 +165,6 @@ const TicketPage = () => {
           const qItems = qSnap.docs.map(d => ({ id: d.id, ...d.data() }));
           qItems.sort((a, b) => (a.orderIndex ?? a.createdAt ?? 0) - (b.orderIndex ?? b.createdAt ?? 0));
 
-          // Check if ticket is in queue
           const matchQueue = qItems.find(q => {
             const tId = (q.ticketId || `JK-${q.id.slice(-5)}`).toUpperCase();
             return tId === searchTicketId || q.id === rawTicketId;
@@ -166,6 +196,89 @@ const TicketPage = () => {
     return () => unsubWs();
   }, [searchTicketId, paramWorkspaceId, rawTicketId]);
 
+  // Request & Toggle Notifications
+  const handleToggleNotifications = async () => {
+    if (!notificationsEnabled) {
+      if ('Notification' in window) {
+        const permission = await Notification.requestPermission();
+        if (permission === 'granted') {
+          setNotificationsEnabled(true);
+          localStorage.setItem(`notify_${searchTicketId}`, 'true');
+          playNotificationChime();
+          new Notification('🔔 Pengingat Tiket Aktif!', {
+            body: 'Kamu akan mendapat pemberitahuan saat giliran main tiba, live dimulai, atau joki selesai.',
+            icon: '/favicon.ico'
+          });
+        }
+      } else {
+        setNotificationsEnabled(true);
+        localStorage.setItem(`notify_${searchTicketId}`, 'true');
+        playNotificationChime();
+      }
+    } else {
+      setNotificationsEnabled(false);
+      localStorage.setItem(`notify_${searchTicketId}`, 'false');
+    }
+  };
+
+  // Helper to trigger browser notification & chime
+  const notifyCustomer = (title, body) => {
+    playNotificationChime();
+    if ('Notification' in window && Notification.permission === 'granted') {
+      try {
+        new Notification(title, { body, icon: '/favicon.ico' });
+      } catch (e) {
+        console.warn(e);
+      }
+    }
+  };
+
+  // Compute Live Status
+  const liveState = computeLiveStatus(workspaceSettings, activeCustomers);
+  const streamStatus = liveState.status;
+  const nextSchedule = liveState.subtext || '';
+
+  // Active Billing calculations (always computed before hook returns)
+  const isFinished = ticketData ? (ticketData.finished || ticketData.isPendingClearance) : false;
+  const isPaused = ticketData?.type === 'CUSTOMER' && !ticketData.finished ? Boolean(ticketData.paused) : false;
+  const remainingSeconds = (ticketData?.type === 'CUSTOMER' && !ticketData.finished)
+    ? (isPaused ? Math.max(0, ticketData.remainingAtPause || 0) : Math.max(0, Math.floor((ticketData.endTime - now) / 1000)))
+    : 0;
+
+  // State Transition Notifications Effect (Hook declared unconditionally at top level)
+  useEffect(() => {
+    if (!notificationsEnabled || !ticketData) return;
+
+    // 1. Turned from Queue into Active Billing
+    if (prevTypeRef.current === 'QUEUE' && ticketData.type === 'CUSTOMER') {
+      notifyCustomer('🎮 Giliran Dimainkan!', 'Yey, akun Roblox kamu sekarang sedang dimainkan di live!');
+    }
+
+    // 2. Streamer started live stream
+    if (prevLiveStatusRef.current === 'OFFLINE' && streamStatus === 'LIVE') {
+      notifyCustomer('🔴 Streamer Sedang Live!', 'Streamer sekarang sedang LIVE streaming! Yuk tonton sekarang!');
+    }
+
+    // 3. Paused / Break transition
+    if (prevPausedRef.current === false && isPaused === true) {
+      if (streamStatus === 'OFFLINE') {
+        notifyCustomer('😴 Streamer Selesai Live', 'Streamer sudah off live. Sisa waktu joki kamu aman tersimpan untuk live berikutnya!');
+      } else {
+        notifyCustomer('☕ Streamer Istirahat', 'Streamer lagi jeda sebentar. Sisa waktu joki kamu aman terjeda.');
+      }
+    }
+
+    // 4. Finished Billing
+    if (prevFinishedRef.current === false && (isFinished || (remainingSeconds <= 0 && ticketData.type === 'CUSTOMER'))) {
+      notifyCustomer('🎉 Joki Roblox Selesai!', 'Akun Roblox kamu sudah selesai dimainkan! Selamat have fun di Roblox!');
+    }
+
+    prevTypeRef.current = ticketData.type;
+    prevLiveStatusRef.current = streamStatus;
+    prevPausedRef.current = isPaused;
+    prevFinishedRef.current = isFinished;
+  }, [ticketData?.type, streamStatus, isPaused, isFinished, remainingSeconds, notificationsEnabled, ticketData]);
+
   // Loading Screen
   if (loading) {
     return (
@@ -183,78 +296,34 @@ const TicketPage = () => {
   // Not Found Screen
   if (!ticketData) {
     return (
-      <div className="min-h-screen bg-[#0d0e12] text-white flex flex-col items-center justify-center p-6 text-center">
-        <div className="w-16 h-16 rounded-3xl bg-accent-red/15 border border-accent-red/30 flex items-center justify-center text-accent-red mb-4">
-          <AlertCircle size={32} />
+      <div className="min-h-screen bg-[#0d0e12] text-white flex flex-col items-center justify-center p-4 text-center">
+        <div className="w-14 h-14 rounded-3xl bg-accent-red/15 border border-accent-red/30 flex items-center justify-center text-accent-red mb-3">
+          <AlertCircle size={30} />
         </div>
-        <h2 className="text-xl font-black text-white m-0 mb-1 tracking-tight">
-          Tiket Tidak Ditemukan
-        </h2>
-        <p className="text-xs text-text-muted max-w-xs mb-6">
-          Kode tiket <strong className="text-accent-cyan">#{searchTicketId}</strong> tidak terdaftar atau sudah dibersihkan dari server.
+        <h2 className="text-lg font-black text-white m-0">Tiket Tidak Ditemukan</h2>
+        <p className="text-xs text-text-muted max-w-xs mt-1.5 mb-5">
+          Tiket ID <strong className="text-accent-cyan">#{searchTicketId}</strong> tidak ditemukan atau sudah selesai & otomatis terhapus demi keamanan.
         </p>
-        <Link 
+        <Link
           to="/"
-          className="px-6 py-2.5 rounded-xl bg-accent-purple hover:bg-accent-purple-light text-xs font-extrabold text-white transition-all shadow-lg shadow-accent-purple/20"
+          className="px-5 py-2.5 rounded-xl bg-accent-cyan text-bg-primary font-black text-xs hover:bg-accent-cyan-light transition-all shadow-lg"
         >
-          Lihat Live Monitor Utama
+          Lihat Live Monitor
         </Link>
       </div>
     );
   }
 
-  // Calculate Self-Destruct State (5 Minutes after finish)
-  const isFinished = ticketData.type === 'CUSTOMER' && ticketData.finished;
-  const finishTimestamp = ticketData.finishedTime || ticketData.endTime || ticketData.createdAt;
-  const elapsedSinceFinishSeconds = Math.max(0, Math.floor((now - finishTimestamp) / 1000));
-  const SELF_DESTRUCT_LIMIT = 5 * 60; // 5 minutes
-  const isSelfDestructed = isFinished && elapsedSinceFinishSeconds >= SELF_DESTRUCT_LIMIT;
-  const remainingDestructSeconds = Math.max(0, SELF_DESTRUCT_LIMIT - elapsedSinceFinishSeconds);
+  // Self-Destruct Timer (5 Minutes after finish)
+  const finishTimestamp = ticketData.finishedTime || ticketData.endTime || Date.now();
+  const destructDeadline = finishTimestamp + (5 * 60 * 1000);
+  const remainingDestructSeconds = Math.max(0, Math.floor((destructDeadline - now) / 1000));
 
-  // Self-Destructed Expired Screen
-  if (isSelfDestructed) {
-    return (
-      <div className="min-h-screen bg-[#0d0e12] text-white flex flex-col items-center justify-center p-6 text-center">
-        <div className="w-16 h-16 rounded-3xl bg-white/5 border border-border-default flex items-center justify-center text-text-muted mb-4">
-          <ShieldCheck size={32} />
-        </div>
-        <h2 className="text-xl font-black text-white m-0 mb-1 tracking-tight">
-          Tiket Ini Sudah Selesai & Hangus
-        </h2>
-        <p className="text-xs text-text-muted max-w-sm mb-6">
-          Sesi joki untuk akun <strong>{ticketData.username || ticketData.name}</strong> sudah selesai dan tiket otomatis ditutup demi keamanan akun kamu.
-        </p>
-
-        <div className="p-4 rounded-2xl bg-bg-surface/80 border border-border-default max-w-xs w-full mb-6 text-left">
-          <div className="text-xs font-black text-accent-cyan mb-1 flex items-center gap-1.5">
-            <Flame size={14} className="text-accent-orange" />
-            <span>Mau Joki Lagi?</span>
-          </div>
-          <p className="text-[11.5px] text-text-secondary m-0">
-            Yuk mampir dan pesan antrean baru di live streaming Streamer!
-          </p>
-        </div>
-
-        <Link 
-          to="/"
-          className="px-6 py-3 rounded-xl bg-accent-cyan text-bg-primary text-xs font-black transition-all shadow-lg shadow-accent-cyan/20"
-        >
-          Buka Live Stream Streamer
-        </Link>
-      </div>
-    );
-  }
-
-  // Determine Customer State
-  const serviceUpper = (ticketData.service || '').toUpperCase();
+  // Service Tier helpers
+  const serviceUpper = (ticketData.service || 'Basic').toUpperCase();
   const isVVIP = serviceUpper.includes('VVIP') || ticketData.slot === 'VVIP';
   const isVIP = !isVVIP && (serviceUpper.includes('VIP') || ticketData.slot === 'VIP');
   const streamerName = workspaceInfo?.name || 'Kadal Gaming';
-
-  // Compute Time-Based & Active-Slot Live Status
-  const liveState = computeLiveStatus(workspaceSettings, activeCustomers);
-  const streamStatus = liveState.status;
-  const nextSchedule = liveState.subtext || '';
 
   // Queue Calculations (If in Queue)
   let queuePosition = 1;
@@ -286,45 +355,47 @@ const TicketPage = () => {
       estimatedWaitMinutes = 0;
       estimatedSlotName = isVVIP ? 'SLOT VVIP' : (isVIP ? 'SLOT VIP' : 'Slot Live');
       estimatedStartTimeStr = liveState.liveStartTime ? `Pukul ${liveState.liveStartTime} WIB` : 'Sesi Live Berikutnya';
-    } else if (relevantSlots.length === 0) {
-      // Slot is currently vacant
+    } else if (relevantSlots.length === 0 && myIndex === 0) {
       estimatedWaitMinutes = 0;
       estimatedSlotName = isVVIP ? 'SLOT VVIP' : (isVIP ? 'SLOT VIP' : 'Slot Siap!');
       estimatedStartTimeStr = 'Segera (Slot Siap)';
     } else {
-      // Sort active slots by remaining finish time
       const sortedByFinish = [...relevantSlots].sort((a, b) => {
         const remA = a.paused ? (a.remainingAtPause || 0) : Math.max(0, (a.endTime - now) / 1000);
         const remB = b.paused ? (b.remainingAtPause || 0) : Math.max(0, (b.endTime - now) / 1000);
         return remA - remB;
       });
 
-      // Target slot based on position index
-      const targetSlotIndex = Math.min(queuePosition - 1, sortedByFinish.length - 1);
+      const targetSlotIndex = Math.min(queuePosition - 1, Math.max(0, sortedByFinish.length - 1));
       const targetCustomer = sortedByFinish[targetSlotIndex];
-      const remSec = targetCustomer?.paused 
+      const activeRemSec = targetCustomer?.paused 
         ? (targetCustomer?.remainingAtPause || 0)
         : Math.max(0, Math.floor(((targetCustomer?.endTime || now) - now) / 1000));
 
-      estimatedWaitMinutes = Math.max(1, Math.round(remSec / 60));
+      const numConcurrentSlots = isVVIP ? 1 : (isVIP ? 1 : Math.max(1, sortedByFinish.length || 6));
+      let priorQueueSec = 0;
+      if (myIndex > 0) {
+        const precedingItems = subQueue.slice(0, myIndex);
+        const queueBlocksAhead = Math.floor(myIndex / numConcurrentSlots);
+        if (queueBlocksAhead > 0) {
+          priorQueueSec = precedingItems.reduce((sum, q) => sum + (Number(q.duration || 1) * 3600), 0) / numConcurrentSlots;
+        }
+      }
+
+      const totalWaitSeconds = activeRemSec + priorQueueSec;
+      estimatedWaitMinutes = Math.max(1, Math.round(totalWaitSeconds / 60));
       estimatedSlotName = isVVIP ? 'SLOT VVIP' : (isVIP ? 'SLOT VIP' : `SLOT ${targetCustomer?.slot || '1'}`);
-      estimatedStartTimeStr = formatClock(now + (remSec * 1000));
+      estimatedStartTimeStr = formatClock(now + (totalWaitSeconds * 1000));
     }
   }
 
-  // Active Billing Remaining Time
-  let remainingSeconds = 0;
-  let isPaused = false;
-  if (ticketData.type === 'CUSTOMER' && !ticketData.finished) {
-    isPaused = ticketData.paused;
-    remainingSeconds = isPaused
-      ? Math.max(0, ticketData.remainingAtPause || 0)
-      : Math.max(0, Math.floor((ticketData.endTime - now) / 1000));
-  }
+  const totalBillingSeconds = Math.max(1, Math.round(Number(ticketData.duration || 1) * 3600));
+  const ringProgress = Math.min(1, Math.max(0, remainingSeconds / totalBillingSeconds));
+  const CIRCLE_CIRCUMFERENCE = 2 * Math.PI * 68; // r=68 => ~427.25
 
   return (
-    <div className="min-h-screen bg-[#0d0e12] text-white flex flex-col items-center justify-center p-4 py-8 select-none font-sans">
-      <div className="w-full max-w-[420px] flex flex-col gap-3.5">
+    <div className="min-h-screen bg-[#0d0e12] text-white flex flex-col items-center justify-center p-4 py-6 select-none font-sans">
+      <div className="w-full max-w-[420px] flex flex-col gap-3">
         
         {/* Brand Header */}
         <div className="flex items-center justify-between px-1">
@@ -342,40 +413,56 @@ const TicketPage = () => {
             </div>
           </div>
 
-          <span className="font-mono text-xs font-black px-2.5 py-1 rounded-xl bg-white/5 border border-border-default text-accent-cyan">
-            #{ticketData.ticketId || `JK-${ticketData.id.slice(-5)}`}
-          </span>
+          <div className="flex items-center gap-1.5">
+            {/* Notify Me Button */}
+            <button
+              type="button"
+              onClick={handleToggleNotifications}
+              title={notificationsEnabled ? 'Pengingat Notifikasi Aktif' : 'Aktifkan Pengingat Notifikasi'}
+              className={`p-1.5 rounded-xl border text-xs font-bold transition-all flex items-center gap-1 cursor-pointer ${
+                notificationsEnabled
+                  ? 'bg-accent-green/20 text-accent-green border-accent-green/40 shadow-sm'
+                  : 'bg-white/5 text-text-dim hover:text-white border-white/10 hover:bg-white/10'
+              }`}
+            >
+              {notificationsEnabled ? <BellRing size={13} className="animate-bounce" /> : <Bell size={13} />}
+              <span className="text-[10px] hidden sm:inline">{notificationsEnabled ? 'Notif Aktif' : 'Ingatkan Aku'}</span>
+            </button>
+
+            <span className="font-mono text-xs font-black px-2 py-1 rounded-xl bg-white/5 border border-border-default text-accent-cyan">
+              #{ticketData.ticketId || `JK-${ticketData.id.slice(-5)}`}
+            </span>
+          </div>
         </div>
 
         {/* Streamer Broadcast / Schedule Banner (Context-Aware) */}
         {streamStatus === 'LIVE' ? (
-          <div className="p-3 rounded-2xl bg-gradient-to-r from-accent-red/20 to-accent-purple/20 border border-accent-red/40 flex items-center justify-between gap-2 shadow-lg animate-pulse">
+          <div className="p-2.5 rounded-2xl bg-gradient-to-r from-accent-red/20 to-accent-purple/20 border border-accent-red/40 flex items-center justify-between gap-2 shadow-lg">
             <div className="flex items-center gap-2 min-w-0">
-              <span className="w-2.5 h-2.5 rounded-full bg-accent-red shrink-0" />
+              <span className="w-2.5 h-2.5 rounded-full bg-accent-red shrink-0 animate-ping" />
               <div className="text-xs font-black text-white truncate">
                 🔴 Streamer Sedang LIVE STREAM!
               </div>
             </div>
             <Link
               to="/"
-              className="text-[11px] font-black px-3 py-1 rounded-xl bg-accent-red hover:bg-accent-red/90 text-white shrink-0 shadow"
+              className="text-[10.5px] font-black px-3 py-1 rounded-xl bg-accent-red hover:bg-accent-red/90 text-white shrink-0 shadow transition-transform active:scale-95"
             >
               Nonton Live
             </Link>
           </div>
         ) : streamStatus === 'BREAK' ? (
-          <div className="p-3 rounded-2xl bg-accent-orange/15 border border-accent-orange/35 flex items-center gap-2 text-accent-orange text-xs font-bold">
-            <Coffee size={15} />
+          <div className="p-2.5 rounded-2xl bg-accent-orange/15 border border-accent-orange/35 flex items-center gap-2 text-accent-orange text-xs font-bold">
+            <Coffee size={14} className="shrink-0" />
             <span>Streamer lagi istirahat sebentar. Joki segera dilanjutkan!</span>
           </div>
         ) : (
-          /* OFFLINE BANNER (Context-Aware for Active Slot vs Queue) */
-          <div className="p-3 rounded-2xl bg-bg-surface border border-border-default flex flex-col gap-1 text-xs">
+          <div className="p-2.5 rounded-2xl bg-bg-surface border border-border-default flex flex-col gap-0.5 text-xs">
             <div className="flex items-center gap-1.5 text-text-muted font-bold">
               <Moon size={13} className="text-accent-purple-light" />
               <span>Status Streamer: <strong>Off Stream</strong></span>
             </div>
-            <p className="text-[11.5px] text-text-dim m-0 leading-relaxed">
+            <p className="text-[11px] text-text-dim m-0 leading-relaxed">
               {ticketData.type === 'CUSTOMER' && !ticketData.finished ? (
                 <span>
                   Sesi live sudah selesai. Joki di <strong className="text-white">{ticketData.slot === 'VVIP' ? 'Slot VVIP' : (ticketData.slot === 'VIP' ? 'Slot VIP' : `Slot ${ticketData.slot}`)}</strong> dijeda dan <strong className="text-accent-green">sisa waktu aman</strong> untuk dilanjutkan saat live berikutnya!
@@ -392,7 +479,7 @@ const TicketPage = () => {
         )}
 
         {/* MAIN TICKET CARD */}
-        <div className={`rounded-3xl p-5 border-2 shadow-2xl relative overflow-hidden backdrop-blur-xl ${
+        <div className={`rounded-3xl p-4.5 border-2 shadow-2xl relative overflow-hidden backdrop-blur-xl ${
           isVVIP
             ? 'bg-gradient-to-b from-[#211116] to-[#121318] border-rose-500/50 shadow-rose-500/10'
             : isVIP
@@ -401,17 +488,17 @@ const TicketPage = () => {
         }`}>
 
           {/* User Profile Header */}
-          <div className="flex items-center justify-between pb-3.5 mb-3.5 border-b border-white/10">
+          <div className="flex items-center justify-between pb-3 mb-3 border-b border-white/10">
             <div className="min-w-0">
-              <div className="text-[11px] font-extrabold uppercase tracking-wider text-text-dim mb-0.5">
+              <div className="text-[10.5px] font-extrabold uppercase tracking-wider text-text-dim mb-0.5">
                 Customer Roblox
               </div>
-              <div className="text-lg font-black text-white tracking-tight truncate flex items-center gap-1.5">
+              <div className="text-base font-black text-white tracking-tight truncate flex items-center gap-1.5">
                 <span>{ticketData.username || ticketData.name}</span>
                 {isVVIP ? (
-                  <Gem size={16} className="text-rose-400 shrink-0" />
+                  <Gem size={15} className="text-rose-400 shrink-0" />
                 ) : isVIP ? (
-                  <Crown size={16} className="text-accent-yellow shrink-0" />
+                  <Crown size={15} className="text-accent-yellow shrink-0" />
                 ) : null}
               </div>
               {ticketData.tiktokName && (
@@ -422,7 +509,7 @@ const TicketPage = () => {
             </div>
 
             <div className="text-right shrink-0">
-              <span className={`inline-block px-3 py-1 rounded-xl text-xs font-black uppercase tracking-wider border ${
+              <span className={`inline-block px-2.5 py-0.5 rounded-xl text-xs font-black uppercase tracking-wider border ${
                 isVVIP
                   ? 'bg-rose-500/20 text-rose-300 border-rose-500/50 shadow-sm'
                   : isVIP
@@ -439,32 +526,38 @@ const TicketPage = () => {
 
           {/* CONDITION 1: JUST FINISHED (Within 5 mins) */}
           {isFinished && (
-            <div className="text-center py-4 space-y-3">
-              <div className="w-14 h-14 mx-auto rounded-3xl bg-accent-green/20 border border-accent-green/40 flex items-center justify-center text-accent-green">
-                <CheckCircle2 size={32} />
+            <div className="text-center py-3 space-y-2.5">
+              <div className="w-12 h-12 mx-auto rounded-2xl bg-accent-green/20 border border-accent-green/40 flex items-center justify-center text-accent-green">
+                <CheckCircle2 size={28} />
               </div>
               <div>
                 <h3 className="text-base font-black text-white m-0">
-                  🎉 JOKI BERES! MAKASIH BRO!
+                  🎉 YEY JOKI BERES!
                 </h3>
-                <p className="text-xs text-text-muted mt-1 m-0">
-                  Akun kamu sudah selesai dimainkan. Silakan cek akun & ganti password ya!
+                <p className="text-xs text-text-secondary mt-1 m-0 leading-relaxed">
+                  Akun kamu sudah selesai dijoki di live streamer. Makasih banyak ya dan have fun seru-seruan di Roblox! ✨🎮
                 </p>
               </div>
 
-              {/* Self-Destruct Warning */}
-              <div className="p-3 rounded-2xl bg-accent-orange/10 border border-accent-orange/30 text-accent-orange text-xs font-bold font-mono">
-                ⏳ Tiket ditutup otomatis dalam: <strong className="text-white">{formatTime(remainingDestructSeconds)}</strong>
+              {/* Reassuring Self-Destruct Notice */}
+              <div className="p-2.5 rounded-2xl bg-white/5 border border-white/10 text-xs font-mono space-y-1">
+                <div className="text-[10.5px] text-text-dim font-sans flex items-center justify-center gap-1">
+                  <Lock size={11} className="text-accent-cyan" />
+                  <span>Tiket terhapus otomatis demi keamanan:</span>
+                </div>
+                <div className="text-sm font-black text-accent-cyan">
+                  ⏳ {formatTime(remainingDestructSeconds)}
+                </div>
               </div>
             </div>
           )}
 
-          {/* CONDITION 2: ACTIVE BILLING (Running / Paused) */}
-          {ticketData.type === 'CUSTOMER' && !ticketData.finished && (
-            <div className="space-y-4">
+          {/* CONDITION 2: ACTIVE BILLING (Radial Cooldown Ring) */}
+          {ticketData.type === 'CUSTOMER' && !isFinished && (
+            <div className="space-y-3">
               {/* Status Pill */}
               <div className="text-center">
-                <span className={`inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full text-xs font-black uppercase tracking-wide ${
+                <span className={`inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-[11px] font-black uppercase tracking-wide ${
                   isPaused && streamStatus === 'OFFLINE'
                     ? 'bg-accent-purple/20 text-accent-purple-light border border-accent-purple/40'
                     : isPaused 
@@ -484,29 +577,66 @@ const TicketPage = () => {
                 </span>
               </div>
 
-              {/* BIG COUNTDOWN BOX */}
-              <div className="py-4 px-3 rounded-2xl bg-bg-primary/90 border border-white/10 text-center shadow-inner">
-                <div className="text-[10.5px] font-extrabold uppercase tracking-widest text-text-dim mb-1">
-                  Sisa Waktu Joki
-                </div>
-                <div className={`font-mono text-4xl md:text-5xl font-black tracking-tight ${
-                  isPaused && streamStatus === 'OFFLINE' 
-                    ? 'text-accent-purple-light' 
-                    : isPaused ? 'text-accent-orange' : isVVIP ? 'text-rose-400' : 'text-accent-green'
-                }`}>
-                  {formatTime(remainingSeconds)}
-                </div>
-                <div className="text-[11px] font-bold text-text-tertiary mt-1.5 flex items-center justify-center gap-1">
-                  <span>Slot Bermain:</span>
-                  <strong className="text-white font-mono">
-                    {ticketData.slot === 'VVIP' ? '💎 VVIP (SUPER PRIORITY)' : (ticketData.slot === 'VIP' ? '👑 VIP' : `SLOT ${ticketData.slot}`)}
-                  </strong>
+              {/* RADIAL COOLDOWN RING (SVG Circular Timer) */}
+              <div className="flex flex-col items-center justify-center py-2">
+                <div className="relative w-44 h-44 flex items-center justify-center">
+                  <svg className="w-full h-full transform -rotate-90" viewBox="0 0 160 160">
+                    {/* Background Track */}
+                    <circle
+                      cx="80"
+                      cy="80"
+                      r="68"
+                      fill="transparent"
+                      stroke="rgba(255, 255, 255, 0.08)"
+                      strokeWidth="9"
+                    />
+                    {/* Depleting Active Cooldown Ring */}
+                    <circle
+                      cx="80"
+                      cy="80"
+                      r="68"
+                      fill="transparent"
+                      stroke={
+                        isPaused && streamStatus === 'OFFLINE'
+                          ? '#c084fc'
+                          : isPaused
+                          ? '#f97316'
+                          : isVVIP
+                          ? '#f43f5e'
+                          : isVIP
+                          ? '#eab308'
+                          : '#06b6d4'
+                      }
+                      strokeWidth="9"
+                      strokeDasharray={CIRCLE_CIRCUMFERENCE}
+                      strokeDashoffset={CIRCLE_CIRCUMFERENCE * (1 - ringProgress)}
+                      strokeLinecap="round"
+                      className="transition-all duration-1000 ease-linear"
+                    />
+                  </svg>
+
+                  {/* Inside Center Details */}
+                  <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-2">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-text-dim">
+                      Sisa Waktu
+                    </span>
+                    <span className={`font-mono text-3xl font-black tracking-tight mt-0.5 ${
+                      isPaused && streamStatus === 'OFFLINE' 
+                        ? 'text-accent-purple-light' 
+                        : isPaused ? 'text-accent-orange' : isVVIP ? 'text-rose-400' : 'text-white'
+                    }`}>
+                      {formatTime(remainingSeconds)}
+                    </span>
+                    <span className="text-[10px] font-bold text-text-muted mt-1 px-2 py-0.5 rounded-md bg-white/5 border border-white/10 font-mono">
+                      {ticketData.slot === 'VVIP' ? '💎 SLOT VVIP' : (ticketData.slot === 'VIP' ? '👑 SLOT VIP' : `SLOT ${ticketData.slot || '1'}`)}
+                    </span>
+                  </div>
                 </div>
               </div>
 
-              {/* Context-Aware Paused Notice (Bocil-Friendly) */}
+              {/* Context-Aware Paused Notice (Child-Friendly & Calm) */}
               {isPaused && (
-                <div className={`p-3.5 rounded-2xl text-xs font-medium leading-relaxed border ${
+                <div className={`p-3 rounded-2xl text-xs font-medium leading-relaxed border ${
                   streamStatus === 'OFFLINE'
                     ? 'bg-accent-purple/10 border-accent-purple/30 text-text-secondary'
                     : 'bg-accent-orange/10 border-accent-orange/25 text-accent-orange'
@@ -514,31 +644,31 @@ const TicketPage = () => {
                   {streamStatus === 'OFFLINE' ? (
                     <div>
                       <strong className="text-accent-purple-light block mb-0.5">
-                        😴 Joki Dijeda Dulu (Streamer Udahan Live)
+                        😴 Joki Dijeda Dulu (Streamer Sedang Off Live)
                       </strong>
                       <span>
-                        Waktu joki kamu <strong className="text-accent-green">AMAN BANGET</strong> bro! Streamer lagi istirahat/off stream. Sisa waktu <strong>{formatTime(remainingSeconds)}</strong> bakal langsung dilanjutin pas sesi live streaming berikutnya ya!
+                        Waktu joki kamu <strong className="text-accent-green">aman tersimpan</strong> ya! Sisa waktu <strong>{formatTime(remainingSeconds)}</strong> akan otomatis dilanjutkan pas sesi live berikutnya.
                       </span>
                     </div>
                   ) : (
                     <div>
-                      ⚠️ <strong>Waktu kamu aman bro!</strong> Streamer lagi menjeda billing sebentar (misal: cek problem/verifikasi akun). Sisa waktu kamu tidak berkurang.
+                      ⚠️ <strong>Waktu joki kamu aman!</strong> Streamer lagi istirahat atau jeda billing sebentar. Sisa waktu tidak berkurang.
                     </div>
                   )}
                 </div>
               )}
 
               {/* Timing Details */}
-              <div className="grid grid-cols-2 gap-2 text-xs bg-white/[0.02] p-3 rounded-xl border border-white/5 font-medium">
+              <div className="grid grid-cols-2 gap-2 text-xs bg-white/[0.02] p-2.5 rounded-xl border border-white/5 font-medium">
                 <div>
-                  <span className="text-text-dim text-[10.5px] block">Mulai Dimainkan:</span>
+                  <span className="text-text-dim text-[10px] block">Mulai Dimainkan:</span>
                   <strong className="text-white font-mono">{formatClock(ticketData.startTime)}</strong>
                 </div>
                 <div className="text-right">
-                  <span className="text-text-dim text-[10.5px] block">Perkiraan Beres:</span>
+                  <span className="text-text-dim text-[10px] block">Perkiraan Beres:</span>
                   {streamStatus === 'OFFLINE' && isPaused ? (
                     <strong className="text-accent-purple-light font-bold text-[11px] block">
-                      {liveState.liveStartTime ? `📅 Besok Jam ${liveState.liveStartTime} WIB` : '📅 Lanjut Next Live'}
+                      {liveState.liveStartTime ? `📅 Jam ${liveState.liveStartTime} WIB` : '📅 Lanjut Next Live'}
                     </strong>
                   ) : (
                     <strong className="text-accent-cyan font-mono">{formatClock(ticketData.endTime)}</strong>
@@ -550,28 +680,28 @@ const TicketPage = () => {
 
           {/* CONDITION 3: IN QUEUE */}
           {ticketData.type === 'QUEUE' && (
-            <div className="space-y-4">
+            <div className="space-y-3">
               {/* Position Banner */}
-              <div className="p-4 rounded-2xl bg-bg-primary/90 border border-white/10 text-center shadow-inner">
-                <div className="text-[11px] font-extrabold uppercase tracking-widest text-text-dim mb-1">
+              <div className="p-3.5 rounded-2xl bg-bg-primary/90 border border-white/10 text-center shadow-inner">
+                <div className="text-[10.5px] font-extrabold uppercase tracking-widest text-text-dim mb-0.5">
                   Urutan Antrean Kamu {isVVIP ? '(VVIP Super Priority)' : isVIP ? '(VIP Priority)' : ''}
                 </div>
-                <div className={`font-mono text-4xl md:text-5xl font-black tracking-tight ${
+                <div className={`font-mono text-4xl font-black tracking-tight ${
                   isVVIP ? 'text-rose-400' : queuePosition === 1 ? 'text-accent-yellow' : 'text-accent-cyan'
                 }`}>
                   #{queuePosition}
                 </div>
-                <div className="text-xs font-bold text-text-secondary mt-1">
+                <div className="text-xs font-bold text-text-secondary mt-0.5">
                   {streamStatus === 'OFFLINE'
                     ? '😴 Streamer Off Stream (Antrean Kamu Aman)'
                     : queuePosition === 1 
                     ? '🔥 GILIRAN BERIKUTNYA! Siap-siap ya!' 
-                    : `Ada ${queuePosition - 1} orang di depan kamu`}
+                    : `Ada ${queuePosition - 1} akun di depan kamu`}
                 </div>
               </div>
 
               {/* Wait Time & Target Slot Prediction */}
-              <div className="p-3.5 rounded-2xl bg-white/[0.03] border border-white/10 space-y-2 text-xs">
+              <div className="p-3 rounded-2xl bg-white/[0.03] border border-white/10 space-y-1.5 text-xs">
                 <div className="flex items-center justify-between">
                   <span className="text-text-dim">⏳ Estimasi Waktu Tunggu:</span>
                   <strong className={`font-mono text-sm ${isVVIP ? 'text-rose-400' : 'text-accent-yellow'}`}>
@@ -580,7 +710,7 @@ const TicketPage = () => {
                 </div>
                 <div className="flex items-center justify-between pt-1 border-t border-white/5">
                   <span className="text-text-dim">⏱️ Perkiraan Masuk Slot:</span>
-                  <strong className="text-white font-mono text-[11.5px]">
+                  <strong className="text-white font-mono text-[11px]">
                     {estimatedStartTimeStr}
                   </strong>
                 </div>
@@ -593,19 +723,19 @@ const TicketPage = () => {
               </div>
 
               {queuePosition === 1 && streamStatus !== 'OFFLINE' && (
-                <div className={`p-3 rounded-xl border text-xs font-medium ${
+                <div className={`p-2.5 rounded-xl border text-xs font-medium ${
                   isVVIP 
                     ? 'bg-rose-500/10 border-rose-500/30 text-rose-300' 
                     : 'bg-accent-yellow/10 border-accent-yellow/30 text-accent-yellow'
                 }`}>
-                  ⚡ <strong>Siap-siap bro!</strong> Streamer akan segera memasukkan akunmu ke slot live begitu slot kosong.
+                  ⚡ <strong>Siap-siap ya!</strong> Streamer akan segera memasukkan akunmu begitu slot live kosong.
                 </div>
               )}
             </div>
           )}
 
           {/* Footer Note */}
-          <div className="mt-4 pt-3 border-t border-white/10 flex items-center justify-between text-[10.5px] text-text-dim">
+          <div className="mt-3.5 pt-2.5 border-t border-white/10 flex items-center justify-between text-[10px] text-text-dim">
             <span>🔒 Transaksi Lunas Terverifikasi</span>
             <span>{isVVIP ? '💎 VVIP MEMBER' : isVIP ? '👑 VIP MEMBER' : 'STANDARD'}</span>
           </div>
@@ -614,7 +744,7 @@ const TicketPage = () => {
         {/* Action Button: Kembali ke Live Monitor */}
         <Link
           to="/"
-          className="w-full py-3 rounded-2xl bg-bg-surface hover:bg-white/5 border border-border-default text-xs font-bold text-center text-text-muted hover:text-white transition-all shadow-md"
+          className="w-full py-2.5 rounded-2xl bg-bg-surface hover:bg-white/5 border border-border-default text-xs font-bold text-center text-text-muted hover:text-white transition-all shadow-md"
         >
           ← Buka Dashboard Live Monitor
         </Link>

@@ -16,7 +16,7 @@ const EXTEND_PRESETS = [
 ];
 
 const ExtendModal = ({ customer, onClose }) => {
-  const { updateJokiCustomer, addToast } = useJoki();
+  const { updateJokiCustomer, priceVvip, addToast } = useJoki();
   const [amount, setAmount] = useState(30);
   const [unit, setUnit] = useState('minute'); // 'minute' | 'hour'
   const [loading, setLoading] = useState(false);
@@ -33,7 +33,7 @@ const ExtendModal = ({ customer, onClose }) => {
   const srv = (customer.service || 'Basic').toUpperCase();
   const isVVIP = srv.includes('VVIP');
   const isVIP = !isVVIP && srv.includes('VIP');
-  const pricePerHour = isVVIP ? PRICE_VVIP : (isVIP ? PRICE_VIP : PRICE_BASIC);
+  const pricePerHour = isVVIP ? (priceVvip || PRICE_VVIP) : (isVIP ? PRICE_VIP : PRICE_BASIC);
   const pricePerHalfHour = pricePerHour / 2;
 
   // Total additional minutes

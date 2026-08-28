@@ -12,7 +12,10 @@ import {
   Key, 
   Copy, 
   MoreHorizontal,
-  Trash2
+  Trash2,
+  Rocket,
+  CheckCheck,
+  Check
 } from 'lucide-react';
 import CredentialModal from '../modals/CredentialModal';
 
@@ -65,12 +68,15 @@ const ActiveTable = ({
   onOpenEditModal,
   onRequestMoveToQueue,
   onRequestStopCustomer, 
-  onRequestClearActiveBillings
+  onRequestClearActiveBillings,
+  onStartQueueItem
 }) => {
   const { 
     customers, 
+    queue,
     updateJokiCustomer, 
     deleteJokiCustomer,
+    finishAndArchiveCustomer,
     filter, 
     sortBy,
     isAdmin, 
@@ -100,33 +106,33 @@ const ActiveTable = ({
   }, []);
 
   const getRemaining = (customer) => {
-    if (customer.finished) return 0;
+    if (customer.finished || customer.isPendingClearance) return 0;
     if (customer.paused) return Math.max(0, customer.remainingAtPause || 0);
     return Math.max(0, Math.floor((customer.endTime - now) / 1000));
   };
 
   const getEndTime = (customer) => {
-    if (customer.finished) return customer.finishedTime || customer.endTime;
+    if (customer.finished || customer.isPendingClearance) return customer.finishedTime || customer.endTime;
     if (customer.paused) return (customer.pauseStarted || now) + ((customer.remainingAtPause || 0) * 1000);
     return customer.endTime;
   };
 
+  // Pause billing
   const handlePause = async (customer) => {
-    const remaining = getRemaining(customer);
-    const timeNow = Date.now();
+    const remaining = Math.max(0, Math.floor((customer.endTime - now) / 1000));
     await updateJokiCustomer(customer.id, {
-      remainingAtPause: remaining,
-      pauseStarted: timeNow,
-      paused: true
+      paused: true,
+      pauseStarted: now,
+      remainingAtPause: remaining
     });
-    addToast(`Billing ${customer.username || customer.name} dijeda.`, 'info');
+    addToast(`Billing ${customer.username || customer.name} dijeda. Sisa waktu aman.`, 'warning');
   };
 
+  // Resume billing
   const handleResume = async (customer) => {
-    const timeNow = Date.now();
-    const pauseDuration = Math.max(0, Math.floor((timeNow - (customer.pauseStarted || timeNow)) / 1000));
-    const newEndTime = timeNow + ((customer.remainingAtPause || 0) * 1000);
-
+    const pauseDuration = Math.max(0, Math.floor((now - (customer.pauseStarted || now)) / 1000));
+    const newEndTime = now + ((customer.remainingAtPause || 0) * 1000);
+    
     await updateJokiCustomer(customer.id, {
       totalPausedSeconds: (customer.totalPausedSeconds || 0) + pauseDuration,
       endTime: newEndTime,
@@ -137,12 +143,31 @@ const ActiveTable = ({
     addToast(`Billing ${customer.username || customer.name} dilanjutkan! Jam selesai diperbarui.`, 'success');
   };
 
-  // 1-Click Copy Ticket Link
+  // 1-Click Copy Ticket Link with Label
   const handleCopyTicketLink = (customer) => {
     const tId = customer.ticketId || `JK-${customer.id.slice(-5)}`;
     const ticketUrl = `${window.location.origin}/ticket/${tId}`;
-    navigator.clipboard.writeText(ticketUrl);
-    addToast(`✓ Link tiket ${customer.username || customer.name} (${tId}) disalin!`, 'success');
+    const targetName = customer.tiktokName 
+      ? `@${customer.tiktokName.replace(/^@/, '')}` 
+      : (customer.username || customer.name);
+    
+    const copyText = `Tiket Billing ${targetName}: ${ticketUrl}`;
+    navigator.clipboard.writeText(copyText);
+    addToast(`✓ Link tiket ${targetName} (${tId}) disalin!`, 'success');
+  };
+
+  // Clearance Handlers for Finished Slot
+  const handleFillFromQueue = async (customer) => {
+    await finishAndArchiveCustomer(customer.id);
+    if (queue && queue.length > 0 && onStartQueueItem) {
+      onStartQueueItem(queue[0]);
+    } else {
+      addToast('Slot telah diarsipkan ke Riwayat. Antrean saat ini kosong.', 'info');
+    }
+  };
+
+  const handleFinishAndArchive = async (customer) => {
+    await finishAndArchiveCustomer(customer.id);
   };
 
   // Open Floating Menu
@@ -154,9 +179,8 @@ const ActiveTable = ({
     }
 
     const rect = e.currentTarget.getBoundingClientRect();
-    const menuWidth = 224; // w-56
     const spaceBelow = window.innerHeight - rect.bottom;
-    const placeAbove = spaceBelow < 220; // If close to bottom of screen, flip upwards
+    const placeAbove = spaceBelow < 220;
 
     setMenuState({
       customer,
@@ -275,24 +299,29 @@ const ActiveTable = ({
               ) : (
                 filteredCustomers.map((customer, index) => {
                   const remaining = getRemaining(customer);
-                  const isWarning = !customer.paused && remaining <= 300; // <= 5 menit
-                  const cleanService = getCleanService(customer.service);
-                  const isVVIP = cleanService === 'VVIP';
-                  const isVIP = !isVVIP && cleanService === 'VIP';
-                  const cleanSlot = getCleanSlot(customer);
-                  const isSpecialSlot = cleanSlot === 'VVIP' || cleanSlot === 'VIP';
+                  const isFinished = customer.finished || customer.isPendingClearance || (remaining <= 0 && !customer.paused);
+                  const isWarning = !isFinished && !customer.paused && remaining > 0 && remaining <= 300;
                   const isDuplicateSlot = !isSpecialSlot && (slotCounts[cleanSlot] > 1);
                   const isMenuOpen = menuState?.customer?.id === customer.id;
-                  
+                  const cleanService = getCleanService(customer.service);
+                  const cleanSlot = getCleanSlot(customer);
+                  const isVVIP = cleanService === 'VVIP' || cleanSlot === 'VVIP';
+                  const isVIP = cleanService === 'VIP' || cleanSlot === 'VIP';
+                  const isSpecialSlot = cleanSlot === 'VVIP' || cleanSlot === 'VIP';
+
                   return (
                     <tr 
                       key={customer.id} 
-                      className={`hover:bg-white/[0.02] transition-colors ${
-                        isDuplicateSlot ? 'bg-accent-red/[0.04]' : ''
+                      className={`transition-colors group ${
+                        isFinished
+                          ? 'bg-emerald-950/20 border-b border-emerald-500/20 hover:bg-emerald-950/30'
+                          : isWarning
+                          ? 'bg-rose-950/25 border-b border-rose-500/30 ring-1 ring-rose-500/40 animate-pulse hover:bg-rose-950/35'
+                          : 'hover:bg-white/[0.02] border-b border-border-subtle'
                       }`}
                     >
                       {/* No */}
-                      <td className="py-3 px-3 text-center text-text-faint font-mono">
+                      <td className="py-3 px-3 text-center text-text-dim font-mono text-xs">
                         {index + 1}
                       </td>
 
@@ -367,15 +396,21 @@ const ActiveTable = ({
 
                       {/* Countdown / Remaining Time */}
                       <td className="py-3 px-3.5 text-center">
-                        <span className={`font-mono text-sm font-extrabold tracking-tight px-2 py-1 rounded-lg ${
-                          customer.paused
-                            ? 'bg-accent-orange/10 text-accent-orange border border-accent-orange/20'
-                            : isWarning
-                            ? 'bg-accent-red/20 text-accent-red border border-accent-red/30 animate-pulse'
-                            : 'bg-accent-green/10 text-accent-green border border-accent-green/20'
-                        }`}>
-                          {formatTime(remaining)}
-                        </span>
+                        {isFinished ? (
+                          <span className="font-mono text-xs font-black tracking-tight px-2.5 py-1 rounded-lg bg-accent-green/20 text-accent-green border border-accent-green/40 shadow-sm">
+                            🏁 00:00:00
+                          </span>
+                        ) : (
+                          <span className={`font-mono text-sm font-extrabold tracking-tight px-2 py-1 rounded-lg ${
+                            customer.paused
+                              ? 'bg-accent-orange/10 text-accent-orange border border-accent-orange/20'
+                              : isWarning
+                              ? 'bg-accent-red/20 text-accent-red border border-accent-red/30 animate-pulse'
+                              : 'bg-accent-green/10 text-accent-green border border-accent-green/20'
+                          }`}>
+                            {formatTime(remaining)}
+                          </span>
+                        )}
                       </td>
 
                       {/* Estimated Finish Time */}
@@ -385,70 +420,109 @@ const ActiveTable = ({
 
                       {/* Status Badge */}
                       <td className="py-3 px-3 text-center">
-                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase ${
-                          customer.paused 
-                            ? 'bg-accent-orange/15 text-accent-orange border border-accent-orange/30' 
-                            : 'bg-accent-green/15 text-accent-green border border-accent-green/30'
-                        }`}>
-                          <span className={`w-1.5 h-1.5 rounded-full ${customer.paused ? 'bg-accent-orange' : 'bg-accent-green animate-ping'}`} />
-                          {customer.paused ? 'PAUSED' : 'RUNNING'}
-                        </span>
+                        {isFinished ? (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-accent-green/20 text-accent-green border border-accent-green/40">
+                            <CheckCheck size={11} />
+                            <span>SELESAI (SIAP ISI)</span>
+                          </span>
+                        ) : (
+                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase ${
+                            customer.paused 
+                              ? 'bg-accent-orange/15 text-accent-orange border border-accent-orange/30' 
+                              : 'bg-accent-green/15 text-accent-green border border-accent-green/30'
+                          }`}>
+                            <span className={`w-1.5 h-1.5 rounded-full ${customer.paused ? 'bg-accent-orange' : 'bg-accent-green animate-ping'}`} />
+                            {customer.paused ? 'PAUSED' : 'RUNNING'}
+                          </span>
+                        )}
                       </td>
 
-                      {/* SMART PRIORITY ACTION COLUMN (3 UTAMA + 1 MENU ⋯) */}
+                      {/* SMART PRIORITY ACTION COLUMN */}
                       {isAdmin && (
                         <td className="py-3 px-3 text-center">
-                          <div className="flex items-center justify-center gap-1">
-                            {/* 1. Pause / Resume */}
-                            {customer.paused ? (
+                          {isFinished ? (
+                            <div className="flex items-center justify-center gap-1.5">
+                              {/* 1. Isi dari Antrean */}
                               <button
-                                onClick={() => handleResume(customer)}
-                                title="Resume billing"
+                                onClick={() => handleFillFromQueue(customer)}
+                                title="Arsipkan & Isi Slot ini dari Antrean Teratas"
+                                className="px-2.5 py-1 rounded-xl bg-accent-green hover:bg-accent-green-light text-black font-black text-xs transition-all shadow-md shadow-accent-green/20 flex items-center gap-1 cursor-pointer"
+                              >
+                                <Rocket size={12} />
+                                <span>Isi Slot</span>
+                              </button>
+
+                              {/* 2. Selesaikan & Arsipkan */}
+                              <button
+                                onClick={() => handleFinishAndArchive(customer)}
+                                title="Arsipkan ke Riwayat Transaksi (Kosongkan Slot)"
+                                className="p-1.5 rounded-xl bg-white/10 text-white hover:bg-white/20 border border-white/20 transition-all cursor-pointer shadow-sm"
+                              >
+                                <Square size={13} />
+                              </button>
+
+                              {/* 3. Brankas Akun */}
+                              <button
+                                onClick={() => setCredentialCustomer(customer)}
+                                title="Buka Brankas Akun"
+                                className="p-1.5 rounded-xl bg-white/5 text-text-dim hover:text-white border border-white/10 transition-all cursor-pointer"
+                              >
+                                <Key size={13} />
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="flex items-center justify-center gap-1">
+                              {/* 1. Pause / Resume */}
+                              {customer.paused ? (
+                                <button
+                                  onClick={() => handleResume(customer)}
+                                  title="Resume billing"
+                                  className="p-1.5 rounded-xl bg-accent-green/15 text-accent-green hover:bg-accent-green/25 border border-accent-green/30 transition-all cursor-pointer shadow-sm"
+                                >
+                                  <Play size={13} />
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => handlePause(customer)}
+                                  title="Pause billing"
+                                  className="p-1.5 rounded-xl bg-accent-orange/15 text-accent-orange hover:bg-accent-orange/25 border border-accent-orange/30 transition-all cursor-pointer shadow-sm"
+                                >
+                                  <Pause size={13} />
+                                </button>
+                              )}
+
+                              {/* 2. Brankas Akun (1-Click Password & Email Vault) */}
+                              <button
+                                onClick={() => setCredentialCustomer(customer)}
+                                title="Buka Brankas Akun (Salin Pass/Email)"
                                 className="p-1.5 rounded-xl bg-accent-green/15 text-accent-green hover:bg-accent-green/25 border border-accent-green/30 transition-all cursor-pointer shadow-sm"
                               >
-                                <Play size={13} />
+                                <Key size={13} />
                               </button>
-                            ) : (
+
+                              {/* 3. Tambah / Perpanjang Waktu (Shortcut Cepat) */}
                               <button
-                                onClick={() => handlePause(customer)}
-                                title="Pause billing"
-                                className="p-1.5 rounded-xl bg-accent-orange/15 text-accent-orange hover:bg-accent-orange/25 border border-accent-orange/30 transition-all cursor-pointer shadow-sm"
+                                onClick={() => onOpenExtendModal(customer)}
+                                title="Tambah / Perpanjang Waktu Billing (+ Jam)"
+                                className="p-1.5 rounded-xl bg-accent-purple/20 text-accent-purple-light hover:bg-accent-purple/30 border border-accent-purple/40 transition-all cursor-pointer shadow-sm"
                               >
-                                <Pause size={13} />
+                                <Plus size={13} />
                               </button>
-                            )}
 
-                            {/* 2. Brankas Akun (1-Click Password & Email Vault) */}
-                            <button
-                              onClick={() => setCredentialCustomer(customer)}
-                              title="Buka Brankas Akun (Salin Pass/Email)"
-                              className="p-1.5 rounded-xl bg-accent-green/15 text-accent-green hover:bg-accent-green/25 border border-accent-green/30 transition-all cursor-pointer shadow-sm"
-                            >
-                              <Key size={13} />
-                            </button>
-
-                            {/* 3. Tambah / Perpanjang Waktu (Shortcut Cepat) */}
-                            <button
-                              onClick={() => onOpenExtendModal(customer)}
-                              title="Tambah / Perpanjang Waktu Billing (+ Jam)"
-                              className="p-1.5 rounded-xl bg-accent-purple/20 text-accent-purple-light hover:bg-accent-purple/30 border border-accent-purple/40 transition-all cursor-pointer shadow-sm"
-                            >
-                              <Plus size={13} />
-                            </button>
-
-                            {/* 4. Menu Titik Tiga [ ⋯ ] (Trigger Floating Popover) */}
-                            <button
-                              onClick={(e) => handleOpenMenu(e, customer)}
-                              title="Aksi lainnya (Edit, DM, Antrian, Stop, Hapus)"
-                              className={`p-1.5 rounded-xl border transition-all cursor-pointer shadow-sm ${
-                                isMenuOpen
-                                  ? 'bg-accent-cyan/25 text-accent-cyan border-accent-cyan shadow-md shadow-accent-cyan/20'
-                                  : 'bg-white/5 text-text-muted hover:text-text-primary border-border-subtle hover:bg-white/10'
-                              }`}
-                            >
-                              <MoreHorizontal size={13} />
-                            </button>
-                          </div>
+                              {/* 4. Menu Titik Tiga [ ⋯ ] (Trigger Floating Popover) */}
+                              <button
+                                onClick={(e) => handleOpenMenu(e, customer)}
+                                title="Aksi lainnya (Edit, DM, Antrian, Stop, Hapus)"
+                                className={`p-1.5 rounded-xl border transition-all cursor-pointer shadow-sm ${
+                                  isMenuOpen
+                                    ? 'bg-accent-cyan/25 text-accent-cyan border-accent-cyan shadow-md shadow-accent-cyan/20'
+                                    : 'bg-white/5 text-text-muted hover:text-text-primary border-border-subtle hover:bg-white/10'
+                                }`}
+                              >
+                                <MoreHorizontal size={13} />
+                              </button>
+                            </div>
+                          )}
                         </td>
                       )}
                     </tr>

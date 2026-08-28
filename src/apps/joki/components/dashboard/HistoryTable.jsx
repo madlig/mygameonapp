@@ -4,11 +4,7 @@ import {
   CheckCircle2, 
   History, 
   Download, 
-  Calendar, 
-  Filter, 
   Search, 
-  X, 
-  RotateCcw, 
   DollarSign,
   Clock,
   Crown,
@@ -17,11 +13,7 @@ import {
   ChevronRight,
   Sparkles,
   Trash2,
-  Trophy,
-  Medal,
-  Gem,
-  Award,
-  Users
+  Trophy
 } from 'lucide-react';
 import CredentialModal from '../modals/CredentialModal';
 

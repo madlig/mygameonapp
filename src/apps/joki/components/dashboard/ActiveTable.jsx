@@ -301,13 +301,13 @@ const ActiveTable = ({
                   const remaining = getRemaining(customer);
                   const isFinished = customer.finished || customer.isPendingClearance || (remaining <= 0 && !customer.paused);
                   const isWarning = !isFinished && !customer.paused && remaining > 0 && remaining <= 300;
-                  const isDuplicateSlot = !isSpecialSlot && (slotCounts[cleanSlot] > 1);
-                  const isMenuOpen = menuState?.customer?.id === customer.id;
                   const cleanService = getCleanService(customer.service);
                   const cleanSlot = getCleanSlot(customer);
                   const isVVIP = cleanService === 'VVIP' || cleanSlot === 'VVIP';
                   const isVIP = cleanService === 'VIP' || cleanSlot === 'VIP';
                   const isSpecialSlot = cleanSlot === 'VVIP' || cleanSlot === 'VIP';
+                  const isDuplicateSlot = !isSpecialSlot && (slotCounts[cleanSlot] > 1);
+                  const isMenuOpen = menuState?.customer?.id === customer.id;
 
                   return (
                     <tr 

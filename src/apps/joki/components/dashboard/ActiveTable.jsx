@@ -269,27 +269,24 @@ const ActiveTable = ({
   return (
     <div className="flex flex-col gap-2.5">
       <div className="bg-bg-surface border border-border-default rounded-b-3xl overflow-hidden shadow-2xl">
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse text-left min-w-[950px]">
+        <div className="w-full overflow-x-auto lg:overflow-x-visible">
+          <table className="w-full border-collapse text-left">
             <thead>
-              <tr className="bg-bg-primary/90 border-b border-border-default text-text-tertiary text-[11px] font-extrabold uppercase tracking-wider">
-                <th className="py-3 px-3 text-center w-10">No</th>
-                <th className="py-3 px-3.5">Username Roblox</th>
-                <th className="py-3 px-3.5">Akun TikTok</th>
-                <th className="py-3 px-3 text-center">Layanan</th>
-                <th className="py-3 px-3 text-center">Slot</th>
-                <th className="py-3 px-3 text-center">Durasi</th>
-                <th className="py-3 px-3 text-center">Mulai</th>
-                <th className="py-3 px-3.5 text-center">Sisa Waktu</th>
-                <th className="py-3 px-3 text-center">Jam Beres</th>
-                <th className="py-3 px-3 text-center">Status</th>
-                {isAdmin && <th className="py-3 px-3 text-center w-36">Aksi Cepat</th>}
+              <tr className="bg-bg-primary/90 border-b border-border-default text-text-tertiary text-[10.5px] font-black uppercase tracking-wider">
+                <th className="py-2.5 px-2 text-center w-8">#</th>
+                <th className="py-2.5 px-2.5">Customer</th>
+                <th className="py-2.5 px-2 text-center">Slot</th>
+                <th className="py-2.5 px-2 text-center">Durasi</th>
+                <th className="py-2.5 px-2 text-center">Mulai - Beres</th>
+                <th className="py-2.5 px-2.5 text-center">Sisa Waktu</th>
+                <th className="py-2.5 px-2 text-center">Status</th>
+                {isAdmin && <th className="py-2.5 px-2 text-center w-28">Aksi</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-border-subtle text-xs font-medium">
               {filteredCustomers.length === 0 ? (
                 <tr>
-                  <td colSpan={isAdmin ? 11 : 10} className="py-12 text-center text-text-dim">
+                  <td colSpan={isAdmin ? 8 : 7} className="py-12 text-center text-text-dim">
                     <div className="flex flex-col items-center gap-2">
                       <Clock size={26} className="text-text-ghost" />
                       <span>Belum ada billing aktif. Pilih orang dari panel Antrian di kanan atau klik Order Baru.</span>
@@ -321,51 +318,34 @@ const ActiveTable = ({
                       }`}
                     >
                       {/* No */}
-                      <td className="py-3 px-3 text-center text-text-dim font-mono text-xs">
+                      <td className="py-2.5 px-2 text-center text-text-dim font-mono text-xs">
                         {index + 1}
                       </td>
 
-                      {/* Roblox Username (Clickable to copy ticket link) */}
-                      <td className="py-3 px-3.5 font-bold text-text-primary">
+                      {/* Customer (Roblox Username + TikTok Handle) */}
+                      <td className="py-2.5 px-2.5 font-bold text-text-primary">
                         <button
                           type="button"
                           onClick={() => handleCopyTicketLink(customer)}
                           title="Klik untuk salin Link Tiket Customer"
-                          className="font-black text-sm tracking-tight text-white hover:text-accent-cyan transition-colors flex items-center gap-1.5 cursor-pointer text-left group"
+                          className="font-black text-sm tracking-tight text-white hover:text-accent-cyan transition-colors flex items-center gap-1 cursor-pointer text-left group"
                         >
-                          <span>{customer.username || customer.name}</span>
-                          <Copy size={12} className="opacity-0 group-hover:opacity-100 text-accent-cyan transition-opacity" />
+                          <span className="truncate max-w-[130px]">{customer.username || customer.name}</span>
+                          <Copy size={11} className="opacity-0 group-hover:opacity-100 text-accent-cyan transition-opacity shrink-0" />
                         </button>
-                      </td>
-
-                      {/* TikTok Account */}
-                      <td className="py-3 px-3.5 text-text-secondary">
                         {customer.tiktokName ? (
-                          <span className="inline-flex items-center gap-0.5 text-text-muted">
-                            <span className="text-accent-cyan">@</span>{customer.tiktokName}
-                          </span>
+                          <div className="text-[10.5px] text-accent-cyan font-medium truncate max-w-[130px]">
+                            @{customer.tiktokName}
+                          </div>
                         ) : (
-                          <span className="text-text-dim">-</span>
+                          <div className="text-[10px] text-text-dim">-</div>
                         )}
                       </td>
 
-                      {/* Layanan */}
-                      <td className="py-3 px-3 text-center">
-                        <span className={`inline-block px-2.5 py-0.5 rounded-full text-[10.5px] font-extrabold uppercase tracking-wide ${
-                          isVVIP
-                            ? 'text-rose-400 bg-rose-500/20 border border-rose-500/40 shadow-sm shadow-rose-500/10'
-                            : isVIP 
-                            ? 'text-accent-yellow bg-accent-yellow/15 border border-accent-yellow/30' 
-                            : 'text-accent-purple-light bg-accent-purple/15 border border-accent-purple/30'
-                        }`}>
-                          {isVVIP ? '💎 VVIP' : (isVIP ? '👑 VIP' : cleanService)}
-                        </span>
-                      </td>
-
-                      {/* Slot */}
-                      <td className="py-3 px-3 text-center">
-                        <div className="inline-flex items-center gap-1">
-                          <span className={`inline-flex items-center justify-center min-w-[32px] px-2 py-0.5 rounded-lg text-xs font-extrabold font-mono tracking-tight ${
+                      {/* Slot & Service Badge */}
+                      <td className="py-2.5 px-2 text-center">
+                        <div className="inline-flex flex-col items-center gap-0.5">
+                          <span className={`inline-flex items-center justify-center px-2 py-0.5 rounded-lg text-xs font-black font-mono tracking-tight ${
                             cleanSlot === 'VVIP'
                               ? 'bg-rose-500/20 text-rose-300 border border-rose-500/50 shadow-sm'
                               : cleanSlot === 'VIP'
@@ -376,32 +356,33 @@ const ActiveTable = ({
                           }`}>
                             {cleanSlot === 'VVIP' ? '💎 VVIP' : (cleanSlot === 'VIP' ? '👑 VIP' : `SLOT ${cleanSlot}`)}
                           </span>
-                          {isDuplicateSlot && (
-                            <span title="Slot ini terduplikasi! Klik menu ⋯ untuk kembalikan ke antrian" className="text-accent-red">
-                              <AlertTriangle size={12} />
+                          {!isVVIP && !isVIP && (
+                            <span className="text-[9px] font-bold uppercase text-text-dim">
+                              {cleanService}
                             </span>
                           )}
                         </div>
                       </td>
 
                       {/* Duration */}
-                      <td className="py-3 px-3 text-center text-text-secondary font-mono">
+                      <td className="py-2.5 px-2 text-center text-text-secondary font-mono text-xs">
                         {formatDuration(customer.duration)}
                       </td>
 
-                      {/* Start Time */}
-                      <td className="py-3 px-3 text-center text-text-tertiary font-mono">
-                        {formatClock(customer.startTime)}
+                      {/* Time Schedule (Mulai -> Beres) */}
+                      <td className="py-2.5 px-2 text-center font-mono text-[11px] text-text-secondary">
+                        <div className="text-text-dim text-[10px]">{formatClock(customer.startTime)}</div>
+                        <div className="font-bold text-text-primary text-xs">{formatClock(getEndTime(customer))}</div>
                       </td>
 
                       {/* Countdown / Remaining Time */}
-                      <td className="py-3 px-3.5 text-center">
+                      <td className="py-2.5 px-2.5 text-center">
                         {isFinished ? (
-                          <span className="font-mono text-xs font-black tracking-tight px-2.5 py-1 rounded-lg bg-accent-green/20 text-accent-green border border-accent-green/40 shadow-sm">
+                          <span className="font-mono text-xs font-black tracking-tight px-2 py-1 rounded-lg bg-accent-green/20 text-accent-green border border-accent-green/40 shadow-sm">
                             🏁 00:00:00
                           </span>
                         ) : (
-                          <span className={`font-mono text-sm font-extrabold tracking-tight px-2 py-1 rounded-lg ${
+                          <span className={`font-mono text-xs font-black tracking-tight px-2 py-1 rounded-lg ${
                             customer.paused
                               ? 'bg-accent-orange/10 text-accent-orange border border-accent-orange/20'
                               : isWarning
@@ -413,20 +394,15 @@ const ActiveTable = ({
                         )}
                       </td>
 
-                      {/* Estimated Finish Time */}
-                      <td className="py-3 px-3 text-center font-mono font-bold text-text-primary">
-                        {formatClock(getEndTime(customer))}
-                      </td>
-
                       {/* Status Badge */}
-                      <td className="py-3 px-3 text-center">
+                      <td className="py-2.5 px-2 text-center">
                         {isFinished ? (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-accent-green/20 text-accent-green border border-accent-green/40">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9.5px] font-black uppercase bg-accent-green/20 text-accent-green border border-accent-green/40">
                             <CheckCheck size={11} />
-                            <span>SELESAI (SIAP ISI)</span>
+                            <span>SELESAI</span>
                           </span>
                         ) : (
-                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase ${
+                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9.5px] font-black uppercase ${
                             customer.paused 
                               ? 'bg-accent-orange/15 text-accent-orange border border-accent-orange/30' 
                               : 'bg-accent-green/15 text-accent-green border border-accent-green/30'
@@ -439,16 +415,16 @@ const ActiveTable = ({
 
                       {/* SMART PRIORITY ACTION COLUMN */}
                       {isAdmin && (
-                        <td className="py-3 px-3 text-center">
+                        <td className="py-2.5 px-2 text-center">
                           {isFinished ? (
-                            <div className="flex items-center justify-center gap-1.5">
+                            <div className="flex items-center justify-center gap-1">
                               {/* 1. Isi dari Antrean */}
                               <button
                                 onClick={() => handleFillFromQueue(customer)}
                                 title="Arsipkan & Isi Slot ini dari Antrean Teratas"
-                                className="px-2.5 py-1 rounded-xl bg-accent-green hover:bg-accent-green-light text-black font-black text-xs transition-all shadow-md shadow-accent-green/20 flex items-center gap-1 cursor-pointer"
+                                className="px-2 py-1 rounded-lg bg-accent-green hover:bg-accent-green-light text-black font-black text-[11px] transition-all shadow flex items-center gap-1 cursor-pointer"
                               >
-                                <Rocket size={12} />
+                                <Rocket size={11} />
                                 <span>Isi Slot</span>
                               </button>
 
@@ -456,18 +432,18 @@ const ActiveTable = ({
                               <button
                                 onClick={() => handleFinishAndArchive(customer)}
                                 title="Arsipkan ke Riwayat Transaksi (Kosongkan Slot)"
-                                className="p-1.5 rounded-xl bg-white/10 text-white hover:bg-white/20 border border-white/20 transition-all cursor-pointer shadow-sm"
+                                className="p-1 rounded-lg bg-white/10 text-white hover:bg-white/20 border border-white/20 transition-all cursor-pointer"
                               >
-                                <Square size={13} />
+                                <Square size={12} />
                               </button>
 
                               {/* 3. Brankas Akun */}
                               <button
                                 onClick={() => setCredentialCustomer(customer)}
                                 title="Buka Brankas Akun"
-                                className="p-1.5 rounded-xl bg-white/5 text-text-dim hover:text-white border border-white/10 transition-all cursor-pointer"
+                                className="p-1 rounded-lg bg-white/5 text-text-dim hover:text-white border border-white/10 transition-all cursor-pointer"
                               >
-                                <Key size={13} />
+                                <Key size={12} />
                               </button>
                             </div>
                           ) : (
@@ -477,49 +453,49 @@ const ActiveTable = ({
                                 <button
                                   onClick={() => handleResume(customer)}
                                   title="Resume billing"
-                                  className="p-1.5 rounded-xl bg-accent-green/15 text-accent-green hover:bg-accent-green/25 border border-accent-green/30 transition-all cursor-pointer shadow-sm"
+                                  className="p-1.5 rounded-lg bg-accent-green/15 text-accent-green hover:bg-accent-green/25 border border-accent-green/30 transition-all cursor-pointer"
                                 >
-                                  <Play size={13} />
+                                  <Play size={12} />
                                 </button>
                               ) : (
                                 <button
                                   onClick={() => handlePause(customer)}
                                   title="Pause billing"
-                                  className="p-1.5 rounded-xl bg-accent-orange/15 text-accent-orange hover:bg-accent-orange/25 border border-accent-orange/30 transition-all cursor-pointer shadow-sm"
+                                  className="p-1.5 rounded-lg bg-accent-orange/15 text-accent-orange hover:bg-accent-orange/25 border border-accent-orange/30 transition-all cursor-pointer"
                                 >
-                                  <Pause size={13} />
+                                  <Pause size={12} />
                                 </button>
                               )}
 
-                              {/* 2. Brankas Akun (1-Click Password & Email Vault) */}
+                              {/* 2. Brankas Akun */}
                               <button
                                 onClick={() => setCredentialCustomer(customer)}
-                                title="Buka Brankas Akun (Salin Pass/Email)"
-                                className="p-1.5 rounded-xl bg-accent-green/15 text-accent-green hover:bg-accent-green/25 border border-accent-green/30 transition-all cursor-pointer shadow-sm"
+                                title="Buka Brankas Akun"
+                                className="p-1.5 rounded-lg bg-accent-green/15 text-accent-green hover:bg-accent-green/25 border border-accent-green/30 transition-all cursor-pointer"
                               >
-                                <Key size={13} />
+                                <Key size={12} />
                               </button>
 
-                              {/* 3. Tambah / Perpanjang Waktu (Shortcut Cepat) */}
+                              {/* 3. Tambah / Perpanjang Waktu */}
                               <button
                                 onClick={() => onOpenExtendModal(customer)}
-                                title="Tambah / Perpanjang Waktu Billing (+ Jam)"
-                                className="p-1.5 rounded-xl bg-accent-purple/20 text-accent-purple-light hover:bg-accent-purple/30 border border-accent-purple/40 transition-all cursor-pointer shadow-sm"
+                                title="Tambah / Perpanjang Waktu (+ Jam)"
+                                className="p-1.5 rounded-lg bg-accent-purple/20 text-accent-purple-light hover:bg-accent-purple/30 border border-accent-purple/40 transition-all cursor-pointer"
                               >
-                                <Plus size={13} />
+                                <Plus size={12} />
                               </button>
 
-                              {/* 4. Menu Titik Tiga [ ⋯ ] (Trigger Floating Popover) */}
+                              {/* 4. Menu Titik Tiga */}
                               <button
                                 onClick={(e) => handleOpenMenu(e, customer)}
-                                title="Aksi lainnya (Edit, DM, Antrian, Stop, Hapus)"
-                                className={`p-1.5 rounded-xl border transition-all cursor-pointer shadow-sm ${
+                                title="Aksi lainnya"
+                                className={`p-1.5 rounded-lg border transition-all cursor-pointer ${
                                   isMenuOpen
-                                    ? 'bg-accent-cyan/25 text-accent-cyan border-accent-cyan shadow-md shadow-accent-cyan/20'
+                                    ? 'bg-accent-cyan/25 text-accent-cyan border-accent-cyan shadow'
                                     : 'bg-white/5 text-text-muted hover:text-text-primary border-border-subtle hover:bg-white/10'
                                 }`}
                               >
-                                <MoreHorizontal size={13} />
+                                <MoreHorizontal size={12} />
                               </button>
                             </div>
                           )}

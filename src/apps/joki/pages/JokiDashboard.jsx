@@ -383,10 +383,10 @@ const JokiDashboard = () => {
       {/* Metric Summary Cards (Admin Only) */}
       <JokiSummary />
 
-      {/* Main Split Deck (60 : 40 Sejajar): Active Table (Left 60%) + Queue Sidebar (Right 40%) */}
+      {/* Main 2-Column Responsive Deck: Tables (Left) + Queue Sidebar (Right Flex) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start mb-6">
-        {/* Left Column: Active Table (60% / 7 cols) */}
-        <div className="w-full lg:col-span-7 xl:col-span-7 space-y-3 min-w-0">
+        {/* Left Column: Active Table & History Table */}
+        <div className="w-full lg:col-span-7 xl:col-span-8 min-w-0 space-y-4">
           <JokiToolbar />
           <ActiveTable
             onOpenExtendModal={setExtendCustomer}
@@ -396,20 +396,16 @@ const JokiDashboard = () => {
             onRequestClearActiveBillings={handleRequestClearActiveBillings}
             onStartQueueItem={setStartQueueItem}
           />
+          <HistoryTable />
         </div>
 
-        {/* Right Column: Queue Sidebar (40% / 5 cols) */}
-        <div className="w-full lg:col-span-5 xl:col-span-5 min-w-0">
+        {/* Right Column: Queue Sidebar (Flexes to fill right column) */}
+        <div className="w-full lg:col-span-5 xl:col-span-4 min-w-0">
           <QueueSidebar
             onStartFromQueue={setStartQueueItem}
             onRequestClearQueue={handleRequestClearQueue}
           />
         </div>
-      </div>
-
-      {/* Bottom Area (100% Full Width): History Table & Leaderboard */}
-      <div className="w-full mb-8">
-        <HistoryTable />
       </div>
 
       {/* Modals */}

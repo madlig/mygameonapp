@@ -15,6 +15,7 @@ import {
   CheckCheck
 } from 'lucide-react';
 import CredentialModal from '../modals/CredentialModal';
+import ConfirmModal from '../modals/ConfirmModal';
 
 const formatTime = (seconds) => {
   seconds = Math.max(0, Math.floor(seconds));
@@ -90,6 +91,7 @@ const ActiveTable = ({
   
   const [now, setNow] = useState(Date.now());
   const [credentialCustomer, setCredentialCustomer] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
   
   // Floating More-Menu State (Completely free from table overflow clipping)
   const [menuState, setMenuState] = useState(null); // { customer, top, right }
@@ -226,17 +228,22 @@ const ActiveTable = ({
     addToast(`✓ Pesan DM untuk ${user} berhasil disalin!`, 'success');
   };
   // Delete / Cancel Active Billing Slot
-  const handleDeleteSlot = async (customer) => {
-    const name = customer.username || customer.name;
-    const cleanS = getCleanSlot(customer);
-    if (window.confirm(`Hapus permanen joki ${name} dari Slot ${cleanS}? (Billing akan dibatalkan langsung dan tidak dicatat ke riwayat omset)`)) {
-      try {
-        await deleteJokiCustomer(customer.id);
-        addToast(`✓ Joki ${name} di Slot ${cleanS} berhasil dibatalkan/dihapus.`, 'info');
-      } catch (err) {
-        console.error(err);
-        addToast('Gagal menghapus billing.', 'error');
-      }
+  const handleDeleteSlot = (customer) => {
+    setDeleteTarget(customer);
+  };
+
+  const handleConfirmDeleteSlot = async () => {
+    if (!deleteTarget) return;
+    const name = deleteTarget.username || deleteTarget.name;
+    const cleanS = getCleanSlot(deleteTarget);
+    try {
+      await deleteJokiCustomer(deleteTarget.id);
+      addToast(`✓ Joki ${name} di Slot ${cleanS} berhasil dibatalkan/dihapus.`, 'info');
+    } catch (err) {
+      console.error(err);
+      addToast('Gagal menghapus billing.', 'error');
+    } finally {
+      setDeleteTarget(null);
     }
   };
 
@@ -666,6 +673,19 @@ const ActiveTable = ({
           onClose={() => setCredentialCustomer(null)}
         />
       )}
+
+      {/* Custom Confirm Modal for Active Slot Deletion */}
+      <ConfirmModal
+        isOpen={Boolean(deleteTarget)}
+        title={`Hapus Slot Joki ${deleteTarget?.username || deleteTarget?.name || ''}?`}
+        message="Billing untuk akun ini akan langsung dibatalkan/dihapus, dan slot live akan segera dikosongkan tanpa dicatat ke riwayat omset."
+        detail={deleteTarget ? `• Customer: ${deleteTarget.username || deleteTarget.name}\n• Slot: ${getCleanSlot(deleteTarget)} (${deleteTarget.service || 'Basic'})\n• Sisa Waktu: ${formatTime(getRemaining(deleteTarget))}` : null}
+        confirmText="Batalkan & Hapus Slot"
+        cancelText="Batal"
+        variant="danger"
+        onConfirm={handleConfirmDeleteSlot}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   );
 };

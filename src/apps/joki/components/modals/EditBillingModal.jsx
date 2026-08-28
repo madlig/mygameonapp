@@ -18,6 +18,7 @@ import {
   ShieldCheck,
   Sparkles
 } from 'lucide-react';
+import ConfirmModal from './ConfirmModal';
 
 const formatTime = (seconds) => {
   seconds = Math.max(0, Math.floor(seconds));
@@ -51,6 +52,7 @@ const EditBillingModal = ({ customer, onClose }) => {
   const [slot, setSlot] = useState(1);
   const [price, setPrice] = useState(4000);
   const [loading, setLoading] = useState(false);
+  const [showMoveConfirm, setShowMoveConfirm] = useState(false);
 
   // Duration Jam & Menit
   const [durHours, setDurHours] = useState(1);
@@ -214,11 +216,14 @@ const EditBillingModal = ({ customer, onClose }) => {
     }
   };
 
-  const handleMoveBackToQueue = async () => {
-    if (window.confirm(`Kembalikan ${customer.username || customer.name} ke antrian dan kosongkan Slot ${customer.slot}?`)) {
-      await moveCustomerToQueue(customer);
-      onClose();
-    }
+  const handleMoveBackToQueue = () => {
+    setShowMoveConfirm(true);
+  };
+
+  const handleConfirmMoveToQueue = async () => {
+    setShowMoveConfirm(false);
+    await moveCustomerToQueue(customer);
+    onClose();
   };
 
   return (
@@ -605,6 +610,19 @@ const EditBillingModal = ({ customer, onClose }) => {
           </div>
         </form>
       </div>
+
+      {/* Custom Confirm Modal for Moving to Queue */}
+      <ConfirmModal
+        isOpen={showMoveConfirm}
+        title={`Kembalikan ${customer.username || customer.name} ke Antrian?`}
+        message={`Customer ini akan dipindahkan kembali ke daftar Antrian dengan sisa durasi saat ini. Slot ${customer.slot} akan langsung dikosongkan.`}
+        detail={`• Customer: ${customer.username || customer.name}\n• Slot Saat Ini: ${customer.slot}\n• Layanan: ${customer.service || 'Basic'}`}
+        confirmText="Kembalikan ke Antrian"
+        cancelText="Batal"
+        variant="warning"
+        onConfirm={handleConfirmMoveToQueue}
+        onCancel={() => setShowMoveConfirm(false)}
+      />
     </div>
   );
 };

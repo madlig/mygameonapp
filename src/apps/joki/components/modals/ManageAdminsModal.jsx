@@ -18,6 +18,7 @@ import {
   Globe, 
   Sparkles 
 } from 'lucide-react';
+import ConfirmModal from './ConfirmModal';
 
 const ManageAdminsModal = ({ isOpen, onClose }) => {
   const { workspaces, activeWorkspaceId, changeWorkspace, addToast } = useJoki();
@@ -28,6 +29,7 @@ const ManageAdminsModal = ({ isOpen, onClose }) => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [copiedId, setCopiedId] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
 
   if (!isOpen) return null;
 
@@ -128,29 +130,31 @@ const ManageAdminsModal = ({ isOpen, onClose }) => {
     }
   };
 
-  const handleDeleteWorkspace = async (item) => {
+  const handleDeleteWorkspace = (item) => {
     if (item.id === 'mygameon') {
       addToast('Kanal utama MyGameON tidak dapat dihapus.', 'error');
       return;
     }
+    setDeleteTarget(item);
+  };
 
-    if (!window.confirm(`Hapus kanal ${item.name} (${item.id})? Akses admin dan kanal ini akan dinonaktifkan.`)) {
-      return;
-    }
-
+  const handleConfirmDeleteWorkspace = async () => {
+    if (!deleteTarget) return;
     try {
       // Delete workspace
-      await deleteDoc(doc(db, 'joki_workspaces', item.id));
+      await deleteDoc(doc(db, 'joki_workspaces', deleteTarget.id));
 
       // Remove from admin whitelist if email is set
-      if (item.ownerEmail) {
-        await deleteDoc(doc(db, 'joki_admin_emails', item.ownerEmail.toLowerCase()));
+      if (deleteTarget.ownerEmail) {
+        await deleteDoc(doc(db, 'joki_admin_emails', deleteTarget.ownerEmail.toLowerCase()));
       }
 
-      addToast(`Kanal ${item.name} berhasil dihapus.`, 'info');
+      addToast(`Kanal ${deleteTarget.name} berhasil dihapus.`, 'info');
     } catch (err) {
       console.error(err);
       addToast('Gagal menghapus kanal.', 'error');
+    } finally {
+      setDeleteTarget(null);
     }
   };
 
@@ -358,6 +362,19 @@ const ManageAdminsModal = ({ isOpen, onClose }) => {
           </div>
         </div>
       </div>
+
+      {/* Custom Confirm Modal for Workspace Deletion */}
+      <ConfirmModal
+        isOpen={Boolean(deleteTarget)}
+        title={`Hapus Kanal ${deleteTarget?.name || ''}?`}
+        message={`Kanal streamer "${deleteTarget?.name}" (${deleteTarget?.id}) akan dihapus. Akun admin streamer terkait tidak akan dapat mengakses kanal ini lagi.`}
+        detail={deleteTarget?.ownerEmail ? `• Email Admin: ${deleteTarget.ownerEmail}\n• Slug: ${deleteTarget.id}` : null}
+        confirmText="Hapus Kanal"
+        cancelText="Batal"
+        variant="danger"
+        onConfirm={handleConfirmDeleteWorkspace}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   );
 };

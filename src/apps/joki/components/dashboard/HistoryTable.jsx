@@ -16,6 +16,7 @@ import {
   Trophy
 } from 'lucide-react';
 import CredentialModal from '../modals/CredentialModal';
+import ConfirmModal from '../modals/ConfirmModal';
 
 // Format date ONLY (Tanpa waktu/jam)
 const formatDateOnly = (timestamp) => {
@@ -88,6 +89,7 @@ const HistoryTable = () => {
   const [historySearch, setHistorySearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [credentialCustomer, setCredentialCustomer] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
   const PAGE_SIZE = 10;
 
   // Filter finished transactions by Search Query & Date Filter
@@ -172,16 +174,21 @@ const HistoryTable = () => {
   const top10Leaderboard = leaderboardList.slice(0, 10);
 
   // Delete Finished History Row
-  const handleDeleteHistory = async (customer) => {
-    const name = customer.username || customer.name;
-    if (window.confirm(`Hapus transaksi riwayat ${name}? Transaksi ini akan dihapus permanen dari rekap omset.`)) {
-      try {
-        await deleteJokiCustomer(customer.id);
-        addToast(`✓ Riwayat transaksi ${name} berhasil dihapus.`, 'info');
-      } catch (err) {
-        console.error(err);
-        addToast('Gagal menghapus riwayat transaksi.', 'error');
-      }
+  const handleDeleteHistory = (customer) => {
+    setDeleteTarget(customer);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget) return;
+    const name = deleteTarget.username || deleteTarget.name;
+    try {
+      await deleteJokiCustomer(deleteTarget.id);
+      addToast(`✓ Riwayat transaksi ${name} berhasil dihapus.`, 'info');
+    } catch (err) {
+      console.error(err);
+      addToast('Gagal menghapus riwayat transaksi.', 'error');
+    } finally {
+      setDeleteTarget(null);
     }
   };
 
@@ -765,6 +772,19 @@ const HistoryTable = () => {
           onClose={() => setCredentialCustomer(null)}
         />
       )}
+
+      {/* Custom Confirm Modal for History Delete */}
+      <ConfirmModal
+        isOpen={Boolean(deleteTarget)}
+        title={`Hapus Riwayat ${deleteTarget?.username || deleteTarget?.name || ''}?`}
+        message="Transaksi ini akan dihapus secara permanen dari database riwayat dan rekap total omset."
+        detail={deleteTarget ? `• Customer: ${deleteTarget.username || deleteTarget.name}\n• TikTok: @${deleteTarget.tiktokName || '-'}\n• Layanan: ${deleteTarget.service || 'Basic'} (${deleteTarget.duration || 1} Jam)\n• Total Bayar: Rp ${Number(deleteTarget.price || 0).toLocaleString('id-ID')}` : null}
+        confirmText="Hapus Permanen"
+        cancelText="Batal"
+        variant="danger"
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   );
 };

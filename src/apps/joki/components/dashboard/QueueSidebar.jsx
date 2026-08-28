@@ -9,7 +9,6 @@ import {
   X, 
   Crown, 
   Gamepad2, 
-  Clock, 
   Sparkles,
   Lock, 
   Mail, 
@@ -299,7 +298,7 @@ const QueueSidebar = ({ onStartFromQueue, onRequestClearQueue }) => {
   };
 
   return (
-    <aside className="w-full lg:w-[350px] shrink-0 flex flex-col gap-3.5">
+    <aside className="w-full flex flex-col gap-3.5">
       <div className="bg-bg-surface/90 backdrop-blur-xl border border-border-default rounded-3xl p-4 md:p-5 shadow-2xl">
         {/* Header */}
         <div className="flex items-center justify-between gap-2 pb-3 mb-3 border-b border-border-default">

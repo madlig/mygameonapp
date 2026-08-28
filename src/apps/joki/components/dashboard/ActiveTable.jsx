@@ -4,18 +4,15 @@ import {
   Play, 
   Pause, 
   Plus, 
-  Square, 
+  Square,
   Clock, 
   Edit3, 
   Undo2, 
-  AlertTriangle, 
   Key, 
   Copy, 
   MoreHorizontal,
   Trash2,
-  Rocket,
-  CheckCheck,
-  Check
+  CheckCheck
 } from 'lucide-react';
 import CredentialModal from '../modals/CredentialModal';
 

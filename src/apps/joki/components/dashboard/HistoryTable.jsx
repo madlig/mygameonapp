@@ -167,6 +167,10 @@ const HistoryTable = () => {
   const leaderboardList = Object.values(customerAggregates)
     .sort((a, b) => b.totalDuration - a.totalDuration || b.totalOrders - a.totalOrders || b.totalSpent - a.totalSpent);
 
+  const isPublicOrStreamer = !isAdmin || streamerMode;
+  const effectiveTab = isPublicOrStreamer ? 'LEADERBOARD' : activeTab;
+  const top10Leaderboard = leaderboardList.slice(0, 10);
+
   // Delete Finished History Row
   const handleDeleteHistory = async (customer) => {
     const name = customer.username || customer.name;
@@ -212,76 +216,87 @@ const HistoryTable = () => {
     addToast('Laporan CSV berhasil didownload!', 'success');
   };
 
-  const handleResetCustomDates = () => {
-    setCustomStartDate('');
-    setCustomEndDate('');
-    setDateFilter('ALL');
-    setCurrentPage(1);
-  };
-
   return (
     <div className="space-y-4">
       {/* 1. Header with Tab Switcher & Export */}
       <div className="flex flex-wrap items-center justify-between gap-3 bg-bg-surface/80 backdrop-blur-md p-4 rounded-2xl border border-border-default shadow-sm">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-accent-purple/15 border border-accent-purple/30 flex items-center justify-center text-accent-purple shrink-0">
-            <History size={18} />
+        {isPublicOrStreamer ? (
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-accent-yellow/15 border border-accent-yellow/30 flex items-center justify-center text-accent-yellow shrink-0">
+              <Trophy size={18} />
+            </div>
+            <div>
+              <h2 className="text-base font-black text-white m-0 tracking-tight flex items-center gap-2">
+                <span>👑 Top 10 Sultan Terloyal</span>
+              </h2>
+              <p className="text-[11px] text-text-muted m-0">
+                Papan peringkat 10 pelanggan paling setia di stream {activeWorkspace?.name || 'Live Joki'}
+              </p>
+            </div>
           </div>
-          <div>
-            <h2 className="text-base font-black text-white m-0 tracking-tight flex items-center gap-2">
-              <span>Pusat Riwayat & Loyalitas</span>
-            </h2>
-            <p className="text-[11px] text-text-muted m-0">
-              Laporan transaksi selesai dan papan peringkat pelanggan terloyal
-            </p>
-          </div>
-        </div>
+        ) : (
+          <>
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-accent-purple/15 border border-accent-purple/30 flex items-center justify-center text-accent-purple shrink-0">
+                <History size={18} />
+              </div>
+              <div>
+                <h2 className="text-base font-black text-white m-0 tracking-tight flex items-center gap-2">
+                  <span>Pusat Riwayat & Loyalitas</span>
+                </h2>
+                <p className="text-[11px] text-text-muted m-0">
+                  Laporan transaksi selesai dan papan peringkat pelanggan terloyal
+                </p>
+              </div>
+            </div>
 
-        {/* Tab Switcher & Export */}
-        <div className="flex items-center gap-2 flex-wrap">
-          <div className="flex items-center gap-1 p-1 bg-bg-primary rounded-xl border border-border-default">
-            <button
-              type="button"
-              onClick={() => setActiveTab('RECORDS')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer ${
-                activeTab === 'RECORDS'
-                  ? 'bg-accent-purple text-white shadow-md shadow-accent-purple/20'
-                  : 'text-text-secondary hover:text-white'
-              }`}
-            >
-              <History size={13} />
-              <span>Riwayat ({filteredFinished.length})</span>
-            </button>
+            {/* Tab Switcher & Export (Admin Only) */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="flex items-center gap-1 p-1 bg-bg-primary rounded-xl border border-border-default">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('RECORDS')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer ${
+                    activeTab === 'RECORDS'
+                      ? 'bg-accent-purple text-white shadow-md shadow-accent-purple/20'
+                      : 'text-text-secondary hover:text-white'
+                  }`}
+                >
+                  <History size={13} />
+                  <span>Riwayat ({filteredFinished.length})</span>
+                </button>
 
-            <button
-              type="button"
-              onClick={() => setActiveTab('LEADERBOARD')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer ${
-                activeTab === 'LEADERBOARD'
-                  ? 'bg-accent-yellow text-black shadow-md shadow-accent-yellow/20'
-                  : 'text-text-secondary hover:text-white'
-              }`}
-            >
-              <Crown size={13} />
-              <span>👑 Top Sultan ({leaderboardList.length})</span>
-            </button>
-          </div>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('LEADERBOARD')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer ${
+                    activeTab === 'LEADERBOARD'
+                      ? 'bg-accent-yellow text-black shadow-md shadow-accent-yellow/20'
+                      : 'text-text-secondary hover:text-white'
+                  }`}
+                >
+                  <Crown size={13} />
+                  <span>👑 Top 10 Sultan</span>
+                </button>
+              </div>
 
-          {activeTab === 'RECORDS' && isAdmin && (
-            <button
-              type="button"
-              onClick={handleExportCSV}
-              className="px-3 py-1.5 rounded-xl bg-accent-cyan/15 hover:bg-accent-cyan/25 text-accent-cyan border border-accent-cyan/30 text-xs font-bold transition-all flex items-center gap-1.5 shadow cursor-pointer"
-            >
-              <Download size={13} />
-              <span>Export CSV</span>
-            </button>
-          )}
-        </div>
+              {activeTab === 'RECORDS' && (
+                <button
+                  type="button"
+                  onClick={handleExportCSV}
+                  className="px-3 py-1.5 rounded-xl bg-accent-cyan/15 hover:bg-accent-cyan/25 text-accent-cyan border border-accent-cyan/30 text-xs font-bold transition-all flex items-center gap-1.5 shadow cursor-pointer"
+                >
+                  <Download size={13} />
+                  <span>Export CSV</span>
+                </button>
+              )}
+            </div>
+          </>
+        )}
       </div>
 
-      {/* VIEW 1: RIWAYAT TRANSAKSI TAB */}
-      {activeTab === 'RECORDS' && (
+      {/* VIEW 1: RIWAYAT TRANSAKSI TAB (Admin Only) */}
+      {effectiveTab === 'RECORDS' && !isPublicOrStreamer && (
         <div className="space-y-4">
           {/* Summary Metric Cards (Admin Mode) */}
           {isAdmin && !streamerMode && (
@@ -547,39 +562,39 @@ const HistoryTable = () => {
         </div>
       )}
 
-      {/* VIEW 2: LEADERBOARD TOP PELANGGAN SULTAN TAB */}
-      {activeTab === 'LEADERBOARD' && (
+      {/* VIEW 2: LEADERBOARD TOP 10 SULTAN TAB */}
+      {effectiveTab === 'LEADERBOARD' && (
         <div className="space-y-4">
           {/* Top 3 Podium Cards */}
-          {leaderboardList.length > 0 && (
+          {top10Leaderboard.length > 0 && (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-2">
               {/* JUARA 2 (Silver) */}
-              {leaderboardList[1] && (
+              {top10Leaderboard[1] && (
                 <div className="bg-gradient-to-b from-slate-400/10 to-bg-surface border border-slate-400/30 rounded-3xl p-4 text-center shadow-lg relative order-2 md:order-1">
                   <div className="w-10 h-10 mx-auto rounded-2xl bg-slate-400/20 border border-slate-400/40 flex items-center justify-center text-slate-300 font-black text-sm mb-2 shadow">
                     🥈 #2
                   </div>
                   <h4 className="text-base font-black text-white m-0 truncate">
-                    {leaderboardList[1].username}
+                    {top10Leaderboard[1].username}
                   </h4>
                   <div className="text-xs text-slate-300 font-bold mt-0.5">
-                    {leaderboardList[1].tiktokName ? `@${leaderboardList[1].tiktokName}` : 'Sultan Perak'}
+                    {top10Leaderboard[1].tiktokName ? `@${top10Leaderboard[1].tiktokName}` : 'Sultan Perak'}
                   </div>
                   <div className="mt-3 py-2 px-3 rounded-2xl bg-white/5 border border-white/5 grid grid-cols-2 gap-2 text-xs font-mono">
                     <div>
                       <span className="text-[10px] text-text-dim block">Total Order</span>
-                      <strong className="text-white">{leaderboardList[1].totalOrders}x</strong>
+                      <strong className="text-white">{top10Leaderboard[1].totalOrders}x</strong>
                     </div>
                     <div>
                       <span className="text-[10px] text-text-dim block">Jam Main</span>
-                      <strong className="text-slate-300">{leaderboardList[1].totalDuration.toFixed(1)} Jam</strong>
+                      <strong className="text-slate-300">{top10Leaderboard[1].totalDuration.toFixed(1)} Jam</strong>
                     </div>
                   </div>
                 </div>
               )}
 
               {/* JUARA 1 (Gold Crown) */}
-              {leaderboardList[0] && (
+              {top10Leaderboard[0] && (
                 <div className="bg-gradient-to-b from-accent-yellow/20 via-accent-yellow/5 to-bg-surface border-2 border-accent-yellow/50 rounded-3xl p-5 text-center shadow-2xl shadow-accent-yellow/10 relative order-1 md:order-2 scale-[1.03]">
                   <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-0.5 rounded-full bg-accent-yellow text-black font-black text-[10px] uppercase tracking-wider flex items-center gap-1 shadow-lg">
                     <Crown size={12} />
@@ -589,44 +604,44 @@ const HistoryTable = () => {
                     🥇 #1
                   </div>
                   <h3 className="text-lg font-black text-white m-0 truncate">
-                    {leaderboardList[0].username}
+                    {top10Leaderboard[0].username}
                   </h3>
                   <div className="text-xs text-accent-yellow font-bold mt-0.5">
-                    {leaderboardList[0].tiktokName ? `@${leaderboardList[0].tiktokName}` : '👑 Sultan of the Stream'}
+                    {top10Leaderboard[0].tiktokName ? `@${top10Leaderboard[0].tiktokName}` : '👑 Sultan of the Stream'}
                   </div>
                   <div className="mt-3 py-2 px-3 rounded-2xl bg-accent-yellow/10 border border-accent-yellow/25 grid grid-cols-2 gap-2 text-xs font-mono">
                     <div>
                       <span className="text-[10px] text-accent-yellow/80 block">Total Order</span>
-                      <strong className="text-white text-sm">{leaderboardList[0].totalOrders}x Order</strong>
+                      <strong className="text-white text-sm">{top10Leaderboard[0].totalOrders}x Order</strong>
                     </div>
                     <div>
                       <span className="text-[10px] text-accent-yellow/80 block">Total Jam Main</span>
-                      <strong className="text-accent-yellow text-sm">{leaderboardList[0].totalDuration.toFixed(1)} Jam</strong>
+                      <strong className="text-accent-yellow text-sm">{top10Leaderboard[0].totalDuration.toFixed(1)} Jam</strong>
                     </div>
                   </div>
                 </div>
               )}
 
               {/* JUARA 3 (Bronze) */}
-              {leaderboardList[2] && (
+              {top10Leaderboard[2] && (
                 <div className="bg-gradient-to-b from-amber-700/15 to-bg-surface border border-amber-600/30 rounded-3xl p-4 text-center shadow-lg relative order-3">
                   <div className="w-10 h-10 mx-auto rounded-2xl bg-amber-700/20 border border-amber-600/40 flex items-center justify-center text-amber-400 font-black text-sm mb-2 shadow">
                     🥉 #3
                   </div>
                   <h4 className="text-base font-black text-white m-0 truncate">
-                    {leaderboardList[2].username}
+                    {top10Leaderboard[2].username}
                   </h4>
                   <div className="text-xs text-amber-400 font-bold mt-0.5">
-                    {leaderboardList[2].tiktokName ? `@${leaderboardList[2].tiktokName}` : 'Sultan Perunggu'}
+                    {top10Leaderboard[2].tiktokName ? `@${top10Leaderboard[2].tiktokName}` : 'Sultan Perunggu'}
                   </div>
                   <div className="mt-3 py-2 px-3 rounded-2xl bg-white/5 border border-white/5 grid grid-cols-2 gap-2 text-xs font-mono">
                     <div>
                       <span className="text-[10px] text-text-dim block">Total Order</span>
-                      <strong className="text-white">{leaderboardList[2].totalOrders}x</strong>
+                      <strong className="text-white">{top10Leaderboard[2].totalOrders}x</strong>
                     </div>
                     <div>
                       <span className="text-[10px] text-text-dim block">Jam Main</span>
-                      <strong className="text-amber-400">{leaderboardList[2].totalDuration.toFixed(1)} Jam</strong>
+                      <strong className="text-amber-400">{top10Leaderboard[2].totalDuration.toFixed(1)} Jam</strong>
                     </div>
                   </div>
                 </div>
@@ -634,15 +649,15 @@ const HistoryTable = () => {
             </div>
           )}
 
-          {/* Full Leaderboard Table */}
+          {/* Full Leaderboard Table (Top 10) */}
           <div className="bg-bg-surface border border-border-default rounded-2xl overflow-hidden shadow-2xl">
             <div className="p-3 bg-bg-primary/90 border-b border-border-default flex items-center justify-between">
               <span className="text-xs font-black text-white uppercase tracking-wider flex items-center gap-1.5">
                 <Trophy size={14} className="text-accent-yellow" />
-                <span>Peringkat Pelanggan Terloyal</span>
+                <span>Papan Peringkat Top 10 Sultan Terloyal</span>
               </span>
               <span className="text-[10.5px] font-mono text-text-dim">
-                Total {leaderboardList.length} Customer
+                Top {top10Leaderboard.length} Customer
               </span>
             </div>
 
@@ -659,14 +674,14 @@ const HistoryTable = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border-subtle text-xs font-medium font-mono">
-                  {leaderboardList.length === 0 ? (
+                  {top10Leaderboard.length === 0 ? (
                     <tr>
                       <td colSpan="6" className="py-12 text-center text-text-dim font-sans">
                         Belum ada data pelanggan joki yang tercatat.
                       </td>
                     </tr>
                   ) : (
-                    leaderboardList.map((item, idx) => (
+                    top10Leaderboard.map((item, idx) => (
                       <tr 
                         key={item.username} 
                         className={`hover:bg-white/[0.02] transition-colors ${

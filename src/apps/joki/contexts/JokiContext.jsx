@@ -222,6 +222,8 @@ export const JokiProvider = ({ children }) => {
   const enableVvipSlot = globalSettings?.enableVvipSlot !== undefined
     ? Boolean(globalSettings.enableVvipSlot)
     : (activeWorkspaceId === 'saviours' || hasVvipData);
+  const priceBasic = Number(globalSettings?.priceBasic) || PRICE_BASIC;
+  const priceVip = Number(globalSettings?.priceVip) || PRICE_VIP;
   const priceVvip = Number(globalSettings?.priceVvip) || PRICE_VVIP;
 
   // Start billing from queue
@@ -233,7 +235,7 @@ export const JokiProvider = ({ children }) => {
     const isVIP = (queueItem.service || '').toUpperCase() === 'VIP' || selectedSlot === 'VIP';
     const finalService = isVVIP ? 'VVIP' : (isVIP ? 'VIP' : 'Basic');
     const finalSlot = isVVIP ? 'VVIP' : (isVIP ? 'VIP' : (selectedSlot || suggestSlot()));
-    const pricePerHour = isVVIP ? priceVvip : (isVIP ? PRICE_VIP : PRICE_BASIC);
+    const pricePerHour = isVVIP ? priceVvip : (isVIP ? priceVip : priceBasic);
     const price = Math.round(duration * pricePerHour);
 
     const customerData = {
@@ -280,7 +282,7 @@ export const JokiProvider = ({ children }) => {
       const remainingHours = Number((remainingSeconds / 3600).toFixed(2));
       const finalDuration = remainingHours > 0 ? remainingHours : (customer.duration || 1);
       const srv = (customer.service || 'Basic').toUpperCase();
-      const rate = srv === 'VVIP' ? (priceVvip || PRICE_VVIP) : (srv === 'VIP' ? PRICE_VIP : PRICE_BASIC);
+      const rate = srv === 'VVIP' ? priceVvip : (srv === 'VIP' ? priceVip : priceBasic);
 
       await fbAddQueue(activeWorkspaceId, {
         ticketId: customer.ticketId || `JK-${customer.id.slice(-5)}`,
@@ -364,6 +366,8 @@ export const JokiProvider = ({ children }) => {
     globalPauseStarted,
     globalSettings,
     enableVvipSlot,
+    priceBasic,
+    priceVip,
     priceVvip,
     streamerMode,
     toggleStreamerMode,

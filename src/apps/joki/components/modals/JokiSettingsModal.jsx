@@ -12,11 +12,10 @@ import {
   Radio, 
   Coffee, 
   Moon, 
-  Clock,
-  Sparkles,
+  Clock, 
   Gem,
+  Crown,
   User,
-  Zap,
   DollarSign
 } from 'lucide-react';
 import { updateJokiSettings } from '../../services/jokiFirebase';
@@ -35,14 +34,16 @@ const JokiSettingsModal = ({ isOpen, onClose }) => {
   const [streamStatus, setStreamStatus] = useState(globalSettings?.streamStatus || 'OFFLINE');
   const [nextStreamSchedule, setNextStreamSchedule] = useState(globalSettings?.nextStreamSchedule || '');
 
-  // VVIP Settings State
+  // Pricing & VVIP Settings State
+  const [basicPrice, setBasicPrice] = useState(globalSettings?.priceBasic || 4000);
+  const [vipPrice, setVipPrice] = useState(globalSettings?.priceVip || 6000);
   const [enableVvip, setEnableVvip] = useState(
     globalSettings?.enableVvipSlot !== undefined
       ? Boolean(globalSettings.enableVvipSlot)
       : (activeWorkspaceId === 'saviours')
   );
   const [vvipPrice, setVvipPrice] = useState(globalSettings?.priceVvip || 10000);
-  const [loadingVvip, setLoadingVvip] = useState(false);
+  const [loadingPricing, setLoadingPricing] = useState(false);
   
   // Password State
   const [newPassword, setNewPassword] = useState('');
@@ -58,6 +59,12 @@ const JokiSettingsModal = ({ isOpen, onClose }) => {
       setManualOverride(globalSettings.manualOverride || false);
       setStreamStatus(globalSettings.streamStatus || 'OFFLINE');
       setNextStreamSchedule(globalSettings.nextStreamSchedule || '');
+      if (globalSettings.priceBasic !== undefined) {
+        setBasicPrice(globalSettings.priceBasic);
+      }
+      if (globalSettings.priceVip !== undefined) {
+        setVipPrice(globalSettings.priceVip);
+      }
       if (globalSettings.enableVvipSlot !== undefined) {
         setEnableVvip(Boolean(globalSettings.enableVvipSlot));
       }
@@ -90,26 +97,23 @@ const JokiSettingsModal = ({ isOpen, onClose }) => {
     }
   };
 
-  const handleUpdateVvipSettings = async (e) => {
+  const handleUpdatePricingSettings = async (e) => {
     if (e) e.preventDefault();
     try {
-      setLoadingVvip(true);
+      setLoadingPricing(true);
       await updateJokiSettings(activeWorkspaceId, {
+        priceBasic: Math.max(500, Number(basicPrice) || 4000),
+        priceVip: Math.max(500, Number(vipPrice) || 6000),
         enableVvipSlot: enableVvip,
         priceVvip: Math.max(1000, Number(vvipPrice) || 10000),
         updatedAt: Date.now()
       });
-      addToast(
-        enableVvip 
-          ? '✓ Fitur & Slot VVIP berhasil diaktifkan!' 
-          : '✓ Fitur VVIP dinonaktifkan (Dashboard kembali 2-Tier standard).', 
-        'success'
-      );
+      addToast('✓ Pengaturan tarif layanan (Basic, VIP, VVIP) berhasil disimpan!', 'success');
     } catch (err) {
       console.error(err);
-      addToast('Gagal mengubah pengaturan VVIP.', 'error');
+      addToast('Gagal mengubah pengaturan tarif layanan.', 'error');
     } finally {
-      setLoadingVvip(false);
+      setLoadingPricing(false);
     }
   };
 
@@ -223,8 +227,8 @@ const JokiSettingsModal = ({ isOpen, onClose }) => {
                 : 'text-text-secondary hover:text-white'
             }`}
           >
-            <Gem size={14} />
-            <span>Layanan & VVIP</span>
+            <DollarSign size={14} />
+            <span>Layanan & Tarif</span>
           </button>
 
           <button
@@ -241,10 +245,8 @@ const JokiSettingsModal = ({ isOpen, onClose }) => {
           </button>
         </div>
 
-        {/* TAB 1: JADWAL & STATUS LIVE STREAM */}
         {activeTab === 'SCHEDULE' && (
           <form onSubmit={handleUpdateScheduleAndStatus} className="space-y-4 overflow-y-auto pr-1">
-            {/* Jam Live Otomatis */}
             <div className="p-4 rounded-2xl bg-bg-surface/80 border border-border-default space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-black text-white flex items-center gap-1.5">
@@ -276,7 +278,6 @@ const JokiSettingsModal = ({ isOpen, onClose }) => {
               </div>
             </div>
 
-            {/* Status Siaran & Manual Override */}
             <div className="p-4 rounded-2xl bg-bg-surface/80 border border-border-default space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-black text-white flex items-center gap-1.5">
@@ -340,7 +341,6 @@ const JokiSettingsModal = ({ isOpen, onClose }) => {
               </div>
             </div>
 
-            {/* Teks Pengumuman Banner + Chip Presets */}
             <div className="p-4 rounded-2xl bg-bg-surface/80 border border-border-default space-y-2.5">
               <label className="block text-[10px] uppercase font-black text-text-dim">
                 Pesan Pengumuman Banner Tiket (Opsional)
@@ -353,7 +353,6 @@ const JokiSettingsModal = ({ isOpen, onClose }) => {
                 className="w-full bg-[#151821] border border-border-default rounded-xl py-2 px-3 text-xs text-white font-medium outline-none focus:border-accent-purple/50"
               />
 
-              {/* 1-Click Chip Presets */}
               <div className="pt-1">
                 <span className="text-[10px] text-text-dim font-bold block mb-1.5">Preset 1-Klik Cepat:</span>
                 <div className="flex flex-wrap gap-1.5">
@@ -382,26 +381,95 @@ const JokiSettingsModal = ({ isOpen, onClose }) => {
           </form>
         )}
 
-        {/* TAB 2: LAYANAN & TARIF VVIP */}
         {activeTab === 'SERVICES' && (
-          <form onSubmit={handleUpdateVvipSettings} className="space-y-4 overflow-y-auto pr-1">
+          <form onSubmit={handleUpdatePricingSettings} className="space-y-4 overflow-y-auto pr-1">
+            <div className="p-4 rounded-2xl bg-bg-surface/80 border border-border-default space-y-2.5 shadow-sm">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-lg bg-accent-cyan/15 border border-accent-cyan/30 flex items-center justify-center text-accent-cyan">
+                    <Gamepad2 size={15} />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-black text-white m-0">
+                      Tarif Joki Basic (Per Jam)
+                    </h4>
+                    <p className="text-[10.5px] text-text-muted m-0">
+                      Slot antrean reguler standar (Slot 1–6)
+                    </p>
+                  </div>
+                </div>
+                <span className="text-xs font-mono font-black text-accent-cyan">
+                  Rp {Number(basicPrice || 4000).toLocaleString('id-ID')}
+                </span>
+              </div>
+
+              <div className="relative pt-1">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-black text-text-dim">Rp</span>
+                <input
+                  type="number"
+                  step="500"
+                  min="500"
+                  value={basicPrice}
+                  onChange={(e) => setBasicPrice(e.target.value)}
+                  placeholder="4000"
+                  className="w-full bg-[#151821] border border-border-default rounded-xl py-2 pl-9 pr-3 text-xs text-white font-mono font-black outline-none focus:border-accent-cyan/50"
+                />
+              </div>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-gradient-to-b from-accent-yellow/[0.06] to-bg-surface/80 border border-accent-yellow/30 space-y-2.5 shadow-sm">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-lg bg-accent-yellow/20 border border-accent-yellow/40 flex items-center justify-center text-accent-yellow">
+                    <Crown size={15} />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-black text-white m-0 flex items-center gap-1.5">
+                      <span>Tarif Joki VIP Priority (Per Jam)</span>
+                      <span className="text-[9px] px-1.5 py-0.2 rounded bg-accent-yellow text-black font-black">PRIORITAS</span>
+                    </h4>
+                    <p className="text-[10.5px] text-text-muted m-0">
+                      Slot khusus VIP yang memotong antrean reguler
+                    </p>
+                  </div>
+                </div>
+                <span className="text-xs font-mono font-black text-accent-yellow">
+                  Rp {Number(vipPrice || 6000).toLocaleString('id-ID')}
+                </span>
+              </div>
+
+              <div className="relative pt-1">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-black text-accent-yellow">Rp</span>
+                <input
+                  type="number"
+                  step="500"
+                  min="500"
+                  value={vipPrice}
+                  onChange={(e) => setVipPrice(e.target.value)}
+                  placeholder="5000"
+                  className="w-full bg-[#151821] border border-accent-yellow/40 rounded-xl py-2 pl-9 pr-3 text-xs text-white font-mono font-black outline-none focus:border-accent-yellow"
+                />
+              </div>
+            </div>
+
             <div className="p-4 rounded-2xl bg-gradient-to-b from-rose-500/[0.08] to-bg-surface/90 border border-rose-500/30 space-y-3 shadow-inner">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-xl bg-rose-500/20 border border-rose-500/40 flex items-center justify-center text-rose-400">
-                    <Gem size={16} />
+                  <div className="w-7 h-7 rounded-lg bg-rose-500/20 border border-rose-500/40 flex items-center justify-center text-rose-400">
+                    <Gem size={15} />
                   </div>
                   <div>
-                    <h4 className="text-sm font-black text-white m-0">
-                      Fitur & Slot VVIP (Super Priority)
+                    <h4 className="text-xs font-black text-white m-0 flex items-center gap-1.5">
+                      <span>Fitur & Slot VVIP (Super Priority)</span>
+                      <span className="text-[9px] px-1.5 py-0.2 rounded bg-rose-500 text-white font-black">TOP TIER</span>
                     </h4>
-                    <p className="text-[11px] text-text-muted m-0">
-                      Aktifkan hanya jika streamer menyediakan slot super prioritas (Saviours).
+                    <p className="text-[10.5px] text-text-muted m-0">
+                      Slot kasta tertinggi (Prioritas di atas VIP)
                     </p>
                   </div>
                 </div>
 
-                <span className={`px-2.5 py-0.5 rounded-full text-[10.5px] font-black uppercase tracking-wider border ${
+                <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider border ${
                   enableVvip 
                     ? 'bg-rose-500/20 text-rose-300 border-rose-500/50' 
                     : 'bg-white/5 text-text-muted border-white/10'
@@ -410,25 +478,24 @@ const JokiSettingsModal = ({ isOpen, onClose }) => {
                 </span>
               </div>
 
-              {/* 2-Way Toggle */}
-              <div className="grid grid-cols-2 gap-2 pt-1">
+              <div className="grid grid-cols-2 gap-2 pt-0.5">
                 <button
                   type="button"
                   onClick={() => setEnableVvip(true)}
-                  className={`py-2 px-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 border cursor-pointer ${
+                  className={`py-1.5 px-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 border cursor-pointer ${
                     enableVvip
                       ? 'bg-rose-600 text-white border-rose-500 shadow-md shadow-rose-600/30'
                       : 'bg-bg-surface text-text-muted border-border-default hover:text-white'
                   }`}
                 >
-                  <Gem size={13} />
+                  <Gem size={12} />
                   <span>Aktifkan VVIP</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => setEnableVvip(false)}
-                  className={`py-2 px-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 border cursor-pointer ${
+                  className={`py-1.5 px-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 border cursor-pointer ${
                     !enableVvip
                       ? 'bg-white/20 text-white border-white/40 shadow'
                       : 'bg-bg-surface text-text-muted border-border-default hover:text-white'
@@ -438,10 +505,9 @@ const JokiSettingsModal = ({ isOpen, onClose }) => {
                 </button>
               </div>
 
-              {/* Custom VVIP Price Input */}
               {enableVvip && (
                 <div className="pt-2 border-t border-rose-500/20">
-                  <label className="block text-[10.5px] font-black uppercase text-rose-300 mb-1">
+                  <label className="block text-[10px] font-black uppercase text-rose-300 mb-1">
                     Tarif Layanan VVIP (Per Jam)
                   </label>
                   <div className="relative">
@@ -461,19 +527,17 @@ const JokiSettingsModal = ({ isOpen, onClose }) => {
 
             <button
               type="submit"
-              disabled={loadingVvip}
-              className="w-full py-2.5 rounded-xl bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-500 hover:to-rose-600 text-white font-black text-xs uppercase tracking-wider transition-all shadow-lg shadow-rose-600/25 flex items-center justify-center gap-1.5 cursor-pointer"
+              disabled={loadingPricing}
+              className="w-full py-2.5 rounded-xl bg-gradient-to-r from-accent-purple to-accent-purple-light hover:brightness-110 text-white font-black text-xs uppercase tracking-wider transition-all shadow-lg shadow-accent-purple/25 flex items-center justify-center gap-1.5 cursor-pointer"
             >
               <Check size={14} />
-              <span>{loadingVvip ? 'Menyimpan...' : 'Simpan Pengaturan VVIP'}</span>
+              <span>{loadingPricing ? 'Menyimpan...' : 'Simpan Semua Pengaturan Tarif'}</span>
             </button>
           </form>
         )}
 
-        {/* TAB 3: PROFIL STREAMER & GANTI PASSWORD */}
         {activeTab === 'PROFILE' && (
           <div className="space-y-4 overflow-y-auto pr-1">
-            {/* Ubah Nama Streamer */}
             <form onSubmit={handleUpdateName} className="p-4 rounded-2xl bg-bg-surface/80 border border-border-default space-y-3">
               <span className="text-xs font-black text-white flex items-center gap-1.5">
                 <Gamepad2 size={14} className="text-accent-cyan" />

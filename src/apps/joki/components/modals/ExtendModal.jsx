@@ -1,10 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useJoki } from '../../contexts/JokiContext';
-import { Clock, X, Plus, DollarSign, Check } from 'lucide-react';
-
-const PRICE_BASIC = 4000;
-const PRICE_VIP = 6000;
-const PRICE_VVIP = 10000;
+import { Clock, X, Check } from 'lucide-react';
 
 const EXTEND_PRESETS = [
   { label: '+15 Menit', minutes: 15, hint: 'Free' },
@@ -16,7 +12,7 @@ const EXTEND_PRESETS = [
 ];
 
 const ExtendModal = ({ customer, onClose }) => {
-  const { updateJokiCustomer, priceVvip, addToast } = useJoki();
+  const { updateJokiCustomer, priceBasic, priceVip, priceVvip, addToast } = useJoki();
   const [amount, setAmount] = useState(30);
   const [unit, setUnit] = useState('minute'); // 'minute' | 'hour'
   const [loading, setLoading] = useState(false);
@@ -33,7 +29,7 @@ const ExtendModal = ({ customer, onClose }) => {
   const srv = (customer.service || 'Basic').toUpperCase();
   const isVVIP = srv.includes('VVIP');
   const isVIP = !isVVIP && srv.includes('VIP');
-  const pricePerHour = isVVIP ? (priceVvip || PRICE_VVIP) : (isVIP ? PRICE_VIP : PRICE_BASIC);
+  const pricePerHour = isVVIP ? priceVvip : (isVIP ? priceVip : priceBasic);
   const pricePerHalfHour = pricePerHour / 2;
 
   // Total additional minutes

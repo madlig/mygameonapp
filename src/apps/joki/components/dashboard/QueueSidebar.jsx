@@ -19,10 +19,6 @@ import {
 } from 'lucide-react';
 import CredentialModal from '../modals/CredentialModal';
 
-const PRICE_BASIC = 4000;
-const PRICE_VIP = 6000;
-const PRICE_VVIP = 10000;
-
 const formatDuration = (hours) => {
   const totalMinutes = Math.round(Number(hours) * 60);
   const h = Math.floor(totalMinutes / 60);
@@ -49,6 +45,8 @@ const QueueSidebar = ({ onStartFromQueue, onRequestClearQueue }) => {
     queue, 
     customers,
     enableVvipSlot,
+    priceBasic,
+    priceVip,
     priceVvip,
     addJokiQueue, 
     updateJokiQueue, 
@@ -122,9 +120,9 @@ const QueueSidebar = ({ onStartFromQueue, onRequestClearQueue }) => {
   const calculatedHours = qUnit === 'hour' ? Number(qAmount || 0) : Number(qAmount || 0) / 60;
   const getRate = (srv) => {
     const s = (srv || '').toUpperCase();
-    if (s === 'VVIP') return priceVvip || PRICE_VVIP;
-    if (s === 'VIP') return PRICE_VIP;
-    return PRICE_BASIC;
+    if (s === 'VVIP') return priceVvip;
+    if (s === 'VIP') return priceVip;
+    return priceBasic;
   };
   const pricePerHour = getRate(qService);
   const calculatedPrice = Math.round(calculatedHours * pricePerHour);
@@ -430,8 +428,8 @@ const QueueSidebar = ({ onStartFromQueue, onRequestClearQueue }) => {
                   onChange={(e) => setQService(e.target.value)}
                   className="w-full bg-bg-surface border border-border-default rounded-lg py-1.5 px-2 text-xs text-text-primary outline-none focus:border-accent-purple/50 cursor-pointer font-bold"
                 >
-                  <option value="Basic">Basic (4k/j)</option>
-                  <option value="VIP">VIP (6k/j - Priority)</option>
+                  <option value="Basic">Basic ({priceBasic ? `${priceBasic / 1000}k` : '4k'}/j)</option>
+                  <option value="VIP">VIP ({priceVip ? `${priceVip / 1000}k` : '6k'}/j - Priority)</option>
                   {enableVvipSlot && (
                     <option value="VVIP">VVIP ({priceVvip ? `${priceVvip / 1000}k` : '10k'}/j - Super Priority)</option>
                   )}

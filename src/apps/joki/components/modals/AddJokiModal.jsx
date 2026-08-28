@@ -15,10 +15,6 @@ import {
   Gamepad2
 } from 'lucide-react';
 
-const PRICE_BASIC = 4000;
-const PRICE_VIP = 6000;
-const PRICE_VVIP = 10000;
-
 const formatDuration = (hours) => {
   const totalMinutes = Math.round(Number(hours) * 60);
   const h = Math.floor(totalMinutes / 60);
@@ -41,6 +37,8 @@ const AddJokiModal = ({ isOpen, onClose }) => {
   const { 
     customers, 
     enableVvipSlot,
+    priceBasic,
+    priceVip,
     priceVvip,
     addJokiCustomer, 
     addJokiQueue, 
@@ -143,7 +141,7 @@ const AddJokiModal = ({ isOpen, onClose }) => {
     ? Number(durationValue || 0)
     : Number(durationValue || 0) / 60;
 
-  const pricePerHour = isVVIP ? (priceVvip || PRICE_VVIP) : (isVIP ? PRICE_VIP : PRICE_BASIC);
+  const pricePerHour = isVVIP ? priceVvip : (isVIP ? priceVip : priceBasic);
   const totalPrice = Math.round(calculatedHours * pricePerHour);
 
   const handleSave = async (e) => {
@@ -388,8 +386,8 @@ const AddJokiModal = ({ isOpen, onClose }) => {
                 onChange={handleServiceChange}
                 className="w-full bg-bg-primary border border-border-default rounded-xl py-2 px-3 text-xs text-text-primary outline-none focus:border-accent-purple/50 cursor-pointer font-bold shadow-inner"
               >
-                <option value="Basic">Basic (Rp 4.000 / Jam)</option>
-                <option value="VIP">VIP (Rp 6.000 / Jam - Priority)</option>
+                <option value="Basic">Basic (Rp {Number(priceBasic || 4000).toLocaleString('id-ID')} / Jam)</option>
+                <option value="VIP">VIP (Rp {Number(priceVip || 6000).toLocaleString('id-ID')} / Jam - Priority)</option>
                 {enableVvipSlot && (
                   <option value="VVIP">VVIP (Rp {Number(priceVvip || 10000).toLocaleString('id-ID')} / Jam - Super Priority)</option>
                 )}

@@ -19,10 +19,6 @@ import {
   Sparkles
 } from 'lucide-react';
 
-const PRICE_BASIC = 4000;
-const PRICE_VIP = 6000;
-const PRICE_VVIP = 10000;
-
 const formatTime = (seconds) => {
   seconds = Math.max(0, Math.floor(seconds));
   const h = Math.floor(seconds / 3600);
@@ -42,7 +38,7 @@ const formatClock = (timestamp) => {
 };
 
 const EditBillingModal = ({ customer, onClose }) => {
-  const { customers, updateJokiCustomer, moveCustomerToQueue, enableVvipSlot, priceVvip, addToast } = useJoki();
+  const { customers, updateJokiCustomer, moveCustomerToQueue, enableVvipSlot, priceBasic, priceVip, priceVvip, addToast } = useJoki();
 
   const [username, setUsername] = useState('');
   const [tiktokName, setTiktokName] = useState('');
@@ -81,7 +77,7 @@ const EditBillingModal = ({ customer, onClose }) => {
   const isVVIP = service === 'VVIP';
   const isVIP = !isVVIP && service === 'VIP';
   const standardSlots = [1, 2, 3, 4, 5, 6];
-  const ratePerHour = isVVIP ? (priceVvip || PRICE_VVIP) : (isVIP ? PRICE_VIP : PRICE_BASIC);
+  const ratePerHour = isVVIP ? priceVvip : (isVIP ? priceVip : priceBasic);
 
   // Initial duration in hours
   const initialDurationHours = Number(customer.duration || 1);
@@ -109,7 +105,7 @@ const EditBillingModal = ({ customer, onClose }) => {
   const handleServiceChange = (e) => {
     const newService = e.target.value;
     setService(newService);
-    const newRate = newService === 'VVIP' ? (priceVvip || PRICE_VVIP) : (newService === 'VIP' ? PRICE_VIP : PRICE_BASIC);
+    const newRate = newService === 'VVIP' ? priceVvip : (newService === 'VIP' ? priceVip : priceBasic);
     setPrice(Math.round(calculatedTotalHours * newRate));
     if (newService === 'VVIP') {
       setSlot('VVIP');
@@ -462,8 +458,8 @@ const EditBillingModal = ({ customer, onClose }) => {
                 onChange={handleServiceChange}
                 className="w-full bg-bg-primary border border-border-default rounded-xl py-2 px-2.5 text-xs text-text-primary outline-none focus:border-accent-cyan/50 cursor-pointer font-bold"
               >
-                <option value="Basic">Basic (4k/j)</option>
-                <option value="VIP">VIP (6k/j)</option>
+                <option value="Basic">Basic ({priceBasic ? `${priceBasic/1000}k` : '4k'}/j)</option>
+                <option value="VIP">VIP ({priceVip ? `${priceVip/1000}k` : '6k'}/j)</option>
                 {(enableVvipSlot || service === 'VVIP') && (
                   <option value="VVIP">VVIP ({priceVvip ? `${Math.round(priceVvip/1000)}k` : '10k'}/j)</option>
                 )}

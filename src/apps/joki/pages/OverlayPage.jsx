@@ -23,9 +23,13 @@ const OverlayPageContent = () => {
 
   // Parse Query Parameters
   const paramWs = searchParams.get('ws') || searchParams.get('workspace') || pathWsId || activeWorkspaceId || 'mygameon';
-  const mode = (searchParams.get('mode') || 'rotating').toLowerCase();
+  const mode = (searchParams.get('mode') || 'active').toLowerCase();
   const theme = (searchParams.get('theme') || 'neon').toLowerCase();
-  const scale = (searchParams.get('scale') || 'normal').toLowerCase();
+  const scale = (searchParams.get('scale') || 'xl').toLowerCase();
+  const layout = (searchParams.get('layout') || (mode === 'split' ? 'list' : 'grid')).toLowerCase();
+  const cols = parseInt(searchParams.get('cols') || '3', 10);
+  const totalSlots = parseInt(searchParams.get('totalSlots') || '6', 10);
+  const showEmpty = searchParams.get('showEmpty') !== 'false' && searchParams.get('empty') !== 'false';
   const rotateSec = Math.max(5, parseInt(searchParams.get('rotateSec') || '15', 10));
 
   // Auto-Rotating State for 'rotating' or 'all_in_one' mode
@@ -67,9 +71,10 @@ const OverlayPageContent = () => {
   }, []);
 
   const wsName = activeWorkspace?.name || 'Live Joki Stream';
+  const isFullWidthLayout = layout === 'grid' || mode === 'ticker';
 
   return (
-    <div className="w-full min-h-screen bg-transparent p-3 flex flex-col justify-start items-start select-none">
+    <div className="w-full min-h-screen bg-transparent p-2.5 flex flex-col justify-start items-start select-none">
       {/* 1. RUNNING TICKER MODE */}
       {mode === 'ticker' && (
         <OverlayTicker 
@@ -95,12 +100,16 @@ const OverlayPageContent = () => {
 
       {/* 3. ACTIVE SLOTS ONLY MODE */}
       {mode === 'active' && (
-        <div className="w-full max-w-[420px]">
+        <div className={`w-full ${isFullWidthLayout ? '' : 'max-w-[440px]'}`}>
           <OverlayActiveSlots 
             customers={customers} 
             now={now} 
             theme={theme} 
             scale={scale} 
+            layout={layout}
+            cols={cols}
+            totalSlots={totalSlots}
+            showEmpty={showEmpty}
             title={`${wsName} • SLOTS`} 
           />
         </div>
@@ -108,7 +117,7 @@ const OverlayPageContent = () => {
 
       {/* 4. QUEUE ONLY MODE */}
       {mode === 'queue' && (
-        <div className="w-full max-w-[420px]">
+        <div className={`w-full ${isFullWidthLayout ? '' : 'max-w-[440px]'}`}>
           <OverlayQueue 
             queue={queue} 
             theme={theme} 
@@ -121,7 +130,7 @@ const OverlayPageContent = () => {
 
       {/* 5. LEADERBOARD SULTAN ONLY MODE */}
       {mode === 'leaderboard' && (
-        <div className="w-full max-w-[420px]">
+        <div className={`w-full ${isFullWidthLayout ? '' : 'max-w-[440px]'}`}>
           <OverlayLeaderboard 
             customers={customers} 
             theme={theme} 
@@ -133,9 +142,9 @@ const OverlayPageContent = () => {
         </div>
       )}
 
-      {/* 6. ALL-IN-ONE ROTATING MODE (Default) */}
+      {/* 6. ALL-IN-ONE ROTATING MODE */}
       {(mode === 'rotating' || mode === 'all_in_one') && (
-        <div className="w-full max-w-[420px] transition-all duration-500 ease-in-out">
+        <div className={`w-full ${isFullWidthLayout ? '' : 'max-w-[440px]'} transition-all duration-500 ease-in-out`}>
           {activeStep === 0 && (
             <div className="animate-[fadeIn_0.4s_ease]">
               <OverlayActiveSlots 
@@ -143,6 +152,10 @@ const OverlayPageContent = () => {
                 now={now} 
                 theme={theme} 
                 scale={scale} 
+                layout={layout}
+                cols={cols}
+                totalSlots={totalSlots}
+                showEmpty={showEmpty}
                 title={`${wsName} • SLOTS`} 
               />
             </div>

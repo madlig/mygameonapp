@@ -18,6 +18,7 @@ import ManageAdminsModal from '../components/modals/ManageAdminsModal';
 import JokiSettingsModal from '../components/modals/JokiSettingsModal';
 import EditBillingModal from '../components/modals/EditBillingModal';
 import SecretVaultModal from '../components/modals/SecretVaultModal';
+import OverlayConfigModal from '../components/modals/OverlayConfigModal';
 import Toast from '../components/ui/Toast';
 
 const JokiDashboard = () => {
@@ -42,6 +43,7 @@ const JokiDashboard = () => {
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [isManageAdminsOpen, setIsManageAdminsOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isOverlayModalOpen, setIsOverlayModalOpen] = useState(false);
   const [isSecretVaultOpen, setIsSecretVaultOpen] = useState(false);
   const [extendCustomer, setExtendCustomer] = useState(null);
   const [editCustomer, setEditCustomer] = useState(null);
@@ -372,6 +374,7 @@ const JokiDashboard = () => {
         onOpenLoginModal={() => setIsLoginModalOpen(true)}
         onOpenManageAdminsModal={() => setIsManageAdminsOpen(true)}
         onOpenSettingsModal={() => setIsSettingsOpen(true)}
+        onOpenOverlayModal={() => setIsOverlayModalOpen(true)}
         onRequestPauseAll={handleRequestPauseAll}
         onRequestResumeAll={handleRequestResumeAll}
       />
@@ -443,6 +446,11 @@ const JokiDashboard = () => {
       <JokiSettingsModal
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
+      />
+
+      <OverlayConfigModal
+        isOpen={isOverlayModalOpen}
+        onClose={() => setIsOverlayModalOpen(false)}
       />
 
       <SecretVaultModal

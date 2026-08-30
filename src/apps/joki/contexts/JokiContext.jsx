@@ -16,7 +16,7 @@ import {
 } from "../services/jokiFirebase";
 import { useAuth } from "../../../contexts/AuthContext";
 
-const JokiContext = createContext();
+export const JokiContext = createContext();
 
 const PRICE_BASIC = 4000;
 const PRICE_VIP = 6000;

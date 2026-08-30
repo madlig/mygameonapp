@@ -22,6 +22,7 @@ const JokiHeader = ({
   onOpenLoginModal,
   onOpenManageAdminsModal,
   onOpenSettingsModal,
+  onOpenOverlayModal,
   onRequestPauseAll, 
   onRequestResumeAll,
 }) => {
@@ -193,6 +194,16 @@ const JokiHeader = ({
             >
               <Settings size={14} className="text-accent-cyan" />
               <span>Pengaturan</span>
+            </button>
+
+            {/* 3. Overlay OBS Generator */}
+            <button
+              onClick={onOpenOverlayModal}
+              title="Link Widget Overlay OBS & TikTok Live"
+              className="h-[44px] flex items-center gap-1.5 px-3 rounded-2xl text-xs font-bold text-text-secondary hover:text-white bg-bg-primary hover:bg-white/5 border border-border-default hover:border-rose-500/50 transition-all cursor-pointer shadow-sm group"
+            >
+              <Video size={14} className="text-rose-400 group-hover:scale-110 transition-transform" />
+              <span>Overlay OBS</span>
             </button>
 
             {/* 3. COMPACT SEAMLESS FUSED MEGA-CONTROL BAR (Snug & Compact Width) */}

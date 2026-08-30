@@ -756,11 +756,26 @@ const HistoryTable = () => {
                           )}
                         </td>
 
-                        {/* Total Belanja */}
+                        {/* Total Belanja (Hanya Top 3 yang memunculkan nominal angka) */}
                         <td className="py-3 px-4 text-center">
-                          <span className="font-bold text-accent-yellow font-mono text-xs">
-                            {formatRupiah(item.totalSpent)}
-                          </span>
+                          {idx === 0 ? (
+                            <span className="font-bold text-accent-yellow font-mono text-xs">
+                              {formatRupiah(item.totalSpent)}
+                            </span>
+                          ) : idx === 1 ? (
+                            <span className="font-bold text-slate-300 font-mono text-xs">
+                              {formatRupiah(item.totalSpent)}
+                            </span>
+                          ) : idx === 2 ? (
+                            <span className="font-bold text-amber-400 font-mono text-xs">
+                              {formatRupiah(item.totalSpent)}
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-white/5 border border-white/10 text-[10.5px] font-bold text-text-muted">
+                              <Sparkles size={10} className="text-accent-yellow" />
+                              <span>Sultan Member</span>
+                            </span>
+                          )}
                         </td>
 
                         {/* Total Duration */}

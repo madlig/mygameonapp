@@ -30,6 +30,7 @@ const BlogPage = lazy(() => import('../features/landing/BlogPage'));
 const DownloadsPage = lazy(() => import('../features/landing/DownloadsPage'));
 const LinkBioPage = lazy(() => import('../features/landing/LinkBioPage'));
 const TicketPage = lazy(() => import('../apps/joki/pages/TicketPage'));
+const OverlayPage = lazy(() => import('../apps/joki/pages/OverlayPage'));
 // Import Halaman Umum
 const LoginPage = lazy(() => import('../pages/LoginPage'));
 const FeedbackPage = lazy(() => import('../features/feedback/FeedbackPage'));
@@ -53,6 +54,10 @@ const AppRouter = () => {
         <Route path="/" element={<LandingPage />} />
         <Route path="/ticket/:ticketId" element={<TicketPage />} />
         <Route path="/ticket/:workspaceId/:ticketId" element={<TicketPage />} />
+        <Route path="/overlay" element={<OverlayPage />} />
+        <Route path="/overlay/:workspaceId" element={<OverlayPage />} />
+        <Route path="/joki/overlay" element={<OverlayPage />} />
+        <Route path="/joki/overlay/:workspaceId" element={<OverlayPage />} />
         <Route path="/request-game" element={<RequestGamePage />} />
         <Route path="/request-status" element={<RequestStatusPage />} />
         <Route path="/faq" element={<FaqPage />} />

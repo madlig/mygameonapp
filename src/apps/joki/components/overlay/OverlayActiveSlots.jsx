@@ -163,26 +163,24 @@ const OverlayActiveSlots = ({
                 return (
                   <div 
                     key={`empty-${slotNum}`}
-                    className={`rounded-2xl p-2.5 border transition-all duration-300 flex flex-col justify-between gap-1.5 ${t.emptyCard}`}
+                    className={`rounded-2xl p-2.5 border transition-all duration-300 flex flex-col justify-between gap-1.5 min-w-0 overflow-hidden ${t.emptyCard}`}
                   >
                     {/* Top Row: Slot Pill + OPEN Badge */}
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-1.5">
-                        <span className="px-2 py-0.5 rounded-lg bg-white/5 border border-white/10 text-slate-400 font-mono font-black text-xs">
-                          SLOT {slotNum}
-                        </span>
-                      </div>
-                      <span className="px-2 py-0.5 rounded-lg bg-emerald-500/15 border border-emerald-500/35 text-emerald-300 font-black text-[10px] uppercase tracking-wider flex items-center gap-1">
+                    <div className="flex items-center justify-between gap-1.5 w-full">
+                      <span className="whitespace-nowrap shrink-0 px-2 py-0.5 rounded-lg bg-white/5 border border-white/10 text-slate-400 font-mono font-black text-[11px] leading-none inline-flex items-center">
+                        SLOT {slotNum}
+                      </span>
+                      <span className="whitespace-nowrap shrink-0 ml-auto px-2 py-0.5 rounded-lg bg-emerald-500/15 border border-emerald-500/35 text-emerald-300 font-black text-[10px] uppercase tracking-wider flex items-center gap-1 leading-none">
                         <PlusCircle size={10} />
                         <span>OPEN</span>
                       </span>
                     </div>
 
                     {/* Bottom Content */}
-                    <div className="pt-0.5">
-                      <div className="flex items-center gap-1.5 text-xs font-black text-slate-300">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                        <span>SLOT KOSONG</span>
+                    <div className="pt-0.5 min-w-0">
+                      <div className="flex items-center gap-1.5 text-xs font-black text-slate-300 truncate">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+                        <span className="truncate">SLOT KOSONG</span>
                       </div>
                       <div className="text-[10.5px] text-slate-400 truncate font-medium mt-0.5">
                         Chat live untuk isi slot!
@@ -201,7 +199,7 @@ const OverlayActiveSlots = ({
               return (
                 <div 
                   key={customer.id || slotNum}
-                  className={`relative rounded-2xl p-2.5 transition-all duration-300 border backdrop-blur-md shadow-md flex flex-col justify-between gap-2 ${
+                  className={`relative rounded-2xl p-2.5 transition-all duration-300 border backdrop-blur-md shadow-md flex flex-col justify-between gap-1.5 min-w-0 overflow-hidden ${
                     isFinished 
                       ? 'bg-rose-950/80 border-rose-500/90 shadow-rose-900/40 ring-1 ring-rose-500/50' 
                       : isEnding 
@@ -212,9 +210,9 @@ const OverlayActiveSlots = ({
                   }`}
                 >
                   {/* Row 1: Header (Slot Badge + Tier Pill on Left, Countdown on Right) */}
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-1.5 min-w-0">
-                      <span className={`px-2 py-0.5 rounded-lg font-black text-xs font-mono border shadow ${
+                  <div className="flex items-center justify-between gap-1.5 w-full">
+                    <div className="flex items-center gap-1 shrink-0">
+                      <span className={`whitespace-nowrap shrink-0 px-2 py-0.5 rounded-lg font-black text-[11px] font-mono border shadow leading-none inline-flex items-center ${
                         isFinished || isEnding 
                           ? 'bg-rose-600 text-white border-rose-300' 
                           : t.slotBadge
@@ -223,12 +221,12 @@ const OverlayActiveSlots = ({
                       </span>
 
                       {srv === 'VVIP' ? (
-                        <span className={`text-[9px] px-1.5 py-0.5 rounded-md border flex items-center gap-0.5 font-black uppercase ${t.badgeVvip}`}>
+                        <span className={`whitespace-nowrap shrink-0 text-[9px] px-1.5 py-0.5 rounded-md border flex items-center gap-0.5 font-black uppercase leading-none ${t.badgeVvip}`}>
                           <Diamond size={9} />
                           <span>VVIP</span>
                         </span>
                       ) : srv === 'VIP' ? (
-                        <span className={`text-[9px] px-1.5 py-0.5 rounded-md border flex items-center gap-0.5 font-black uppercase ${t.badgeVip}`}>
+                        <span className={`whitespace-nowrap shrink-0 text-[9px] px-1.5 py-0.5 rounded-md border flex items-center gap-0.5 font-black uppercase leading-none ${t.badgeVip}`}>
                           <Crown size={9} />
                           <span>VIP</span>
                         </span>
@@ -236,19 +234,19 @@ const OverlayActiveSlots = ({
                     </div>
 
                     {/* Timer Box */}
-                    <div className="shrink-0">
+                    <div className="shrink-0 ml-auto">
                       {isFinished ? (
-                        <div className="px-2 py-0.5 rounded-lg bg-rose-600 text-white font-black text-[11px] border border-rose-300 flex items-center gap-1 shadow">
+                        <div className="whitespace-nowrap px-2 py-0.5 rounded-lg bg-rose-600 text-white font-black text-[10.5px] border border-rose-300 flex items-center gap-1 shadow leading-none">
                           <CheckCheck size={11} />
                           <span>HABIS</span>
                         </div>
                       ) : customer.paused ? (
-                        <div className="px-2 py-0.5 rounded-lg bg-amber-500/20 text-amber-200 font-black text-[11px] border border-amber-500/50 flex items-center gap-1 font-mono">
+                        <div className="whitespace-nowrap px-2 py-0.5 rounded-lg bg-amber-500/20 text-amber-200 font-black text-[10.5px] border border-amber-500/50 flex items-center gap-1 font-mono leading-none">
                           <Pause size={10} />
                           <span>{formatTime(rem)}</span>
                         </div>
                       ) : (
-                        <div className={`px-2.5 py-0.5 rounded-lg border font-mono font-black text-xs flex items-center gap-1 tracking-wider ${
+                        <div className={`whitespace-nowrap px-2 py-0.5 rounded-lg border font-mono font-black text-[11px] flex items-center gap-1 tracking-wider leading-none ${
                           isEnding
                             ? 'bg-rose-600 text-white border-rose-300 shadow-md shadow-rose-600/60 animate-bounce'
                             : t.timeBox
@@ -262,16 +260,16 @@ const OverlayActiveSlots = ({
 
                   {/* Row 2: Customer Identity (Full Width Username & TikTok) */}
                   <div className="min-w-0 pt-0.5">
-                    <div className="font-black text-white truncate text-sm drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)] tracking-tight">
+                    <div className="font-black text-white truncate text-xs drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)] tracking-tight block w-full">
                       {customer.username || customer.name || 'Pelanggan'}
                     </div>
 
                     {customer.tiktokName ? (
-                      <div className="text-[11px] text-cyan-300 font-bold truncate mt-0.5 drop-shadow flex items-center gap-1">
+                      <div className="text-[10.5px] text-cyan-300 font-bold truncate mt-0.5 drop-shadow flex items-center gap-1 block w-full">
                         <span>@{customer.tiktokName}</span>
                       </div>
                     ) : (
-                      <div className="text-[10px] text-slate-400 font-medium">
+                      <div className="text-[10px] text-slate-400 font-medium truncate block w-full">
                         Paket {srv}
                       </div>
                     )}

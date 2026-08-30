@@ -132,15 +132,16 @@ const HistoryTable = () => {
   const startIndex = (validCurrentPage - 1) * PAGE_SIZE;
   const paginatedData = filteredFinished.slice(startIndex, startIndex + PAGE_SIZE);
 
-  // Leaderboard Calculation (Aggregated from ALL finished history)
+  // Leaderboard Calculation (Aggregated from ALL finished valid history)
   const customerAggregates = {};
-  customers.filter(c => c.finished).forEach(c => {
-    const key = (c.username || c.name || 'Anonymous').trim();
-    if (!key) return;
+  customers.filter(c => c.finished && !c.stopped).forEach(c => {
+    const rawName = (c.username || c.name || '').trim();
+    if (!rawName) return;
+    const normalizedKey = rawName.toLowerCase();
 
-    if (!customerAggregates[key]) {
-      customerAggregates[key] = {
-        username: key,
+    if (!customerAggregates[normalizedKey]) {
+      customerAggregates[normalizedKey] = {
+        username: rawName,
         tiktokName: c.tiktokName || '',
         totalOrders: 0,
         totalDuration: 0,
@@ -151,23 +152,28 @@ const HistoryTable = () => {
         lastOrderedAt: c.finishedTime || c.createdAt || 0
       };
     }
-    customerAggregates[key].totalOrders += 1;
-    customerAggregates[key].totalDuration += Number(c.duration || 0);
-    customerAggregates[key].totalSpent += Number(c.price || 0);
-    if (c.tiktokName && !customerAggregates[key].tiktokName) {
-      customerAggregates[key].tiktokName = c.tiktokName;
+    customerAggregates[normalizedKey].totalOrders += 1;
+    customerAggregates[normalizedKey].totalDuration += Number(c.duration || 0);
+    customerAggregates[normalizedKey].totalSpent += Number(c.price || 0);
+    if (c.tiktokName && !customerAggregates[normalizedKey].tiktokName) {
+      customerAggregates[normalizedKey].tiktokName = c.tiktokName;
     }
     const srv = getCleanService(c.service);
-    if (srv === 'VVIP') customerAggregates[key].vvipCount += 1;
-    else if (srv === 'VIP') customerAggregates[key].vipCount += 1;
-    else customerAggregates[key].basicCount += 1;
-    if ((c.finishedTime || c.createdAt || 0) > customerAggregates[key].lastOrderedAt) {
-      customerAggregates[key].lastOrderedAt = c.finishedTime || c.createdAt || 0;
+    if (srv === 'VVIP') customerAggregates[normalizedKey].vvipCount += 1;
+    else if (srv === 'VIP') customerAggregates[normalizedKey].vipCount += 1;
+    else customerAggregates[normalizedKey].basicCount += 1;
+    if ((c.finishedTime || c.createdAt || 0) > customerAggregates[normalizedKey].lastOrderedAt) {
+      customerAggregates[normalizedKey].lastOrderedAt = c.finishedTime || c.createdAt || 0;
     }
   });
 
+  // Opsi A: Sultan Ranking Formula (Total Spent -> Total Duration -> Total Orders)
   const leaderboardList = Object.values(customerAggregates)
-    .sort((a, b) => b.totalDuration - a.totalDuration || b.totalOrders - a.totalOrders || b.totalSpent - a.totalSpent);
+    .sort((a, b) => 
+      b.totalSpent - a.totalSpent || 
+      b.totalDuration - a.totalDuration || 
+      b.totalOrders - a.totalOrders
+    );
 
   const isPublicOrStreamer = !isAdmin || streamerMode;
   const effectiveTab = isPublicOrStreamer ? 'LEADERBOARD' : activeTab;
@@ -587,14 +593,18 @@ const HistoryTable = () => {
                   <div className="text-xs text-slate-300 font-bold mt-0.5">
                     {top10Leaderboard[1].tiktokName ? `@${top10Leaderboard[1].tiktokName}` : 'Sultan Perak'}
                   </div>
-                  <div className="mt-3 py-2 px-3 rounded-2xl bg-white/5 border border-white/5 grid grid-cols-2 gap-2 text-xs font-mono">
+                  <div className="mt-3 py-2 px-2.5 rounded-2xl bg-white/5 border border-white/5 grid grid-cols-3 gap-1.5 text-xs font-mono">
                     <div>
-                      <span className="text-[10px] text-text-dim block">Total Order</span>
-                      <strong className="text-white">{top10Leaderboard[1].totalOrders}x</strong>
+                      <span className="text-[9.5px] text-text-dim block">Total Belanja</span>
+                      <strong className="text-slate-200 text-[11px] font-black">{formatRupiah(top10Leaderboard[1].totalSpent)}</strong>
                     </div>
                     <div>
-                      <span className="text-[10px] text-text-dim block">Jam Main</span>
-                      <strong className="text-slate-300">{top10Leaderboard[1].totalDuration.toFixed(1)} Jam</strong>
+                      <span className="text-[9.5px] text-text-dim block">Jam Main</span>
+                      <strong className="text-white text-[11px]">{top10Leaderboard[1].totalDuration.toFixed(1)}j</strong>
+                    </div>
+                    <div>
+                      <span className="text-[9.5px] text-text-dim block">Order</span>
+                      <strong className="text-white text-[11px]">{top10Leaderboard[1].totalOrders}x</strong>
                     </div>
                   </div>
                 </div>
@@ -616,14 +626,18 @@ const HistoryTable = () => {
                   <div className="text-xs text-accent-yellow font-bold mt-0.5">
                     {top10Leaderboard[0].tiktokName ? `@${top10Leaderboard[0].tiktokName}` : '👑 Sultan of the Stream'}
                   </div>
-                  <div className="mt-3 py-2 px-3 rounded-2xl bg-accent-yellow/10 border border-accent-yellow/25 grid grid-cols-2 gap-2 text-xs font-mono">
+                  <div className="mt-3 py-2 px-3 rounded-2xl bg-accent-yellow/10 border border-accent-yellow/25 grid grid-cols-3 gap-2 text-xs font-mono">
                     <div>
-                      <span className="text-[10px] text-accent-yellow/80 block">Total Order</span>
-                      <strong className="text-white text-sm">{top10Leaderboard[0].totalOrders}x Order</strong>
+                      <span className="text-[10px] text-accent-yellow/80 block">Total Belanja</span>
+                      <strong className="text-accent-yellow text-xs font-black">{formatRupiah(top10Leaderboard[0].totalSpent)}</strong>
                     </div>
                     <div>
-                      <span className="text-[10px] text-accent-yellow/80 block">Total Jam Main</span>
-                      <strong className="text-accent-yellow text-sm">{top10Leaderboard[0].totalDuration.toFixed(1)} Jam</strong>
+                      <span className="text-[10px] text-accent-yellow/80 block">Jam Main</span>
+                      <strong className="text-white text-xs">{top10Leaderboard[0].totalDuration.toFixed(1)} Jam</strong>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-accent-yellow/80 block">Total Order</span>
+                      <strong className="text-white text-xs">{top10Leaderboard[0].totalOrders}x Order</strong>
                     </div>
                   </div>
                 </div>
@@ -641,14 +655,18 @@ const HistoryTable = () => {
                   <div className="text-xs text-amber-400 font-bold mt-0.5">
                     {top10Leaderboard[2].tiktokName ? `@${top10Leaderboard[2].tiktokName}` : 'Sultan Perunggu'}
                   </div>
-                  <div className="mt-3 py-2 px-3 rounded-2xl bg-white/5 border border-white/5 grid grid-cols-2 gap-2 text-xs font-mono">
+                  <div className="mt-3 py-2 px-2.5 rounded-2xl bg-white/5 border border-white/5 grid grid-cols-3 gap-1.5 text-xs font-mono">
                     <div>
-                      <span className="text-[10px] text-text-dim block">Total Order</span>
-                      <strong className="text-white">{top10Leaderboard[2].totalOrders}x</strong>
+                      <span className="text-[9.5px] text-text-dim block">Total Belanja</span>
+                      <strong className="text-amber-300 text-[11px] font-black">{formatRupiah(top10Leaderboard[2].totalSpent)}</strong>
                     </div>
                     <div>
-                      <span className="text-[10px] text-text-dim block">Jam Main</span>
-                      <strong className="text-amber-400">{top10Leaderboard[2].totalDuration.toFixed(1)} Jam</strong>
+                      <span className="text-[9.5px] text-text-dim block">Jam Main</span>
+                      <strong className="text-white text-[11px]">{top10Leaderboard[2].totalDuration.toFixed(1)}j</strong>
+                    </div>
+                    <div>
+                      <span className="text-[9.5px] text-text-dim block">Order</span>
+                      <strong className="text-white text-[11px]">{top10Leaderboard[2].totalOrders}x</strong>
                     </div>
                   </div>
                 </div>
@@ -669,21 +687,22 @@ const HistoryTable = () => {
             </div>
 
             <div className="overflow-x-auto">
-              <table className="w-full border-collapse text-left min-w-[700px]">
+              <table className="w-full border-collapse text-left min-w-[760px]">
                 <thead>
                   <tr className="bg-bg-primary/50 border-b border-border-default text-text-tertiary text-[10.5px] font-black uppercase tracking-wider">
                     <th className="py-3 px-4 text-center w-14">Rank</th>
                     <th className="py-3 px-4">Username Roblox</th>
                     <th className="py-3 px-4">Akun TikTok</th>
+                    <th className="py-3 px-4 text-center">Total Belanja</th>
+                    <th className="py-3 px-4 text-center">Total Jam</th>
                     <th className="py-3 px-4 text-center">Total Order</th>
-                    <th className="py-3 px-4 text-center">Total Durasi</th>
                     <th className="py-3 px-4 text-right">Layanan Terbanyak</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border-subtle text-xs font-medium font-mono">
                   {top10Leaderboard.length === 0 ? (
                     <tr>
-                      <td colSpan="6" className="py-12 text-center text-text-dim font-sans">
+                      <td colSpan="7" className="py-12 text-center text-text-dim font-sans">
                         Belum ada data pelanggan joki yang tercatat.
                       </td>
                     </tr>
@@ -737,16 +756,23 @@ const HistoryTable = () => {
                           )}
                         </td>
 
-                        {/* Total Order */}
+                        {/* Total Belanja */}
                         <td className="py-3 px-4 text-center">
-                          <span className="font-bold text-white px-2 py-0.5 rounded-md bg-white/5 border border-white/10">
-                            {item.totalOrders}x Order
+                          <span className="font-bold text-accent-yellow font-mono text-xs">
+                            {formatRupiah(item.totalSpent)}
                           </span>
                         </td>
 
                         {/* Total Duration */}
                         <td className="py-3 px-4 text-center font-bold text-accent-cyan">
                           {item.totalDuration.toFixed(1)} Jam
+                        </td>
+
+                        {/* Total Order */}
+                        <td className="py-3 px-4 text-center">
+                          <span className="font-bold text-white px-2 py-0.5 rounded-md bg-white/5 border border-white/10 font-sans">
+                            {item.totalOrders}x
+                          </span>
                         </td>
 
                         {/* Breakdown */}

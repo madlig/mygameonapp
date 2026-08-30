@@ -16,6 +16,8 @@ src/config/algoliaConfig.js
 src/syncData.js
 mygameonapp.zip
 .env
+.env*
+.env*.local
 .env.scripts
 .env.mygameonwebsite
 
@@ -30,6 +32,11 @@ mygameonapp.zip
 *.sln
 *.sw?
 
-# Kunci rahasia Firebase Admin
+# Kunci rahasia & Credentials
+*serviceAccount*.json
+*credentials*.json
+*secret*.json
+*.pem
+*.key
 src/scripts/serviceAccountKey.json
 mygamon-migration/serviceAccountKey.json

@@ -315,9 +315,49 @@ const TicketPage = () => {
   }
 
   // Self-Destruct Timer (5 Minutes after finish)
-  const finishTimestamp = ticketData.finishedTime || ticketData.endTime || Date.now();
-  const destructDeadline = finishTimestamp + (5 * 60 * 1000);
-  const remainingDestructSeconds = Math.max(0, Math.floor((destructDeadline - now) / 1000));
+  const finishTimestamp = ticketData?.finishedTime || ticketData?.endTime || (ticketData?.finished ? (ticketData?.createdAt || Date.now()) : 0);
+  const destructDeadline = finishTimestamp ? (finishTimestamp + (5 * 60 * 1000)) : 0;
+  const remainingDestructSeconds = finishTimestamp ? Math.max(0, Math.floor((destructDeadline - now) / 1000)) : 0;
+  const isSelfDestructed = isFinished && finishTimestamp > 0 && remainingDestructSeconds <= 0;
+
+  // Expired / Self-Destructed Screen (Immediately inaccessible when 5 mins expire)
+  if (isSelfDestructed) {
+    return (
+      <div className="min-h-screen bg-[#0d0e12] text-white flex flex-col items-center justify-center p-4 text-center select-none font-sans animate-[fadeIn_0.3s_ease]">
+        <div className="w-full max-w-[400px] p-6 sm:p-7 rounded-3xl bg-bg-surface border border-white/10 shadow-2xl space-y-4">
+          <div className="w-14 h-14 mx-auto rounded-3xl bg-rose-500/15 border border-rose-500/30 flex items-center justify-center text-rose-400 mb-1">
+            <Lock size={28} />
+          </div>
+          <div>
+            <span className="px-2.5 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/40 text-[10.5px] font-mono font-black uppercase tracking-wider inline-block mb-2">
+              TIKET KADALUARSA
+            </span>
+            <h2 className="text-lg font-black text-white m-0 tracking-tight">
+              Akses Tiket Telah Ditutup
+            </h2>
+            <p className="text-xs text-text-secondary mt-1.5 leading-relaxed m-0">
+              Tiket <strong className="text-accent-cyan font-mono">#{searchTicketId}</strong> sudah selesai dan otomatis dihapus demi menjaga kerahasiaan & keamanan akun Roblox kamu.
+            </p>
+          </div>
+
+          <div className="p-3 rounded-2xl bg-white/[0.03] border border-white/5 text-[11px] text-slate-400 space-y-1 text-left">
+            <div className="flex items-center gap-1.5 text-white font-bold">
+              <span>🛡️ Proteksi Keamanan Otomatis:</span>
+            </div>
+            <div>• Data sesi dan akun joki telah dimusnahkan.</div>
+            <div>• Terima kasih telah mempercayakan joki di live streaming kami!</div>
+          </div>
+
+          <Link
+            to="/"
+            className="w-full py-2.5 rounded-2xl bg-accent-cyan hover:bg-accent-cyan-light text-bg-primary font-black text-xs transition-all shadow-lg shadow-accent-cyan/20 block text-center"
+          >
+            Buka Live Monitor
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   // Service Tier helpers
   const getCustomerTier = (c) => {

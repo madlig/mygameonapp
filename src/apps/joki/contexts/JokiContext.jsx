@@ -46,37 +46,38 @@ export const formatSlotLabel = (slot, service = '', servicesList = []) => {
   return `SLOT ${num} ${basicName}`;
 };
 
-// Match customer to a slot definition object
+// Helper to determine customer's tier cleanly
+export const getCustomerTier = (customer) => {
+  if (!customer) return 'Basic';
+  const sStr = String(customer.slot || '').toUpperCase();
+  const srv = String(customer.service || '').toUpperCase();
+
+  if (sStr.includes('VVIP') || srv.includes('VVIP')) return 'VVIP';
+  if (sStr.includes('VIP') || srv.includes('VIP')) return 'VIP';
+  return 'Basic';
+};
+
+// Match customer to a slot definition object (Strict 1-to-1 matching by tier and slot number)
 export const matchCustomerToSlot = (customer, slotDef) => {
   if (!customer || !customer.slot || !slotDef) return false;
+
+  const cTier = getCustomerTier(customer);
+  if (cTier !== slotDef.tier) {
+    return false; // Customer tier MUST match slotDef tier
+  }
+
   const sStr = String(customer.slot).trim().toLowerCase();
   const defKey = String(slotDef.key).trim().toLowerCase();
   const defLabel = String(slotDef.displayLabel || '').trim().toLowerCase();
 
-  // Direct match key or label
+  // Direct match by key or label
   if (sStr === defKey || sStr === defLabel) return true;
 
-  // Legacy mappings for VIP / VVIP without number
-  if (defKey === 'vip 1' && (sStr === 'vip' || sStr === 'slot vip' || sStr === 'slot vip 1')) return true;
-  if (defKey === 'vvip 1' && (sStr === 'vvip' || sStr === 'slot vvip' || sStr === 'slot vvip 1')) return true;
+  // Extract slot number
+  const cNum = parseInt(sStr.replace(/\D/g, ''), 10) || 1;
+  const defNum = slotDef.slotNum || parseInt(defKey.replace(/\D/g, ''), 10) || 1;
 
-  // Numeric check for same tier
-  const cNum = parseInt(sStr.replace(/\D/g, ''), 10);
-  const defNum = parseInt(defKey.replace(/\D/g, ''), 10);
-  const cTier = (customer.service || '').toUpperCase().includes('VVIP') 
-    ? 'VVIP' 
-    : (customer.service || '').toUpperCase().includes('VIP') 
-    ? 'VIP' 
-    : 'Basic';
-
-  if (cTier === slotDef.tier && !isNaN(cNum) && !isNaN(defNum) && cNum === defNum) {
-    return true;
-  }
-
-  // Fallback for basic slot: 1
-  if (slotDef.tier === 'Basic' && (sStr === '1' || sStr === 'slot 1') && defKey === '1') return true;
-
-  return false;
+  return cNum === defNum;
 };
 
 export const JokiProvider = ({ children }) => {

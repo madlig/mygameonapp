@@ -7,12 +7,12 @@ import {
   Lock, 
   Mail, 
   Clock, 
-  Sparkles,
   Play,
   Users,
   Gem,
   Crown,
-  Gamepad2
+  Gamepad2,
+  Check
 } from 'lucide-react';
 
 const formatDuration = (hours) => {
@@ -54,7 +54,7 @@ const AddJokiModal = ({ isOpen, onClose }) => {
   const [passwordRoblox, setPasswordRoblox] = useState('');
   const [emailRoblox, setEmailRoblox] = useState('');
   const [service, setService] = useState('Basic');
-  const [slot, setSlot] = useState(1);
+  const [slot, setSlot] = useState('1');
   const [durationValue, setDurationValue] = useState(1);
   const [durationUnit, setDurationUnit] = useState('hour'); // 'minute' | 'hour'
   const [loading, setLoading] = useState(false);
@@ -87,7 +87,6 @@ const AddJokiModal = ({ isOpen, onClose }) => {
   const currentServiceDetails = getServiceDetails(service);
   const isVVIP = currentServiceDetails.tier === 'VVIP';
   const isVIP = currentServiceDetails.tier === 'VIP';
-  const designatedSlots = currentServiceDetails.slots || [];
 
   // Unique repeat customer list for autocomplete
   const customerHistoryMap = {};
@@ -169,76 +168,67 @@ const AddJokiModal = ({ isOpen, onClose }) => {
           tiktokName: tiktokName.trim().replace(/^@/, ''),
           passwordRoblox: passwordRoblox.trim(),
           emailRoblox: emailRoblox.trim(),
-          service: currentServiceDetails.name || service,
-          duration: calculatedHours,
+          service: currentServiceDetails.name,
+          duration: Number(calculatedHours.toFixed(2)),
           price: totalPrice,
-          paymentStatus: 'Lunas',
-          createdAt: now
+          status: 'WAITING',
+          createdAt: now,
         });
-        addToast(`Customer ${username} (${currentServiceDetails.name}) berhasil masuk antrean!`, 'success');
+
+        addToast(`Customer ${username} berhasil dimasukkan ke antrean ${currentServiceDetails.name}!`, 'success');
         onClose();
         return;
       }
 
-      // OPTION 2: MULAI DI SLOT LIVE
+      // OPTION 2: LANGSUNG KE SLOT LIVE
+      const chosenSlot = slot || '1';
       const durationSeconds = calculatedHours * 3600;
-      const chosenSlot = slot;
 
-      const customer = {
+      const customerData = {
         username: username.trim(),
+        name: username.trim(),
         tiktokName: tiktokName.trim().replace(/^@/, ''),
         passwordRoblox: passwordRoblox.trim(),
         emailRoblox: emailRoblox.trim(),
-        name: username.trim(),
-        service,
+        service: currentServiceDetails.name,
         slot: chosenSlot,
-        duration: calculatedHours,
+        duration: Number(calculatedHours.toFixed(2)),
         price: totalPrice,
-        paymentStatus: 'Lunas',
-        startTime: now,
-        endTime: now + (durationSeconds * 1000),
-        paused: false,
-        pauseStarted: null,
-        remainingAtPause: null,
-        totalPausedSeconds: 0,
         finished: false,
-        stopped: false,
-        stopTime: null,
-        finishedTime: null
+        startTime: now,
+        endTime: now + durationSeconds * 1000,
+        paused: globalPaused,
+        pausedDuration: 0,
+        remainingAtPause: globalPaused ? durationSeconds : null,
+        createdAt: now,
       };
 
-      if (globalPaused) {
-        customer.paused = true;
-        customer.pauseStarted = now;
-        customer.remainingAtPause = durationSeconds;
-      }
-
-      await addJokiCustomer(customer);
-      addToast(`Joki ${username} berhasil ditambahkan di Slot ${chosenSlot}!`, 'success');
+      await addJokiCustomer(customerData);
+      const slotLabel = formatSlotLabel ? formatSlotLabel(chosenSlot, currentServiceDetails.name) : `Slot ${chosenSlot}`;
+      addToast(`Customer ${username} berhasil ditambahkan ke ${slotLabel}!`, 'success');
       onClose();
     } catch (err) {
-      console.error(err);
-      addToast('Gagal menambahkan data joki.', 'error');
+      console.error('Save error:', err);
+      addToast('Gagal menyimpan data.', 'error');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-[fadeIn_0.2s_ease]">
+    <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-[fadeIn_0.15s_ease]">
       <div 
-        className="w-full max-w-lg bg-bg-surface border border-border-default rounded-3xl p-6 shadow-2xl animate-slide-in relative max-h-[90vh] overflow-y-auto"
-        style={{ background: '#111318' }}
+        className="w-full max-w-2xl bg-[#111318] border border-border-default rounded-3xl p-6 shadow-2xl animate-slide-in relative max-h-[92vh] flex flex-col"
       >
         <button
           onClick={onClose}
-          className="absolute top-5 right-5 text-text-dim hover:text-text-primary transition-colors p-1.5 rounded-xl hover:bg-white/5 cursor-pointer"
+          className="absolute top-5 right-5 text-text-dim hover:text-text-primary transition-colors p-1.5 rounded-xl bg-white/5 hover:bg-white/10 cursor-pointer"
         >
           <X size={18} />
         </button>
 
-        {/* Header */}
-        <div className="flex items-center gap-3 mb-3">
+        {/* Modal Header */}
+        <div className="flex items-center gap-3 mb-4">
           <div className="w-10 h-10 rounded-2xl bg-accent-purple/15 border border-accent-purple/30 flex items-center justify-center text-accent-purple shrink-0">
             <Plus size={20} />
           </div>
@@ -246,173 +236,178 @@ const AddJokiModal = ({ isOpen, onClose }) => {
             <h3 className="text-base font-black text-text-primary m-0 tracking-tight">
               Tambah Order Joki Baru
             </h3>
-            <p className="text-xs text-text-tertiary mt-0.5 m-0">
+            <p className="text-xs text-text-muted mt-0.5 m-0">
               Input data customer Roblox & alokasikan ke slot live atau antrean
             </p>
           </div>
         </div>
 
-        {/* Destination Switcher: Live Slot vs Queue */}
-        <div className="grid grid-cols-2 gap-2 p-1 bg-bg-primary rounded-2xl border border-border-default mb-3.5">
-          <button
-            type="button"
-            onClick={() => setDestination('SLOT')}
-            className={`py-2 px-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-              destination === 'SLOT'
-                ? 'bg-accent-purple text-white shadow-md'
-                : 'text-text-muted hover:text-white'
-            }`}
-          >
-            <Play size={13} />
-            <span>Mulai di Slot Live</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setDestination('QUEUE')}
-            className={`py-2 px-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-              destination === 'QUEUE'
-                ? 'bg-accent-cyan/20 text-accent-cyan border border-accent-cyan/40 shadow-md'
-                : 'text-text-muted hover:text-white'
-            }`}
-          >
-            <Users size={13} />
-            <span>Masukkan ke Antrean</span>
-          </button>
-        </div>
+        <form onSubmit={handleSave} className="space-y-4 overflow-y-auto pr-1">
+          {/* Destination Selector: LIVE SLOT vs QUEUE */}
+          <div className="grid grid-cols-2 gap-2 p-1 bg-bg-surface border border-border-default rounded-2xl">
+            <button
+              type="button"
+              onClick={() => setDestination('SLOT')}
+              className={`py-2.5 px-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                destination === 'SLOT'
+                  ? 'bg-accent-purple text-white shadow-md shadow-accent-purple/25'
+                  : 'text-text-secondary hover:text-white'
+              }`}
+            >
+              <Play size={15} />
+              <span>Mulai di Slot Live</span>
+            </button>
 
-        <form onSubmit={handleSave} className="space-y-4">
-          {/* Section 1: Data Customer & Brankas */}
-          <div className="space-y-3 p-3.5 rounded-2xl bg-bg-primary/90 border border-border-default shadow-inner">
+            <button
+              type="button"
+              onClick={() => setDestination('QUEUE')}
+              className={`py-2.5 px-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                destination === 'QUEUE'
+                  ? 'bg-accent-cyan text-bg-primary shadow-md shadow-accent-cyan/25'
+                  : 'text-text-secondary hover:text-white'
+              }`}
+            >
+              <Users size={15} />
+              <span>Masukkan ke Antrean</span>
+            </button>
+          </div>
+
+          {/* Section 1: Customer Info */}
+          <div className="space-y-3">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {/* Roblox Username with Autocomplete */}
+              {/* Username with Autocomplete */}
               <div className="relative">
-                <label className="block text-[10.5px] font-bold text-text-dim mb-1">
+                <label className="block text-[11px] font-bold text-text-dim mb-1">
                   Username Roblox <span className="text-accent-red">*</span>
                 </label>
                 <div className="relative">
-                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-faint" />
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-dim" />
                   <input
                     type="text"
                     required
-                    placeholder="Contoh: user_roblox123"
                     value={username}
                     onChange={(e) => {
                       setUsername(e.target.value);
                       setShowSuggestions(true);
                     }}
                     onFocus={() => setShowSuggestions(true)}
-                    className="w-full bg-bg-surface border border-border-default rounded-xl py-2 pl-9 pr-3 text-xs text-text-primary font-bold outline-none focus:border-accent-purple/50 shadow-inner"
+                    placeholder="Contoh: user_roblox123"
+                    className="w-full bg-[#151821] border border-border-default rounded-xl py-2 pl-9 pr-3 text-xs text-text-primary outline-none focus:border-accent-purple/50 font-bold"
                   />
                 </div>
 
                 {/* Autocomplete Dropdown */}
                 {showSuggestions && matchingSuggestions.length > 0 && (
-                  <div className="absolute z-50 left-0 right-0 top-full mt-1 bg-bg-surface border border-border-default rounded-xl shadow-2xl overflow-hidden">
-                    <div className="px-2.5 py-1 text-[9.5px] font-extrabold uppercase tracking-wider text-accent-cyan border-b border-border-subtle flex items-center gap-1">
-                      <Sparkles size={11} />
-                      <span>Pelanggan Lama (Klik utk Auto-Fill)</span>
+                  <div className="absolute left-0 right-0 top-full mt-1 bg-[#1a1d26] border border-border-default rounded-xl shadow-2xl z-50 overflow-hidden">
+                    <div className="px-3 py-1.5 text-[10px] font-bold text-text-dim uppercase border-b border-border-subtle bg-white/[0.02]">
+                      Pelanggan Pernah Order:
                     </div>
-                    {matchingSuggestions.map((sug, i) => (
+                    {matchingSuggestions.map((item, idx) => (
                       <button
-                        key={i}
+                        key={idx}
                         type="button"
-                        onClick={() => handleSelectSuggestion(sug)}
-                        className="w-full px-3 py-2 text-left text-xs text-white hover:bg-accent-purple/15 flex items-center justify-between border-b border-border-subtle last:border-0 cursor-pointer"
+                        onClick={() => handleSelectSuggestion(item)}
+                        className="w-full px-3 py-2 text-left hover:bg-white/5 flex items-center justify-between transition-colors cursor-pointer border-b border-white/5 last:border-0"
                       >
-                        <span className="font-bold">{sug.username}</span>
-                        <span className="text-[11px] text-accent-cyan">{sug.tiktokName ? `@${sug.tiktokName}` : ''}</span>
+                        <span className="text-xs font-bold text-white">{item.username}</span>
+                        {item.tiktokName && (
+                          <span className="text-[11px] text-accent-cyan font-medium">@{item.tiktokName}</span>
+                        )}
                       </button>
                     ))}
                   </div>
                 )}
               </div>
 
-              {/* TikTok Account */}
+              {/* TikTok Name */}
               <div>
-                <label className="block text-[10.5px] font-bold text-text-dim mb-1">
+                <label className="block text-[11px] font-bold text-text-dim mb-1">
                   Akun TikTok (Opsional)
                 </label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-accent-cyan">@</span>
                   <input
                     type="text"
-                    placeholder="username_tiktok"
                     value={tiktokName}
                     onChange={(e) => setTiktokName(e.target.value)}
-                    className="w-full bg-bg-surface border border-border-default rounded-xl py-2 pl-8 pr-3 text-xs text-text-primary outline-none focus:border-accent-purple/50 shadow-inner"
+                    placeholder="username_tiktok"
+                    className="w-full bg-[#151821] border border-border-default rounded-xl py-2 pl-8 pr-3 text-xs text-text-primary outline-none focus:border-accent-cyan/50"
                   />
                 </div>
               </div>
             </div>
 
-            {/* Brankas Credentials: Password & Email */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2 border-t border-border-subtle">
+            {/* Optional Credentials */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
-                <label className="block text-[10.5px] font-bold text-text-dim mb-1 flex items-center gap-1">
-                  <Lock size={11} className="text-accent-cyan" />
-                  <span>Password Akun Roblox (Opsional)</span>
+                <label className="block text-[11px] font-bold text-text-dim mb-1">
+                  <Lock className="inline w-3 h-3 mr-1 text-accent-cyan" />
+                  Password Akun Roblox (Opsional)
                 </label>
                 <input
-                  type="password"
-                  placeholder="Password akun..."
+                  type="text"
                   value={passwordRoblox}
                   onChange={(e) => setPasswordRoblox(e.target.value)}
-                  className="w-full bg-bg-surface border border-border-default rounded-xl py-2 px-3 text-xs text-text-primary font-mono outline-none focus:border-accent-purple/50 shadow-inner"
+                  placeholder="Password akun..."
+                  className="w-full bg-[#151821] border border-border-default rounded-xl py-2 px-3 text-xs text-text-primary outline-none focus:border-accent-cyan/50 font-mono"
                 />
               </div>
 
               <div>
-                <label className="block text-[10.5px] font-bold text-text-dim mb-1 flex items-center gap-1">
-                  <Mail size={11} className="text-accent-purple-light" />
-                  <span>Email Akun / OTP (Opsional)</span>
+                <label className="block text-[11px] font-bold text-text-dim mb-1">
+                  <Mail className="inline w-3 h-3 mr-1 text-accent-purple-light" />
+                  Email Akun / OTP (Opsional)
                 </label>
                 <input
                   type="text"
-                  placeholder="email_customer@gmail.com"
                   value={emailRoblox}
                   onChange={(e) => setEmailRoblox(e.target.value)}
-                  className="w-full bg-bg-surface border border-border-default rounded-xl py-2 px-3 text-xs text-text-primary outline-none focus:border-accent-purple/50 shadow-inner"
+                  placeholder="email_customer@gmail.com"
+                  className="w-full bg-[#151821] border border-border-default rounded-xl py-2 px-3 text-xs text-text-primary outline-none focus:border-accent-purple/50"
                 />
               </div>
             </div>
           </div>
 
-          {/* Section 2: Layanan & Durasi */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-[10.5px] font-bold text-text-dim mb-1">
+          {/* Section 2: Service & Duration */}
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-3 pt-2 border-t border-border-subtle">
+            {/* Service Selection */}
+            <div className="md:col-span-6">
+              <label className="block text-[11px] font-bold text-text-dim mb-1">
                 Pilih Layanan
               </label>
               <select
                 value={service}
                 onChange={handleServiceChange}
-                className="w-full bg-bg-primary border border-border-default rounded-xl py-2 px-3 text-xs text-text-primary outline-none focus:border-accent-purple/50 cursor-pointer font-bold shadow-inner"
+                className="w-full bg-[#151821] border border-border-default rounded-xl py-2 px-3 text-xs text-text-primary outline-none focus:border-accent-purple/50 cursor-pointer font-bold"
               >
                 {services.filter(s => s.enabled).map((s) => (
                   <option key={s.id} value={s.name}>
-                    {s.name} (Rp {Number(s.price || 4000).toLocaleString('id-ID')} / Jam {s.slots && s.slots.length > 0 ? `• Slot ${s.slots.join(', ')}` : ''})
+                    {s.name} (Rp {Number(s.price || 4000).toLocaleString('id-ID')} / Jam • {s.slotCount || 1} Slot)
                   </option>
                 ))}
               </select>
             </div>
 
-            <div>
-              <label className="block text-[10.5px] font-bold text-text-dim mb-1">
+            {/* Duration Input */}
+            <div className="md:col-span-6">
+              <label className="block text-[11px] font-bold text-text-dim mb-1">
                 Durasi Joki
               </label>
               <div className="flex gap-2">
                 <input
                   type="number"
                   min="1"
+                  step="any"
                   required
                   value={durationValue}
                   onChange={(e) => setDurationValue(e.target.value)}
-                  className="w-full bg-bg-primary border border-border-default rounded-xl py-2 px-3 text-xs text-text-primary font-mono font-bold outline-none focus:border-accent-purple/50 shadow-inner"
+                  className="flex-1 bg-[#151821] border border-border-default rounded-xl py-2 px-3 text-xs text-text-primary font-bold outline-none focus:border-accent-purple/50"
                 />
                 <select
                   value={durationUnit}
                   onChange={(e) => setDurationUnit(e.target.value)}
-                  className="w-24 bg-bg-primary border border-border-default rounded-xl py-2 px-2 text-xs text-text-primary font-bold outline-none focus:border-accent-purple/50 cursor-pointer shadow-inner"
+                  className="w-24 bg-[#151821] border border-border-default rounded-xl py-2 px-2 text-xs text-text-primary outline-none focus:border-accent-purple/50 font-bold cursor-pointer"
                 >
                   <option value="hour">Jam</option>
                   <option value="minute">Menit</option>
@@ -436,82 +431,133 @@ const AddJokiModal = ({ isOpen, onClose }) => {
                     setDurationUnit('hour');
                   }
                 }}
-                className="py-1.5 rounded-lg text-xs font-bold bg-bg-primary hover:bg-white/5 border border-border-subtle text-text-secondary hover:text-text-primary transition-colors cursor-pointer"
+                className="py-1.5 rounded-lg text-xs font-bold bg-bg-primary hover:bg-white/5 border border-border-subtle text-text-secondary hover:text-white transition-colors cursor-pointer"
               >
                 {preset.label}
               </button>
             ))}
           </div>
 
-          {/* Section 3: Visual Slot Selector (Only if destination === 'SLOT') */}
+          {/* Section 3: Visual Slot Selector (Grouped by Service Tiers with Distinct Colors) */}
           {destination === 'SLOT' ? (
-            <div className="pt-2 border-t border-border-subtle space-y-2">
+            <div className="pt-2 border-t border-border-subtle space-y-3">
               <div className="flex items-center justify-between">
-                <div>
-                  <label className="text-[10.5px] font-extrabold text-text-dim uppercase tracking-wider block">
-                    Pilih Slot AFK Billing
-                  </label>
-                  {designatedSlots.length > 0 && (
-                    <span className="text-[10px] text-cyan-300 font-bold block">
-                      Alokasi {currentServiceDetails.name}: Slot {designatedSlots.join(', ')}
-                    </span>
-                  )}
-                </div>
+                <label className="text-[11px] font-black text-text-dim uppercase tracking-wider block">
+                  PILIH SLOT AFK BILLING (SESUAI LAYANAN)
+                </label>
                 <span className="text-[11px] text-text-dim">
-                  Slot Terpilih: <strong className="text-accent-purple-light font-mono text-xs">{formatSlotLabel ? formatSlotLabel(slot, currentServiceDetails.name) : `SLOT ${slot}`}</strong>
+                  Slot Terpilih: <strong className="text-white font-mono font-black text-xs px-2 py-0.5 rounded-md bg-accent-purple/30 border border-accent-purple/50">{formatSlotLabel ? formatSlotLabel(slot, currentServiceDetails.name) : `SLOT ${slot}`}</strong>
                 </span>
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-                {configuredSlots.map((sDef) => {
-                  const occupied = occupiedSlots[sDef.key];
-                  const isSelected = slot === sDef.key;
-                  const isSameTier = sDef.tier === currentServiceDetails.tier;
-                  const isVvip = sDef.tier === 'VVIP';
-                  const isVip = sDef.tier === 'VIP';
+              {/* Grouped Service Cards */}
+              <div className="space-y-3">
+                {services.filter(s => s.enabled).map((srv) => {
+                  const srvSlots = configuredSlots.filter(sDef => sDef.tier === srv.tier);
+                  if (srvSlots.length === 0) return null;
+
+                  const isSrvBasic = srv.tier === 'Basic';
+                  const isSrvVip = srv.tier === 'VIP';
+                  const isSrvVvip = srv.tier === 'VVIP';
+                  const isCurrentService = currentServiceDetails.tier === srv.tier;
+
+                  const themeClasses = isSrvVvip
+                    ? {
+                        container: 'bg-[#1b0a13]/80 border-rose-500/30',
+                        badge: 'text-rose-300 bg-rose-500/15 border-rose-500/30',
+                        icon: <Gem size={13} className="text-rose-400" />,
+                        slotDefault: 'bg-[#280d1e] border-rose-500/30 hover:border-rose-400/80 text-rose-200',
+                        slotSelected: 'bg-rose-500/30 border-rose-400 ring-2 ring-rose-400 text-white shadow-lg shadow-rose-500/30',
+                        pill: 'text-rose-200'
+                      }
+                    : isSrvVip
+                    ? {
+                        container: 'bg-[#191307]/80 border-amber-500/30',
+                        badge: 'text-amber-300 bg-amber-500/15 border-amber-500/30',
+                        icon: <Crown size={13} className="text-amber-400" />,
+                        slotDefault: 'bg-[#261c0c] border-amber-500/30 hover:border-amber-400/80 text-amber-200',
+                        slotSelected: 'bg-amber-500/30 border-amber-400 ring-2 ring-amber-400 text-white shadow-lg shadow-amber-500/30',
+                        pill: 'text-amber-200'
+                      }
+                    : {
+                        container: 'bg-[#0b1424]/80 border-cyan-500/30',
+                        badge: 'text-cyan-300 bg-cyan-500/15 border-cyan-500/30',
+                        icon: <Gamepad2 size={13} className="text-cyan-400" />,
+                        slotDefault: 'bg-[#0f1d33] border-cyan-500/30 hover:border-cyan-400/80 text-cyan-200',
+                        slotSelected: 'bg-cyan-500/30 border-cyan-400 ring-2 ring-cyan-400 text-white shadow-lg shadow-cyan-500/30',
+                        pill: 'text-cyan-200'
+                      };
 
                   return (
-                    <button
-                      key={sDef.key}
-                      type="button"
-                      onClick={() => setSlot(sDef.key)}
-                      className={`p-2 rounded-xl border text-left transition-all cursor-pointer relative flex flex-col justify-between min-h-[60px] ${
-                        isSelected
-                          ? 'bg-accent-purple/25 border-accent-purple ring-2 ring-accent-purple/60 shadow-md shadow-accent-purple/20'
-                          : isSameTier
-                          ? isVvip 
-                            ? 'bg-rose-950/20 border-rose-500/40 hover:border-rose-500/70'
-                            : isVip
-                            ? 'bg-amber-950/20 border-amber-500/40 hover:border-amber-500/70'
-                            : 'bg-bg-primary border-cyan-500/30 hover:border-cyan-500/60'
-                          : occupied
-                          ? 'bg-bg-primary border-accent-red/25 opacity-80'
-                          : 'bg-bg-primary border-border-default hover:border-border-muted'
-                      }`}
+                    <div 
+                      key={srv.id} 
+                      className={`p-3 rounded-2xl border transition-all ${themeClasses.container} ${isCurrentService ? 'ring-1 ring-white/15' : 'opacity-90'}`}
                     >
-                      <div className="flex items-center justify-between w-full">
-                        <span className={`font-mono text-xs font-black truncate ${
-                          isSelected ? 'text-accent-purple-light' : occupied ? 'text-text-primary' : 'text-text-secondary'
-                        }`}>
-                          {sDef.displayLabel}
+                      {/* Section Header */}
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-1.5">
+                          {themeClasses.icon}
+                          <span className="text-xs font-black text-white">
+                            {srv.name}
+                          </span>
+                          <span className="text-[10px] text-text-dim font-bold">
+                            (Rp {Number(srv.price || 4000).toLocaleString('id-ID')}/Jam)
+                          </span>
+                        </div>
+                        <span className={`text-[10px] font-mono font-black px-2 py-0.5 rounded-lg border ${themeClasses.badge}`}>
+                          {srvSlots.length} Slot Terbuka
                         </span>
-                        {occupied ? (
-                          <span className="w-1.5 h-1.5 rounded-full bg-accent-red shrink-0" />
-                        ) : (
-                          <span className="w-1.5 h-1.5 rounded-full bg-accent-green shrink-0" />
-                        )}
                       </div>
 
-                      {occupied ? (
-                        <div className="text-[9.5px] font-bold text-text-muted truncate mt-1">
-                          {occupied.username}
-                        </div>
-                      ) : (
-                        <div className="text-[9.5px] font-bold text-accent-green mt-1 flex items-center gap-1">
-                          <span>🟢 Kosong</span>
-                        </div>
-                      )}
-                    </button>
+                      {/* Grid of Slots for this tier */}
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        {srvSlots.map((sDef) => {
+                          const occupied = occupiedSlots[sDef.key];
+                          const isSelected = slot === sDef.key;
+
+                          return (
+                            <button
+                              key={sDef.key}
+                              type="button"
+                              onClick={() => {
+                                setSlot(sDef.key);
+                                setService(srv.name);
+                              }}
+                              className={`p-2 rounded-xl border text-left transition-all cursor-pointer relative flex flex-col justify-between min-h-[58px] ${
+                                isSelected
+                                  ? themeClasses.slotSelected
+                                  : occupied
+                                  ? 'bg-[#151821] border-accent-red/30 opacity-80'
+                                  : themeClasses.slotDefault
+                              }`}
+                            >
+                              <div className="flex items-center justify-between w-full">
+                                <span className={`font-mono text-xs font-black truncate ${
+                                  isSelected ? 'text-white' : themeClasses.pill
+                                }`}>
+                                  {sDef.displayLabel}
+                                </span>
+                                {occupied ? (
+                                  <span className="w-2 h-2 rounded-full bg-accent-red shrink-0 shadow-sm shadow-accent-red/50" />
+                                ) : (
+                                  <span className="w-2 h-2 rounded-full bg-accent-green shrink-0 shadow-sm shadow-accent-green/50 animate-pulse" />
+                                )}
+                              </div>
+
+                              {occupied ? (
+                                <div className="text-[9.5px] font-bold text-text-muted truncate mt-1">
+                                  {occupied.username}
+                                </div>
+                              ) : (
+                                <div className="text-[9.5px] font-bold text-accent-green mt-1 flex items-center gap-1">
+                                  <span>🟢 Kosong</span>
+                                </div>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
                   );
                 })}
               </div>
@@ -563,8 +609,8 @@ const AddJokiModal = ({ isOpen, onClose }) => {
                 {loading 
                   ? 'Menyimpan...' 
                   : destination === 'QUEUE'
-                  ? `+ Masukkan ke Antrean ${isVVIP ? 'VVIP' : (isVIP ? 'VIP' : 'Basic')}`
-                  : `Mulai Billing ${isVVIP ? 'VVIP' : (isVIP ? 'VIP' : 'Slot ' + slot)}`}
+                  ? `+ Masukkan ke Antrean ${currentServiceDetails.name}`
+                  : `+ Mulai Billing ${formatSlotLabel ? formatSlotLabel(slot, currentServiceDetails.name) : 'Slot ' + slot}`}
               </span>
             </button>
           </div>

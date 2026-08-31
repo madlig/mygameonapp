@@ -512,79 +512,133 @@ const EditBillingModal = ({ customer, onClose }) => {
             </div>
           </div>
 
-          {/* SECTION 4: PINDAH SLOT VISUAL */}
-          <div className="pt-2 border-t border-border-subtle space-y-2">
+          {/* SECTION 4: PINDAH SLOT VISUAL (GROUPED BY SERVICE TIERS) */}
+          <div className="pt-2 border-t border-border-subtle space-y-3">
             <div className="flex items-center justify-between">
-              <div>
-                <label className="text-[10.5px] font-extrabold text-text-dim uppercase tracking-wider block">
-                  Pindah Slot AFK Billing
-                </label>
-              </div>
-              <span className="text-[10.5px] text-text-dim">
-                Slot Terpilih: <strong className="text-accent-cyan font-mono">{formatSlotLabel ? formatSlotLabel(slot, currentServiceDetails.name) : `SLOT ${slot}`}</strong>
+              <label className="text-[11px] font-black text-text-dim uppercase tracking-wider block">
+                PINDAH SLOT AFK BILLING (SESUAI LAYANAN)
+              </label>
+              <span className="text-[11px] text-text-dim">
+                Slot Terpilih: <strong className="text-white font-mono font-black text-xs px-2 py-0.5 rounded-md bg-accent-cyan/30 border border-accent-cyan/50">{formatSlotLabel ? formatSlotLabel(slot, currentServiceDetails.name) : `SLOT ${slot}`}</strong>
               </span>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-              {configuredSlots.map((sDef) => {
-                const occupied = occupiedSlots[sDef.key];
-                const isSelected = slot === sDef.key;
-                const isCurrentSlot = matchCustomerToSlot(customer, sDef);
-                const isSameTier = sDef.tier === currentServiceDetails.tier;
-                const isVvip = sDef.tier === 'VVIP';
-                const isVip = sDef.tier === 'VIP';
+            {/* Grouped Service Cards */}
+            <div className="space-y-3">
+              {services.filter(s => s.enabled).map((srv) => {
+                const srvSlots = configuredSlots.filter(sDef => sDef.tier === srv.tier);
+                if (srvSlots.length === 0) return null;
+
+                const isSrvVvip = srv.tier === 'VVIP';
+                const isSrvVip = srv.tier === 'VIP';
+                const isCurrentService = currentServiceDetails.tier === srv.tier;
+
+                const themeClasses = isSrvVvip
+                  ? {
+                      container: 'bg-[#1b0a13]/80 border-rose-500/30',
+                      badge: 'text-rose-300 bg-rose-500/15 border-rose-500/30',
+                      slotDefault: 'bg-[#280d1e] border-rose-500/30 hover:border-rose-400/80 text-rose-200',
+                      slotSelected: 'bg-rose-500/30 border-rose-400 ring-2 ring-rose-400 text-white shadow-lg shadow-rose-500/30',
+                      pill: 'text-rose-200'
+                    }
+                  : isSrvVip
+                  ? {
+                      container: 'bg-[#191307]/80 border-amber-500/30',
+                      badge: 'text-amber-300 bg-amber-500/15 border-amber-500/30',
+                      slotDefault: 'bg-[#261c0c] border-amber-500/30 hover:border-amber-400/80 text-amber-200',
+                      slotSelected: 'bg-amber-500/30 border-amber-400 ring-2 ring-amber-400 text-white shadow-lg shadow-amber-500/30',
+                      pill: 'text-amber-200'
+                    }
+                  : {
+                      container: 'bg-[#0b1424]/80 border-cyan-500/30',
+                      badge: 'text-cyan-300 bg-cyan-500/15 border-cyan-500/30',
+                      slotDefault: 'bg-[#0f1d33] border-cyan-500/30 hover:border-cyan-400/80 text-cyan-200',
+                      slotSelected: 'bg-cyan-500/30 border-cyan-400 ring-2 ring-cyan-400 text-white shadow-lg shadow-cyan-500/30',
+                      pill: 'text-cyan-200'
+                    };
 
                 return (
-                  <button
-                    key={sDef.key}
-                    type="button"
-                    onClick={() => setSlot(sDef.key)}
-                    className={`p-2 rounded-xl border text-left transition-all cursor-pointer relative flex flex-col justify-between min-h-[58px] ${
-                      isSelected
-                        ? 'bg-accent-cyan/20 border-accent-cyan ring-2 ring-accent-cyan/60 shadow-md shadow-accent-cyan/20'
-                        : isCurrentSlot
-                        ? 'bg-accent-purple/20 border-accent-purple/50'
-                        : isSameTier
-                        ? isVvip
-                          ? 'bg-rose-950/20 border-rose-500/40 hover:border-rose-400'
-                          : isVip
-                          ? 'bg-amber-950/20 border-amber-500/40 hover:border-amber-400'
-                          : 'bg-bg-primary border-cyan-500/30 hover:border-cyan-400'
-                        : occupied
-                        ? 'bg-bg-primary border-accent-red/25 opacity-80'
-                        : 'bg-bg-primary border-border-default hover:border-border-muted'
-                    }`}
+                  <div 
+                    key={srv.id} 
+                    className={`p-3 rounded-2xl border transition-all ${themeClasses.container} ${isCurrentService ? 'ring-1 ring-accent-cyan/40' : 'opacity-80'}`}
                   >
-                    <div className="flex items-center justify-between">
-                      <span className={`font-mono text-xs font-black truncate ${
-                        isSelected ? 'text-accent-cyan' : isCurrentSlot ? 'text-accent-purple-light' : occupied ? 'text-text-primary' : 'text-text-secondary'
-                      }`}>
-                        {sDef.displayLabel}
-                      </span>
-                      {isCurrentSlot ? (
-                        <span className="text-[8.5px] font-black px-1 py-0.2 rounded bg-accent-purple/30 text-accent-purple-light shrink-0">
-                          Aktif
+                    {/* Header */}
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs font-black text-white">
+                          {srv.name}
                         </span>
-                      ) : occupied ? (
-                        <span className="w-1.5 h-1.5 rounded-full bg-accent-red shrink-0" />
-                      ) : (
-                        <span className="w-1.5 h-1.5 rounded-full bg-accent-green shrink-0" />
-                      )}
+                        <span className="text-[10px] text-text-dim font-bold">
+                          (Rp {Number(srv.price || 4000).toLocaleString('id-ID')}/Jam)
+                        </span>
+                      </div>
+                      <span className={`text-[10px] font-mono font-black px-2 py-0.5 rounded-lg border ${themeClasses.badge}`}>
+                        {srvSlots.length} Slot Terbuka
+                      </span>
                     </div>
-                    {occupied && !isCurrentSlot ? (
-                      <div className="text-[9.5px] font-bold text-text-muted truncate mt-0.5">
-                        {occupied.username}
-                      </div>
-                    ) : !isCurrentSlot ? (
-                      <div className="text-[9px] font-bold text-accent-green mt-0.5">
-                        🟢 Kosong
-                      </div>
-                    ) : (
-                      <div className="text-[9px] font-bold text-accent-purple-light mt-0.5">
-                        Slot Customer Ini
-                      </div>
-                    )}
-                  </button>
+
+                    {/* Grid */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                      {srvSlots.map((sDef) => {
+                        const occupied = occupiedSlots[sDef.key];
+                        const isSelected = slot === sDef.key;
+                        const isCurrentSlot = matchCustomerToSlot(customer, sDef);
+
+                        return (
+                          <button
+                            key={sDef.key}
+                            type="button"
+                            onClick={() => {
+                              setSlot(sDef.key);
+                              if (service !== srv.name) {
+                                handleServiceChange({ target: { value: srv.name } });
+                              }
+                            }}
+                            className={`p-2 rounded-xl border text-left transition-all cursor-pointer relative flex flex-col justify-between min-h-[58px] ${
+                              isSelected
+                                ? themeClasses.slotSelected
+                                : isCurrentSlot
+                                ? 'bg-accent-purple/25 border-accent-purple ring-1 ring-accent-purple/50'
+                                : occupied
+                                ? 'bg-[#151821] border-accent-red/30 opacity-80'
+                                : themeClasses.slotDefault
+                            }`}
+                          >
+                            <div className="flex items-center justify-between w-full">
+                              <span className={`font-mono text-xs font-black truncate ${
+                                isSelected ? 'text-white' : isCurrentSlot ? 'text-accent-purple-light' : themeClasses.pill
+                              }`}>
+                                {sDef.displayLabel}
+                              </span>
+                              {isCurrentSlot ? (
+                                <span className="text-[8.5px] font-black px-1 py-0.2 rounded bg-accent-purple/30 text-accent-purple-light shrink-0">
+                                  Aktif
+                                </span>
+                              ) : occupied ? (
+                                <span className="w-2 h-2 rounded-full bg-accent-red shrink-0 shadow-sm shadow-accent-red/50" />
+                              ) : (
+                                <span className="w-2 h-2 rounded-full bg-accent-green shrink-0 shadow-sm shadow-accent-green/50 animate-pulse" />
+                              )}
+                            </div>
+
+                            {occupied && !isCurrentSlot ? (
+                              <div className="text-[9.5px] font-bold text-text-muted truncate mt-1">
+                                {occupied.username}
+                              </div>
+                            ) : !isCurrentSlot ? (
+                              <div className="text-[9.5px] font-bold text-accent-green mt-1 flex items-center gap-1">
+                                <span>🟢 Kosong</span>
+                              </div>
+                            ) : (
+                              <div className="text-[9px] font-bold text-accent-purple-light mt-1">
+                                Slot Customer Ini
+                              </div>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
                 );
               })}
             </div>

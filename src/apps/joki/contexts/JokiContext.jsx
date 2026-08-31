@@ -271,14 +271,14 @@ export const JokiProvider = ({ children }) => {
     const pVvip = Number(globalSettings?.priceVvip) || PRICE_VVIP;
     const enableVvip = globalSettings?.enableVvipSlot !== undefined
       ? Boolean(globalSettings.enableVvipSlot)
-      : (activeWorkspaceId === 'saviours');
+      : true; // Enabled by default for all workspace admins
 
     return [
       { id: 'basic', name: 'Basic', tier: 'Basic', price: pBasic, slotCount: 4, enabled: true },
       { id: 'vip', name: 'VIP', tier: 'VIP', price: pVip, slotCount: 2, enabled: true },
       { id: 'vvip', name: 'VVIP', tier: 'VVIP', price: pVvip, slotCount: 1, enabled: enableVvip }
     ];
-  }, [globalSettings, activeWorkspaceId]);
+  }, [globalSettings]);
 
   // Generate all configured slot definitions
   const configuredSlots = React.useMemo(() => {

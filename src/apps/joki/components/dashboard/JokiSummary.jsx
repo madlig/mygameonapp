@@ -3,7 +3,7 @@ import { useJoki } from '../../contexts/JokiContext';
 import { Users, Play, Pause, Clock, DollarSign } from 'lucide-react';
 
 const JokiSummary = () => {
-  const { customers, queue, enableVvipSlot, streamerMode, isAdmin } = useJoki();
+  const { customers, queue, configuredSlots, streamerMode, isAdmin } = useJoki();
 
   // Hidden if not admin or if streamer mode is turned on
   if (!isAdmin || streamerMode) return null;
@@ -18,7 +18,7 @@ const JokiSummary = () => {
   const vipActiveCount = active.filter(c => ((c.service || '').toUpperCase() === 'VIP' || c.slot === 'VIP') && !((c.service || '').toUpperCase().includes('VVIP') || c.slot === 'VVIP')).length;
   const basicActiveCount = active.filter(c => !(c.service || '').toUpperCase().includes('VIP') && c.slot !== 'VIP' && c.slot !== 'VVIP').length;
 
-  const maxLiveSlots = enableVvipSlot ? 8 : 7;
+  const maxLiveSlots = (configuredSlots && configuredSlots.length > 0) ? configuredSlots.length : 6;
 
   // Estimasi Omset Berjalan (Active billing + Antrean pending)
   const activeRevenue = active.reduce((total, c) => total + Number(c.price || 0), 0);

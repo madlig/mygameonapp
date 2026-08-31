@@ -44,6 +44,7 @@ const QueueSidebar = ({ onStartFromQueue, onRequestClearQueue }) => {
   const { 
     queue, 
     customers,
+    services,
     enableVvipSlot,
     priceBasic,
     priceVip,
@@ -428,10 +429,18 @@ const QueueSidebar = ({ onStartFromQueue, onRequestClearQueue }) => {
                   onChange={(e) => setQService(e.target.value)}
                   className="w-full bg-bg-surface border border-border-default rounded-lg py-1.5 px-2 text-xs text-text-primary outline-none focus:border-accent-purple/50 cursor-pointer font-bold"
                 >
-                  <option value="Basic">Basic ({priceBasic ? `${priceBasic / 1000}k` : '4k'}/j)</option>
-                  <option value="VIP">VIP ({priceVip ? `${priceVip / 1000}k` : '6k'}/j - Priority)</option>
-                  {enableVvipSlot && (
-                    <option value="VVIP">VVIP ({priceVvip ? `${priceVvip / 1000}k` : '10k'}/j - Super Priority)</option>
+                  {services ? services.filter(s => s.enabled).map(s => (
+                    <option key={s.id} value={s.name}>
+                      {s.name} (Rp {Number(s.price || 4000).toLocaleString('id-ID')}/j)
+                    </option>
+                  )) : (
+                    <>
+                      <option value="Basic">Basic ({priceBasic ? `${priceBasic / 1000}k` : '4k'}/j)</option>
+                      <option value="VIP">VIP ({priceVip ? `${priceVip / 1000}k` : '6k'}/j - Priority)</option>
+                      {enableVvipSlot && (
+                        <option value="VVIP">VVIP ({priceVvip ? `${priceVvip / 1000}k` : '10k'}/j - Super Priority)</option>
+                      )}
+                    </>
                   )}
                 </select>
               </div>

@@ -1,6 +1,6 @@
 import React from 'react';
 import { useJoki, matchCustomerToSlot, formatSlotLabel } from '../../contexts/JokiContext';
-import { Play, Pause, Flame, CheckCheck, PlusCircle } from 'lucide-react';
+import { Play, Pause, Flame, CheckCheck, PlusCircle, Crown, Gem } from 'lucide-react';
 
 const formatTime = (seconds) => {
   seconds = Math.max(0, Math.floor(seconds));
@@ -34,53 +34,37 @@ const OverlayActiveSlots = ({
 
   const activeCustomers = customers.filter(c => !c.finished);
 
-  // Theme styles with High Contrast & Razor Sharp Borders
+  // Overall Theme Container Styles
   const getThemeStyles = () => {
     switch (theme) {
       case 'gold':
         return {
-          cardBg: 'bg-[#0f0d08]/95 border-2 border-amber-500/50 shadow-amber-500/20',
-          headerBg: 'from-amber-500/35 via-amber-900/40 to-black/60 border-amber-500/50 text-amber-300',
+          cardBg: 'bg-[#0a0804]/95 border-2 border-amber-500/50 shadow-amber-500/20',
+          headerBg: 'from-amber-500/40 via-amber-900/40 to-black/70 border-amber-500/50 text-amber-300',
           accentText: 'text-amber-400',
-          slotBadgeBasic: 'bg-amber-400 text-black font-black border border-amber-300 shadow-md shadow-amber-400/30',
-          slotBadgeVip: 'bg-gradient-to-r from-amber-400 to-yellow-300 text-black font-black border border-amber-300 shadow-md shadow-amber-400/40',
-          slotBadgeVvip: 'bg-gradient-to-r from-rose-500 to-pink-500 text-white font-black border border-rose-300 shadow-md shadow-rose-500/40',
-          timeBox: 'bg-black/90 border border-amber-500/60 text-amber-300 shadow-[0_0_12px_rgba(251,191,36,0.35)]',
-          emptyCard: 'bg-black/40 border-2 border-dashed border-white/20 hover:border-amber-500/40 text-slate-300'
+          timeBox: 'bg-black/90 border border-amber-500/60 text-amber-300 shadow-[0_0_12px_rgba(251,191,36,0.35)]'
         };
       case 'crimson':
         return {
-          cardBg: 'bg-[#120508]/95 border-2 border-rose-500/50 shadow-rose-500/20',
-          headerBg: 'from-rose-600/35 via-rose-950/40 to-black/60 border-rose-500/50 text-rose-300',
+          cardBg: 'bg-[#0c0306]/95 border-2 border-rose-500/50 shadow-rose-500/20',
+          headerBg: 'from-rose-600/40 via-rose-950/40 to-black/70 border-rose-500/50 text-rose-300',
           accentText: 'text-rose-400',
-          slotBadgeBasic: 'bg-rose-500 text-white font-black border border-rose-400 shadow-md shadow-rose-500/30',
-          slotBadgeVip: 'bg-amber-400 text-black font-black border border-amber-300 shadow-md shadow-amber-400/30',
-          slotBadgeVvip: 'bg-rose-600 text-white font-black border border-rose-300 shadow-md shadow-rose-600/40',
-          timeBox: 'bg-black/90 border border-rose-500/60 text-rose-300 shadow-[0_0_12px_rgba(244,63,94,0.35)]',
-          emptyCard: 'bg-black/40 border-2 border-dashed border-white/20 hover:border-rose-500/40 text-slate-300'
+          timeBox: 'bg-black/90 border border-rose-500/60 text-rose-300 shadow-[0_0_12px_rgba(244,63,94,0.35)]'
         };
       case 'dark':
         return {
           cardBg: 'bg-[#08090d]/95 border-2 border-white/30 shadow-black/70',
-          headerBg: 'from-white/20 via-slate-900/40 to-black/60 border-white/30 text-slate-100',
+          headerBg: 'from-white/20 via-slate-900/40 to-black/70 border-white/30 text-slate-100',
           accentText: 'text-cyan-400',
-          slotBadgeBasic: 'bg-slate-700 text-white font-black border border-white/40 shadow-sm',
-          slotBadgeVip: 'bg-amber-400 text-black font-black border border-amber-300 shadow-md shadow-amber-400/30',
-          slotBadgeVvip: 'bg-rose-500 text-white font-black border border-rose-300 shadow-md shadow-rose-500/30',
-          timeBox: 'bg-black/90 border border-cyan-500/50 text-cyan-300 shadow-[0_0_12px_rgba(34,211,238,0.3)]',
-          emptyCard: 'bg-black/40 border-2 border-dashed border-white/15 text-slate-400'
+          timeBox: 'bg-black/90 border border-cyan-500/50 text-cyan-300 shadow-[0_0_12px_rgba(34,211,238,0.3)]'
         };
       case 'neon':
       default:
         return {
-          cardBg: 'bg-[#040711]/95 border-2 border-cyan-500/50 shadow-cyan-500/20',
-          headerBg: 'from-cyan-500/35 via-purple-950/40 to-black/60 border-cyan-500/50 text-cyan-300',
+          cardBg: 'bg-[#03060f]/95 border-2 border-cyan-500/50 shadow-cyan-500/20',
+          headerBg: 'from-cyan-500/40 via-purple-950/40 to-black/70 border-cyan-500/50 text-cyan-300',
           accentText: 'text-cyan-400',
-          slotBadgeBasic: 'bg-cyan-400 text-black font-black border border-cyan-300 shadow-md shadow-cyan-400/40',
-          slotBadgeVip: 'bg-gradient-to-r from-amber-400 to-yellow-300 text-black font-black border border-amber-300 shadow-md shadow-amber-400/40',
-          slotBadgeVvip: 'bg-gradient-to-r from-rose-500 to-pink-500 text-white font-black border border-rose-300 shadow-md shadow-rose-500/40',
-          timeBox: 'bg-black/90 border border-cyan-400/60 text-cyan-300 shadow-[0_0_12px_rgba(6,182,212,0.35)]',
-          emptyCard: 'bg-black/40 border-2 border-dashed border-white/20 hover:border-cyan-500/40 text-slate-300'
+          timeBox: 'bg-black/90 border border-cyan-400/60 text-cyan-300 shadow-[0_0_12px_rgba(6,182,212,0.35)]'
         };
     }
   };
@@ -160,34 +144,64 @@ const OverlayActiveSlots = ({
             slotCards.map(({ slotDef, customer }) => {
               const isVvip = slotDef.tier === 'VVIP';
               const isVip = slotDef.tier === 'VIP';
-              const badgeStyle = isVvip ? t.slotBadgeVvip : isVip ? t.slotBadgeVip : t.slotBadgeBasic;
+
+              // Distinct Visual Tier Badges
+              const badgeStyle = isVvip
+                ? 'bg-gradient-to-r from-rose-500 via-pink-500 to-rose-600 text-white font-black border border-rose-300 shadow-[0_0_12px_rgba(244,63,94,0.6)]'
+                : isVip
+                ? 'bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-500 text-black font-black border border-amber-200 shadow-[0_0_12px_rgba(251,191,36,0.6)]'
+                : 'bg-cyan-400 text-black font-black border border-cyan-300 shadow-[0_0_10px_rgba(34,211,238,0.45)]';
+
+              // Distinct Tier Card Containers for Empty Slots
+              const emptyCardStyle = isVvip
+                ? 'bg-gradient-to-b from-rose-950/30 to-black/60 border-2 border-dashed border-rose-400/80 hover:border-rose-400 shadow-[0_0_14px_rgba(244,63,94,0.25)]'
+                : isVip
+                ? 'bg-gradient-to-b from-amber-950/25 to-black/60 border-2 border-dashed border-amber-400/80 hover:border-amber-300 shadow-[0_0_14px_rgba(251,191,36,0.25)]'
+                : 'bg-black/40 border-2 border-dashed border-cyan-500/30 hover:border-cyan-400/50';
 
               // 1. EMPTY SLOT CARD
               if (!customer) {
                 return (
                   <div 
                     key={`empty-${slotDef.key}`}
-                    className={`rounded-2xl p-3 border transition-all duration-300 flex flex-col justify-between gap-1.5 min-w-0 overflow-hidden ${t.emptyCard}`}
+                    className={`rounded-2xl p-3 transition-all duration-300 flex flex-col justify-between gap-1.5 min-w-0 overflow-hidden ${emptyCardStyle}`}
                   >
                     {/* Top Row: Slot Pill + OPEN Badge */}
                     <div className="flex items-center justify-between gap-1.5 w-full">
-                      <span className={`whitespace-nowrap shrink-0 px-2.5 py-0.5 rounded-lg font-mono font-black text-xs leading-none inline-flex items-center border shadow-sm ${badgeStyle}`}>
-                        {slotDef.displayLabel}
+                      <span className={`whitespace-nowrap shrink-0 px-2.5 py-0.5 rounded-lg font-mono font-black text-xs leading-none inline-flex items-center gap-1 border shadow-sm ${badgeStyle}`}>
+                        {isVvip ? <Gem size={12} className="text-rose-200" /> : isVip ? <Crown size={12} className="text-amber-900" /> : null}
+                        <span>{slotDef.displayLabel}</span>
                       </span>
-                      <span className="whitespace-nowrap shrink-0 ml-auto px-2 py-0.5 rounded-lg bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 font-black text-[10.5px] uppercase tracking-wider flex items-center gap-1 leading-none">
+
+                      {/* Open Badge with Tier Indicator */}
+                      <span className={`whitespace-nowrap shrink-0 ml-auto px-2 py-0.5 rounded-lg font-black text-[10.5px] uppercase tracking-wider flex items-center gap-1 leading-none border shadow-sm ${
+                        isVvip
+                          ? 'bg-rose-500/25 border-rose-400/70 text-rose-200 shadow-[0_0_8px_rgba(244,63,94,0.4)]'
+                          : isVip
+                          ? 'bg-amber-500/25 border-amber-400/70 text-amber-200 shadow-[0_0_8px_rgba(251,191,36,0.4)]'
+                          : 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300'
+                      }`}>
                         <PlusCircle size={10} />
-                        <span>OPEN</span>
+                        <span>{isVvip ? 'VVIP OPEN' : isVip ? 'VIP OPEN' : 'OPEN'}</span>
                       </span>
                     </div>
 
                     {/* Bottom Content */}
                     <div className="pt-1 min-w-0">
-                      <div className="flex items-center gap-1.5 text-xs font-black text-slate-200 truncate">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
-                        <span className="truncate">SLOT KOSONG</span>
+                      <div className={`flex items-center gap-1.5 text-xs font-black truncate ${
+                        isVvip ? 'text-rose-200' : isVip ? 'text-amber-200' : 'text-slate-200'
+                      }`}>
+                        <span className={`w-1.5 h-1.5 rounded-full animate-pulse shrink-0 ${
+                          isVvip ? 'bg-rose-400' : isVip ? 'bg-amber-400' : 'bg-emerald-400'
+                        }`} />
+                        <span className="truncate">
+                          {isVvip ? 'SLOT VVIP KOSONG' : isVip ? 'SLOT VIP KOSONG' : 'SLOT KOSONG'}
+                        </span>
                       </div>
-                      <div className="text-[11px] text-slate-400 truncate font-medium mt-0.5">
-                        Chat live untuk pesan slot!
+                      <div className={`text-[11px] truncate font-medium mt-0.5 ${
+                        isVvip ? 'text-rose-300/80' : isVip ? 'text-amber-300/80' : 'text-slate-400'
+                      }`}>
+                        {isVvip ? '💎 Slot Super Priority Siap Order!' : isVip ? '👑 Slot Priority Siap Order!' : 'Chat live untuk pesan slot!'}
                       </div>
                     </div>
                   </div>
@@ -199,28 +213,34 @@ const OverlayActiveSlots = ({
               const isFinished = rem <= 0 && !customer.paused;
               const isEnding = rem > 0 && rem <= 300 && !customer.paused;
 
+              // Distinct Tier Container for Active Slots
+              const activeContainerStyle = isFinished
+                ? 'bg-rose-950/90 border-rose-500 shadow-rose-900/50 ring-1 ring-rose-500'
+                : isEnding
+                ? 'bg-rose-950/70 border-rose-500 animate-pulse shadow-lg shadow-rose-600/50 ring-2 ring-rose-500'
+                : customer.paused
+                ? 'bg-amber-950/50 border-amber-500/60'
+                : isVvip
+                ? 'bg-gradient-to-b from-[#220610]/95 via-[#110308]/95 to-black/90 border-2 border-rose-400/90 shadow-[0_0_20px_rgba(244,63,94,0.4)] ring-1 ring-rose-400/50'
+                : isVip
+                ? 'bg-gradient-to-b from-[#1f1604]/95 via-[#100b02]/95 to-black/90 border-2 border-amber-400/90 shadow-[0_0_18px_rgba(251,191,36,0.35)] ring-1 ring-amber-400/50'
+                : 'bg-black/60 border-2 border-cyan-500/40 hover:border-cyan-400/60 shadow-[0_0_10px_rgba(6,182,212,0.15)]';
+
               return (
                 <div 
                   key={customer.id || slotDef.key}
-                  className={`relative rounded-2xl p-3 transition-all duration-300 border-2 backdrop-blur-md shadow-md flex flex-col justify-between gap-1.5 min-w-0 overflow-hidden ${
-                    isFinished 
-                      ? 'bg-rose-950/90 border-rose-500 shadow-rose-900/50 ring-1 ring-rose-500' 
-                      : isEnding 
-                      ? 'bg-rose-950/70 border-rose-500 animate-pulse shadow-lg shadow-rose-600/50 ring-2 ring-rose-500' 
-                      : customer.paused
-                      ? 'bg-amber-950/50 border-amber-500/60'
-                      : 'bg-black/60 border-white/20 hover:border-white/35'
-                  }`}
+                  className={`relative rounded-2xl p-3 transition-all duration-300 border-2 backdrop-blur-md shadow-md flex flex-col justify-between gap-1.5 min-w-0 overflow-hidden ${activeContainerStyle}`}
                 >
                   {/* Row 1: Header (Slot Label on Left, Countdown on Right) */}
                   <div className="flex items-center justify-between gap-1.5 w-full">
                     <div className="flex items-center gap-1 shrink-0">
-                      <span className={`whitespace-nowrap shrink-0 px-2.5 py-0.5 rounded-lg font-black text-xs font-mono border shadow leading-none inline-flex items-center ${
+                      <span className={`whitespace-nowrap shrink-0 px-2.5 py-0.5 rounded-lg font-black text-xs font-mono border shadow leading-none inline-flex items-center gap-1 ${
                         isFinished || isEnding 
                           ? 'bg-rose-600 text-white border-rose-300' 
                           : badgeStyle
                       }`}>
-                        {slotDef.displayLabel || formatSlotLabel(customer.slot, customer.service, contextServices)}
+                        {isVvip ? <Gem size={12} className="text-white" /> : isVip ? <Crown size={12} className="text-amber-950" /> : null}
+                        <span>{slotDef.displayLabel || formatSlotLabel(customer.slot, customer.service, contextServices)}</span>
                       </span>
                     </div>
 
@@ -240,6 +260,10 @@ const OverlayActiveSlots = ({
                         <div className={`whitespace-nowrap px-2 py-0.5 rounded-lg border font-mono font-black text-xs flex items-center gap-1 tracking-wider leading-none ${
                           isEnding
                             ? 'bg-rose-600 text-white border-rose-300 shadow-md shadow-rose-600/60 animate-bounce'
+                            : isVvip
+                            ? 'bg-black/90 border border-rose-500/70 text-rose-300 shadow-[0_0_12px_rgba(244,63,94,0.4)]'
+                            : isVip
+                            ? 'bg-black/90 border border-amber-500/70 text-amber-300 shadow-[0_0_12px_rgba(251,191,36,0.4)]'
                             : t.timeBox
                         }`}>
                           <Play size={10} className={isEnding ? 'text-white' : 'text-emerald-400 fill-emerald-400'} />
@@ -251,17 +275,22 @@ const OverlayActiveSlots = ({
 
                   {/* Row 2: Customer Identity (Full Width Bold White Username & TikTok) */}
                   <div className="min-w-0 pt-1">
-                    <div className="font-black text-white truncate text-sm drop-shadow-[0_1.5px_3px_rgba(0,0,0,0.95)] tracking-tight block w-full">
-                      {customer.username || customer.name || 'Pelanggan'}
+                    <div className="font-black text-white truncate text-sm drop-shadow-[0_1.5px_3px_rgba(0,0,0,0.95)] tracking-tight block w-full flex items-center gap-1">
+                      <span className="truncate">{customer.username || customer.name || 'Pelanggan'}</span>
+                      {isVvip ? <Gem size={13} className="text-rose-400 shrink-0" /> : isVip ? <Crown size={13} className="text-amber-400 shrink-0" /> : null}
                     </div>
 
                     {customer.tiktokName ? (
-                      <div className="text-xs text-cyan-300 font-bold truncate mt-0.5 drop-shadow flex items-center gap-1 block w-full">
+                      <div className={`text-xs font-bold truncate mt-0.5 drop-shadow flex items-center gap-1 block w-full ${
+                        isVvip ? 'text-rose-300' : isVip ? 'text-amber-300' : 'text-cyan-300'
+                      }`}>
                         <span>@{customer.tiktokName}</span>
                       </div>
                     ) : (
-                      <div className="text-[11px] text-slate-300 font-medium truncate block w-full">
-                        Paket {customer.service || slotDef.serviceName || 'Basic'}
+                      <div className={`text-[11px] font-medium truncate block w-full ${
+                        isVvip ? 'text-rose-300 font-bold' : isVip ? 'text-amber-300 font-bold' : 'text-slate-300'
+                      }`}>
+                        {isVvip ? '💎 Paket VVIP Super Priority' : isVip ? '👑 Paket VIP Priority' : `Paket ${customer.service || slotDef.serviceName || 'Basic'}`}
                       </div>
                     )}
                   </div>

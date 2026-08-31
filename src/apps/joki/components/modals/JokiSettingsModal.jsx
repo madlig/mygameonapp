@@ -407,34 +407,36 @@ const JokiSettingsModal = ({ isOpen, onClose }) => {
               )}
             </div>
 
-            {/* Section 2: Jam Rutin Live Harian (WIB) */}
-            <div className="p-4 rounded-2xl bg-bg-surface/80 border border-border-default space-y-3">
-              <span className="text-xs font-black text-white flex items-center gap-1.5">
-                <Clock size={14} className="text-accent-cyan" />
-                <span>Jam Rutin Live Streaming Harian (WIB)</span>
-              </span>
+            {/* Section 2: Jam Rutin Live Harian (WIB) - Hanya Muncul Jika Mode Otomatis */}
+            {statusMode === 'auto' && (
+              <div className="p-4 rounded-2xl bg-bg-surface/80 border border-border-default space-y-3 animate-[fadeIn_0.2s_ease]">
+                <span className="text-xs font-black text-white flex items-center gap-1.5">
+                  <Clock size={14} className="text-accent-cyan" />
+                  <span>Jam Rutin Live Streaming Harian (WIB)</span>
+                </span>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-[10px] text-text-dim uppercase font-bold block mb-1">Jam Mulai</label>
-                  <input
-                    type="time"
-                    value={liveStartTime}
-                    onChange={(e) => setLiveStartTime(e.target.value)}
-                    className="w-full bg-[#151821] border border-border-default rounded-xl py-2 px-3 text-xs text-white font-mono font-bold outline-none focus:border-accent-purple/50"
-                  />
-                </div>
-                <div>
-                  <label className="text-[10px] text-text-dim uppercase font-bold block mb-1">Jam Selesai</label>
-                  <input
-                    type="time"
-                    value={liveEndTime}
-                    onChange={(e) => setLiveEndTime(e.target.value)}
-                    className="w-full bg-[#151821] border border-border-default rounded-xl py-2 px-3 text-xs text-white font-mono font-bold outline-none focus:border-accent-purple/50"
-                  />
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[10px] text-text-dim uppercase font-bold block mb-1">Jam Mulai</label>
+                    <input
+                      type="time"
+                      value={liveStartTime}
+                      onChange={(e) => setLiveStartTime(e.target.value)}
+                      className="w-full bg-[#151821] border border-border-default rounded-xl py-2 px-3 text-xs text-white font-mono font-bold outline-none focus:border-accent-purple/50"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-text-dim uppercase font-bold block mb-1">Jam Selesai</label>
+                    <input
+                      type="time"
+                      value={liveEndTime}
+                      onChange={(e) => setLiveEndTime(e.target.value)}
+                      className="w-full bg-[#151821] border border-border-default rounded-xl py-2 px-3 text-xs text-white font-mono font-bold outline-none focus:border-accent-purple/50"
+                    />
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
 
             {/* Section 3: Pengumuman Jadwal Live Stream */}
             <div className="p-4 rounded-2xl bg-bg-surface/80 border border-border-default space-y-3">

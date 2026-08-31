@@ -320,72 +320,107 @@ const TicketPage = () => {
   const remainingDestructSeconds = Math.max(0, Math.floor((destructDeadline - now) / 1000));
 
   // Service Tier helpers
-  const serviceUpper = (ticketData.service || 'Basic').toUpperCase();
-  const isVVIP = serviceUpper.includes('VVIP') || ticketData.slot === 'VVIP';
-  const isVIP = !isVVIP && (serviceUpper.includes('VIP') || ticketData.slot === 'VIP');
+  const getCustomerTier = (c) => {
+    if (!c) return 'Basic';
+    const sStr = String(c.slot || '').toUpperCase();
+    const srv = String(c.service || '').toUpperCase();
+    if (sStr.includes('VVIP') || srv.includes('VVIP')) return 'VVIP';
+    if (sStr.includes('VIP') || srv.includes('VIP')) return 'VIP';
+    return 'Basic';
+  };
+
+  const myTier = getCustomerTier(ticketData);
+  const isVVIP = myTier === 'VVIP';
+  const isVIP = myTier === 'VIP';
   const streamerName = workspaceInfo?.name || 'Kadal Gaming';
 
   // Queue Calculations (If in Queue)
   let queuePosition = 1;
-  let estimatedWaitMinutes = 0;
-  let estimatedSlotName = 'Slot 1';
+  let totalWaitSeconds = 0;
+  let estimatedSlotName = isVVIP ? 'SLOT VVIP' : isVIP ? 'SLOT VIP' : 'SLOT Basic';
   let estimatedStartTimeStr = '--:--';
 
   if (ticketData.type === 'QUEUE') {
-    const subQueue = isVVIP
-      ? queueList.filter(q => (q.service || '').toUpperCase() === 'VVIP')
-      : isVIP 
-      ? queueList.filter(q => (q.service || '').toUpperCase() === 'VIP')
-      : queueList.filter(q => {
-          const s = (q.service || '').toUpperCase();
-          return s !== 'VIP' && s !== 'VVIP';
-        });
-
-    const myIndex = subQueue.findIndex(q => q.id === ticketData.id);
+    // 1. Filter subQueue strictly by tier
+    const subQueue = queueList.filter(q => getCustomerTier(q) === myTier);
+    const myIndex = subQueue.findIndex(q => (q.id === ticketData.id || (q.ticketId && q.ticketId === ticketData.ticketId)));
     queuePosition = myIndex >= 0 ? myIndex + 1 : 1;
 
-    // Filter relevant active slots
-    const relevantSlots = isVVIP
-      ? activeCustomers.filter(c => (c.service || '').toUpperCase().includes('VVIP') || c.slot === 'VVIP')
-      : isVIP
-      ? activeCustomers.filter(c => ((c.service || '').toUpperCase() === 'VIP' || c.slot === 'VIP') && !((c.service || '').toUpperCase().includes('VVIP') || c.slot === 'VVIP'))
-      : activeCustomers.filter(c => !(c.service || '').toUpperCase().includes('VIP') && c.slot !== 'VIP' && c.slot !== 'VVIP');
+    // 2. Active customers running in this tier
+    const activeInTier = activeCustomers.filter(c => !c.finished && getCustomerTier(c) === myTier);
+
+    // 3. Number of slots allocated to this tier
+    const customServices = workspaceSettings?.services;
+    const tierSrv = Array.isArray(customServices) 
+      ? customServices.find(s => s.tier === myTier && s.enabled)
+      : null;
+    const tierSlotCapacity = Math.max(1, Number(tierSrv?.slotCount) || (myTier === 'VVIP' ? 1 : myTier === 'VIP' ? 2 : 4));
 
     if (streamStatus === 'OFFLINE') {
-      estimatedWaitMinutes = 0;
+      totalWaitSeconds = 0;
       estimatedSlotName = isVVIP ? 'SLOT VVIP' : (isVIP ? 'SLOT VIP' : 'Slot Live');
       estimatedStartTimeStr = liveState.liveStartTime ? `Pukul ${liveState.liveStartTime} WIB` : 'Sesi Live Berikutnya';
-    } else if (relevantSlots.length === 0 && myIndex === 0) {
-      estimatedWaitMinutes = 0;
-      estimatedSlotName = isVVIP ? 'SLOT VVIP' : (isVIP ? 'SLOT VIP' : 'Slot Siap!');
-      estimatedStartTimeStr = 'Segera (Slot Siap)';
     } else {
-      const sortedByFinish = [...relevantSlots].sort((a, b) => {
-        const remA = a.paused ? (a.remainingAtPause || 0) : Math.max(0, (a.endTime - now) / 1000);
-        const remB = b.paused ? (b.remainingAtPause || 0) : Math.max(0, (b.endTime - now) / 1000);
-        return remA - remB;
+      // 4. Build slot availability pool (timestamps when each slot becomes free)
+      const slotPool = [];
+      activeInTier.forEach(c => {
+        let finishTs = c.endTime || now;
+        if (c.paused) {
+          const remAtPause = Number(c.remainingAtPause || 0);
+          finishTs = now + (remAtPause * 1000);
+        }
+        finishTs = Math.max(now, finishTs);
+        slotPool.push({
+          availableAt: finishTs,
+          slotLabel: c.slot ? (String(c.slot).toUpperCase().includes('SLOT') ? c.slot : `SLOT ${c.slot}`) : null
+        });
       });
 
-      const targetSlotIndex = Math.min(queuePosition - 1, Math.max(0, sortedByFinish.length - 1));
-      const targetCustomer = sortedByFinish[targetSlotIndex];
-      const activeRemSec = targetCustomer?.paused 
-        ? (targetCustomer?.remainingAtPause || 0)
-        : Math.max(0, Math.floor(((targetCustomer?.endTime || now) - now) / 1000));
-
-      const numConcurrentSlots = isVVIP ? 1 : (isVIP ? 1 : Math.max(1, sortedByFinish.length || 6));
-      let priorQueueSec = 0;
-      if (myIndex > 0) {
-        const precedingItems = subQueue.slice(0, myIndex);
-        const queueBlocksAhead = Math.floor(myIndex / numConcurrentSlots);
-        if (queueBlocksAhead > 0) {
-          priorQueueSec = precedingItems.reduce((sum, q) => sum + (Number(q.duration || 1) * 3600), 0) / numConcurrentSlots;
-        }
+      // Add currently empty/unoccupied slots (available right now)
+      const emptyCount = tierSlotCapacity - activeInTier.length;
+      for (let i = 0; i < emptyCount; i++) {
+        slotPool.push({
+          availableAt: now,
+          slotLabel: isVVIP ? 'SLOT VVIP' : isVIP ? 'SLOT VIP' : `SLOT ${activeInTier.length + i + 1}`
+        });
       }
 
-      const totalWaitSeconds = activeRemSec + priorQueueSec;
-      estimatedWaitMinutes = Math.max(1, Math.round(totalWaitSeconds / 60));
-      estimatedSlotName = isVVIP ? 'SLOT VVIP' : (isVIP ? 'SLOT VIP' : `SLOT ${targetCustomer?.slot || '1'}`);
-      estimatedStartTimeStr = formatClock(now + (totalWaitSeconds * 1000));
+      if (slotPool.length === 0) {
+        slotPool.push({
+          availableAt: now,
+          slotLabel: isVVIP ? 'SLOT VVIP' : isVIP ? 'SLOT VIP' : 'SLOT 1'
+        });
+      }
+
+      // Sort slots from earliest available to latest
+      slotPool.sort((a, b) => a.availableAt - b.availableAt);
+
+      // 5. Simulate queue processing for customers ahead of this ticket
+      const precedingQueue = myIndex > 0 ? subQueue.slice(0, myIndex) : [];
+      precedingQueue.forEach(qAhead => {
+        const earliestSlot = slotPool.shift();
+        const startTs = Math.max(now, earliestSlot.availableAt);
+        const durHours = Number(qAhead.duration || 1);
+        const releaseTs = startTs + (durHours * 3600 * 1000);
+        slotPool.push({
+          availableAt: releaseTs,
+          slotLabel: earliestSlot.slotLabel
+        });
+        slotPool.sort((a, b) => a.availableAt - b.availableAt);
+      });
+
+      // 6. Next available slot is assigned to this customer!
+      const myAssignedSlot = slotPool.length > 0 ? slotPool[0] : { availableAt: now, slotLabel: null };
+      const mySlotAvailableTime = myAssignedSlot.availableAt;
+      totalWaitSeconds = Math.max(0, Math.floor((mySlotAvailableTime - now) / 1000));
+
+      if (totalWaitSeconds <= 60) {
+        estimatedStartTimeStr = 'Segera (Giliran Anda!)';
+      } else {
+        estimatedStartTimeStr = formatClock(mySlotAvailableTime);
+      }
+
+      estimatedSlotName = myAssignedSlot.slotLabel || (isVVIP ? 'SLOT VVIP' : isVIP ? 'SLOT VIP' : 'SLOT Basic');
     }
   }
 
@@ -705,7 +740,11 @@ const TicketPage = () => {
                 <div className="flex items-center justify-between">
                   <span className="text-text-dim">⏳ Estimasi Waktu Tunggu:</span>
                   <strong className={`font-mono text-sm ${isVVIP ? 'text-rose-400' : 'text-accent-yellow'}`}>
-                    {streamStatus === 'OFFLINE' ? 'Saat Live Mulai' : `~${estimatedWaitMinutes} Menit lagi`}
+                    {streamStatus === 'OFFLINE' 
+                      ? 'Saat Live Mulai' 
+                      : totalWaitSeconds <= 60
+                      ? 'Segera (Giliran Anda!)'
+                      : `~${formatDuration(totalWaitSeconds / 3600)} lagi`}
                   </strong>
                 </div>
                 <div className="flex items-center justify-between pt-1 border-t border-white/5">

@@ -22,6 +22,63 @@ const PRICE_BASIC = 4000;
 const PRICE_VIP = 6000;
 const PRICE_VVIP = 10000;
 
+// Format slot display label e.g. "SLOT 1 Basic", "SLOT VIP 1", "SLOT VVIP 1"
+export const formatSlotLabel = (slot, service = '', servicesList = []) => {
+  if (!slot) return 'SLOT 1 Basic';
+  const sStr = String(slot).trim();
+  const srvNorm = String(service || '').toUpperCase();
+
+  // If already formatted like 'SLOT ...'
+  if (sStr.toUpperCase().startsWith('SLOT ')) return sStr;
+
+  const basicSrv = servicesList?.find(s => s.tier === 'Basic');
+  const basicName = basicSrv?.name || 'Basic';
+
+  if (sStr.toUpperCase().includes('VVIP') || srvNorm.includes('VVIP')) {
+    const num = sStr.replace(/\D/g, '') || '1';
+    return `SLOT VVIP ${num}`;
+  }
+  if (sStr.toUpperCase().includes('VIP') || srvNorm.includes('VIP')) {
+    const num = sStr.replace(/\D/g, '') || '1';
+    return `SLOT VIP ${num}`;
+  }
+  const num = sStr.replace(/\D/g, '') || '1';
+  return `SLOT ${num} ${basicName}`;
+};
+
+// Match customer to a slot definition object
+export const matchCustomerToSlot = (customer, slotDef) => {
+  if (!customer || !customer.slot || !slotDef) return false;
+  const sStr = String(customer.slot).trim().toLowerCase();
+  const defKey = String(slotDef.key).trim().toLowerCase();
+  const defLabel = String(slotDef.displayLabel || '').trim().toLowerCase();
+
+  // Direct match key or label
+  if (sStr === defKey || sStr === defLabel) return true;
+
+  // Legacy mappings for VIP / VVIP without number
+  if (defKey === 'vip 1' && (sStr === 'vip' || sStr === 'slot vip' || sStr === 'slot vip 1')) return true;
+  if (defKey === 'vvip 1' && (sStr === 'vvip' || sStr === 'slot vvip' || sStr === 'slot vvip 1')) return true;
+
+  // Numeric check for same tier
+  const cNum = parseInt(sStr.replace(/\D/g, ''), 10);
+  const defNum = parseInt(defKey.replace(/\D/g, ''), 10);
+  const cTier = (customer.service || '').toUpperCase().includes('VVIP') 
+    ? 'VVIP' 
+    : (customer.service || '').toUpperCase().includes('VIP') 
+    ? 'VIP' 
+    : 'Basic';
+
+  if (cTier === slotDef.tier && !isNaN(cNum) && !isNaN(defNum) && cNum === defNum) {
+    return true;
+  }
+
+  // Fallback for basic slot: 1
+  if (slotDef.tier === 'Basic' && (sStr === '1' || sStr === 'slot 1') && defKey === '1') return true;
+
+  return false;
+};
+
 export const JokiProvider = ({ children }) => {
   const { currentUser, logout } = useAuth();
   
@@ -200,7 +257,12 @@ export const JokiProvider = ({ children }) => {
   // Helper to normalize services list from globalSettings or defaults
   const services = React.useMemo(() => {
     if (globalSettings?.services && Array.isArray(globalSettings.services) && globalSettings.services.length > 0) {
-      return globalSettings.services;
+      return globalSettings.services.map(s => ({
+        ...s,
+        slotCount: s.slotCount !== undefined 
+          ? Number(s.slotCount) 
+          : (Array.isArray(s.slots) ? s.slots.length : (s.tier === 'Basic' ? 4 : s.tier === 'VIP' ? 2 : 1))
+      }));
     }
     // Fallback based on legacy settings
     const pBasic = Number(globalSettings?.priceBasic) || PRICE_BASIC;
@@ -211,25 +273,51 @@ export const JokiProvider = ({ children }) => {
       : (activeWorkspaceId === 'saviours');
 
     return [
-      { id: 'basic', name: 'Basic', tier: 'Basic', price: pBasic, slots: [1, 2, 3, 4], enabled: true },
-      { id: 'vip', name: 'VIP Priority', tier: 'VIP', price: pVip, slots: [5], enabled: true },
-      { id: 'vvip', name: 'VVIP Super', tier: 'VVIP', price: pVvip, slots: [6], enabled: enableVvip }
+      { id: 'basic', name: 'Basic', tier: 'Basic', price: pBasic, slotCount: 4, enabled: true },
+      { id: 'vip', name: 'VIP', tier: 'VIP', price: pVip, slotCount: 2, enabled: true },
+      { id: 'vvip', name: 'VVIP', tier: 'VVIP', price: pVvip, slotCount: 1, enabled: enableVvip }
     ];
   }, [globalSettings, activeWorkspaceId]);
 
-  // Get all active configured slots across all enabled services
+  // Generate all configured slot definitions
   const configuredSlots = React.useMemo(() => {
-    const activeSlots = new Set();
+    const list = [];
     services.filter(s => s.enabled).forEach(s => {
-      (s.slots || []).forEach(slotNum => {
-        const parsed = parseInt(String(slotNum).replace(/\D/g, ''), 10);
-        if (!isNaN(parsed) && parsed > 0) {
-          activeSlots.add(parsed);
+      const count = Math.max(1, Number(s.slotCount) || 1);
+      const isBasic = s.tier === 'Basic';
+      const isVip = s.tier === 'VIP';
+      const isVvip = s.tier === 'VVIP';
+      const sName = s.name || s.tier;
+
+      for (let i = 1; i <= count; i++) {
+        let key = '';
+        let displayLabel = '';
+        if (isBasic) {
+          key = `${i}`;
+          displayLabel = `SLOT ${i} ${sName}`;
+        } else if (isVip) {
+          key = `VIP ${i}`;
+          displayLabel = `SLOT VIP ${i}`;
+        } else if (isVvip) {
+          key = `VVIP ${i}`;
+          displayLabel = `SLOT VVIP ${i}`;
+        } else {
+          key = `${s.id}-${i}`;
+          displayLabel = `SLOT ${i} ${sName}`;
         }
-      });
+
+        list.push({
+          key,
+          slotNum: i,
+          tier: s.tier,
+          serviceId: s.id,
+          serviceName: sName,
+          displayLabel,
+          price: s.price
+        });
+      }
     });
-    const sorted = Array.from(activeSlots).sort((a, b) => a - b);
-    return sorted.length > 0 ? sorted : [1, 2, 3, 4, 5, 6];
+    return list;
   }, [services]);
 
   // Helper to find service details
@@ -239,46 +327,36 @@ export const JokiProvider = ({ children }) => {
       s.id.toLowerCase() === norm || s.name.toLowerCase() === norm || s.tier.toLowerCase() === norm
     );
     if (found) return found;
-    return services[0] || { id: 'basic', name: 'Basic', tier: 'Basic', price: 4000, slots: [1, 2, 3, 4], enabled: true };
+    return services[0] || { id: 'basic', name: 'Basic', tier: 'Basic', price: 4000, slotCount: 4, enabled: true };
   };
 
   // Helper to suggest smallest free slot for a given service
   const suggestSlot = (serviceNameOrId = '') => {
-    const usedSlots = new Set();
-    customers.forEach((c) => {
-      if (!c.finished && c.slot) {
-        const num = parseInt(String(c.slot).replace(/\D/g, ''), 10);
-        if (!isNaN(num)) {
-          usedSlots.add(num);
-        }
+    const activeCustomers = customers.filter(c => !c.finished);
+    const occupiedKeys = new Set();
+    
+    activeCustomers.forEach(c => {
+      const matched = configuredSlots.find(s => matchCustomerToSlot(c, s));
+      if (matched) {
+        occupiedKeys.add(matched.key);
       }
     });
 
-    // If specific service is requested, find its designated slots first
-    if (serviceNameOrId) {
-      const normQuery = String(serviceNameOrId).toLowerCase();
-      const matchedService = services.find(s => 
-        s.enabled && (s.id.toLowerCase() === normQuery || s.name.toLowerCase() === normQuery || s.tier.toLowerCase() === normQuery)
-      );
+    const normQuery = String(serviceNameOrId || '').toLowerCase();
+    const targetService = services.find(s => 
+      s.enabled && (s.id.toLowerCase() === normQuery || s.name.toLowerCase() === normQuery || s.tier.toLowerCase() === normQuery)
+    ) || services[0];
 
-      if (matchedService && Array.isArray(matchedService.slots) && matchedService.slots.length > 0) {
-        // Find first free slot in this service's designated slots
-        const freeInService = matchedService.slots.find(s => !usedSlots.has(Number(s)));
-        if (freeInService) return Number(freeInService);
-        // If all designated slots are taken, pick the first one as fallback
-        return Number(matchedService.slots[0]);
-      }
-    }
+    // Find first empty slot belonging to this service
+    const matchingSlots = configuredSlots.filter(s => s.tier === targetService.tier);
+    const freeSlot = matchingSlots.find(s => !occupiedKeys.has(s.key));
+    if (freeSlot) return freeSlot.key;
 
-    // Default: find lowest available slot in configuredSlots or lowest natural number
-    const freeConfigured = configuredSlots.find(s => !usedSlots.has(s));
-    if (freeConfigured) return freeConfigured;
+    // Fallback: any free slot in configuredSlots
+    const anyFree = configuredSlots.find(s => !occupiedKeys.has(s.key));
+    if (anyFree) return anyFree.key;
 
-    let n = 1;
-    while (usedSlots.has(n)) {
-      n++;
-    }
-    return n;
+    return matchingSlots[0]?.key || '1';
   };
 
   // Check if VVIP is enabled for current workspace
@@ -432,6 +510,8 @@ export const JokiProvider = ({ children }) => {
     services,
     configuredSlots,
     getServiceDetails,
+    formatSlotLabel: (slot, service) => formatSlotLabel(slot, service, services),
+    matchCustomerToSlot,
     enableVvipSlot,
     priceBasic,
     priceVip,

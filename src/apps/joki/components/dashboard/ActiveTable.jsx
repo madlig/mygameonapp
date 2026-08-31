@@ -80,6 +80,7 @@ const ActiveTable = ({
   const { 
     customers, 
     queue,
+    formatSlotLabel,
     updateJokiCustomer, 
     deleteJokiCustomer,
     finishAndArchiveCustomer,
@@ -366,22 +367,17 @@ const ActiveTable = ({
                       {/* Slot & Service Badge */}
                       <td className="py-2.5 px-2 text-center">
                         <div className="inline-flex flex-col items-center gap-0.5">
-                          <span className={`inline-flex items-center justify-center px-2 py-0.5 rounded-lg text-xs font-black font-mono tracking-tight ${
-                            cleanSlot === 'VVIP'
+                          <span className={`inline-flex items-center justify-center px-2.5 py-0.5 rounded-lg text-xs font-black font-mono tracking-tight ${
+                            cleanService === 'VVIP' || (customer.slot && String(customer.slot).toUpperCase().includes('VVIP'))
                               ? 'bg-rose-500/20 text-rose-300 border border-rose-500/50 shadow-sm'
-                              : cleanSlot === 'VIP'
+                              : cleanService === 'VIP' || (customer.slot && String(customer.slot).toUpperCase().includes('VIP'))
                               ? 'bg-accent-yellow/15 text-accent-yellow border border-accent-yellow/35'
                               : isDuplicateSlot
                               ? 'bg-accent-red/20 text-accent-red border border-accent-red/40 animate-pulse'
                               : 'bg-accent-cyan/15 text-accent-cyan border border-accent-cyan/35'
                           }`}>
-                            {cleanSlot === 'VVIP' ? '💎 VVIP' : (cleanSlot === 'VIP' ? '👑 VIP' : `SLOT ${cleanSlot}`)}
+                            {formatSlotLabel ? formatSlotLabel(customer.slot, customer.service) : `SLOT ${customer.slot}`}
                           </span>
-                          {!isVVIP && !isVIP && (
-                            <span className="text-[9px] font-bold uppercase text-text-dim">
-                              {cleanService}
-                            </span>
-                          )}
                         </div>
                       </td>
 

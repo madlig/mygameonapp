@@ -39,6 +39,8 @@ const AddJokiModal = ({ isOpen, onClose }) => {
     services,
     configuredSlots,
     getServiceDetails,
+    formatSlotLabel,
+    matchCustomerToSlot,
     priceBasic,
     addJokiCustomer, 
     addJokiQueue, 
@@ -116,7 +118,7 @@ const AddJokiModal = ({ isOpen, onClose }) => {
     addToast(`Data pelanggan ${item.username} otomatis terisi!`, 'info');
   };
 
-  // Map occupied slots from active customers
+  // Map occupied slots from active customers using configuredSlots definitions
   const occupiedSlots = {};
   customers.forEach(c => {
     if (!c.finished && c.slot) {
@@ -124,11 +126,15 @@ const AddJokiModal = ({ isOpen, onClose }) => {
         ? (c.remainingAtPause || 0)
         : Math.max(0, Math.floor((c.endTime - Date.now()) / 1000));
       
-      occupiedSlots[c.slot.toString()] = {
-        username: c.username || c.name,
-        remaining,
-        paused: c.paused,
-      };
+      configuredSlots.forEach(sDef => {
+        if (matchCustomerToSlot(c, sDef)) {
+          occupiedSlots[sDef.key] = {
+            username: c.username || c.name,
+            remaining,
+            paused: c.paused,
+          };
+        }
+      });
     }
   });
 
@@ -452,41 +458,42 @@ const AddJokiModal = ({ isOpen, onClose }) => {
                   )}
                 </div>
                 <span className="text-[11px] text-text-dim">
-                  Slot Terpilih: <strong className="text-accent-purple-light font-mono text-xs">SLOT {slot}</strong>
+                  Slot Terpilih: <strong className="text-accent-purple-light font-mono text-xs">{formatSlotLabel ? formatSlotLabel(slot, currentServiceDetails.name) : `SLOT ${slot}`}</strong>
                 </span>
               </div>
 
-              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
-                {configuredSlots.map((s) => {
-                  const sStr = s.toString();
-                  const occupied = occupiedSlots[sStr];
-                  const isSelected = slot.toString() === sStr;
-                  const isDesignated = designatedSlots.includes(s);
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                {configuredSlots.map((sDef) => {
+                  const occupied = occupiedSlots[sDef.key];
+                  const isSelected = slot === sDef.key;
+                  const isSameTier = sDef.tier === currentServiceDetails.tier;
+                  const isVvip = sDef.tier === 'VVIP';
+                  const isVip = sDef.tier === 'VIP';
 
                   return (
                     <button
-                      key={s}
+                      key={sDef.key}
                       type="button"
-                      onClick={() => setSlot(s)}
+                      onClick={() => setSlot(sDef.key)}
                       className={`p-2 rounded-xl border text-left transition-all cursor-pointer relative flex flex-col justify-between min-h-[60px] ${
                         isSelected
-                          ? 'bg-accent-purple/25 border-accent-purple ring-2 ring-accent-purple/60'
-                          : isDesignated
-                          ? isVVIP 
+                          ? 'bg-accent-purple/25 border-accent-purple ring-2 ring-accent-purple/60 shadow-md shadow-accent-purple/20'
+                          : isSameTier
+                          ? isVvip 
                             ? 'bg-rose-950/20 border-rose-500/40 hover:border-rose-500/70'
-                            : isVIP
+                            : isVip
                             ? 'bg-amber-950/20 border-amber-500/40 hover:border-amber-500/70'
                             : 'bg-bg-primary border-cyan-500/30 hover:border-cyan-500/60'
                           : occupied
-                          ? 'bg-bg-primary border-accent-red/25'
+                          ? 'bg-bg-primary border-accent-red/25 opacity-80'
                           : 'bg-bg-primary border-border-default hover:border-border-muted'
                       }`}
                     >
                       <div className="flex items-center justify-between w-full">
-                        <span className={`font-mono text-xs font-black ${
+                        <span className={`font-mono text-xs font-black truncate ${
                           isSelected ? 'text-accent-purple-light' : occupied ? 'text-text-primary' : 'text-text-secondary'
                         }`}>
-                          SLOT {s}
+                          {sDef.displayLabel}
                         </span>
                         {occupied ? (
                           <span className="w-1.5 h-1.5 rounded-full bg-accent-red shrink-0" />

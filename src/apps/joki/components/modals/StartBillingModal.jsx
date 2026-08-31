@@ -23,18 +23,19 @@ const StartBillingModal = ({ queueItem, onClose }) => {
     customers, 
     configuredSlots,
     getServiceDetails,
+    formatSlotLabel,
+    matchCustomerToSlot,
     suggestSlot, 
     startBillingFromQueue, 
     addToast 
   } = useJoki();
 
-  const [slot, setSlot] = useState(1);
+  const [slot, setSlot] = useState('1');
   const [loading, setLoading] = useState(false);
 
   const currentServiceDetails = getServiceDetails(queueItem?.service);
   const isVVIP = currentServiceDetails.tier === 'VVIP';
   const isVIP = currentServiceDetails.tier === 'VIP';
-  const designatedSlots = currentServiceDetails.slots || [];
 
   useEffect(() => {
     if (queueItem) {
@@ -44,7 +45,7 @@ const StartBillingModal = ({ queueItem, onClose }) => {
 
   if (!queueItem) return null;
 
-  // Map active customers by slot
+  // Map active customers by slotDef key
   const occupiedSlots = {};
   customers.forEach(c => {
     if (!c.finished && c.slot) {
@@ -52,11 +53,15 @@ const StartBillingModal = ({ queueItem, onClose }) => {
         ? (c.remainingAtPause || 0)
         : Math.max(0, Math.floor((c.endTime - Date.now()) / 1000));
       
-      occupiedSlots[c.slot.toString()] = {
-        username: c.username || c.name,
-        remaining,
-        paused: c.paused,
-      };
+      configuredSlots.forEach(sDef => {
+        if (matchCustomerToSlot(c, sDef)) {
+          occupiedSlots[sDef.key] = {
+            username: c.username || c.name,
+            remaining,
+            paused: c.paused,
+          };
+        }
+      });
     }
   });
 
@@ -65,7 +70,8 @@ const StartBillingModal = ({ queueItem, onClose }) => {
     try {
       setLoading(true);
       await startBillingFromQueue(queueItem, slot);
-      addToast(`Customer ${queueItem.username} berhasil dimasukkan ke Slot ${slot}!`, 'success');
+      const slotName = formatSlotLabel ? formatSlotLabel(slot, queueItem.service) : `Slot ${slot}`;
+      addToast(`Customer ${queueItem.username} berhasil dimasukkan ke ${slotName}!`, 'success');
       onClose();
     } catch (err) {
       console.error('Start billing error:', err);
@@ -135,36 +141,32 @@ const StartBillingModal = ({ queueItem, onClose }) => {
             <div className="flex items-center justify-between mb-2">
               <div>
                 <label className="text-xs font-bold text-text-tertiary uppercase tracking-wider block">
-                  Pilih Slot Live AFK
+                  Pilih Slot Live Billing
                 </label>
-                {designatedSlots.length > 0 && (
-                  <span className="text-[10px] text-cyan-300 font-bold block">
-                    Alokasi {currentServiceDetails.name}: Slot {designatedSlots.join(', ')}
-                  </span>
-                )}
               </div>
               <span className="text-[11px] text-text-dim">
-                Slot Terpilih: <strong className="text-accent-green font-mono text-xs">SLOT {slot}</strong>
+                Slot Terpilih: <strong className="text-accent-green font-mono text-xs">{formatSlotLabel ? formatSlotLabel(slot, queueItem.service) : `SLOT ${slot}`}</strong>
               </span>
             </div>
 
             {/* Visual Grid */}
-            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2 mb-3">
-              {configuredSlots.map((s) => {
-                const sStr = s.toString();
-                const occupied = occupiedSlots[sStr];
-                const isSelected = slot.toString() === sStr;
-                const isDesignated = designatedSlots.includes(s);
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-3">
+              {configuredSlots.map((sDef) => {
+                const occupied = occupiedSlots[sDef.key];
+                const isSelected = slot === sDef.key;
+                const isSameTier = sDef.tier === currentServiceDetails.tier;
+                const isVvip = sDef.tier === 'VVIP';
+                const isVip = sDef.tier === 'VIP';
 
                 if (occupied) {
                   return (
                     <div
-                      key={s}
+                      key={sDef.key}
                       className="p-2 rounded-xl border border-accent-red/20 bg-accent-red/5 flex flex-col justify-between min-h-[58px] opacity-75 cursor-not-allowed"
                     >
                       <div className="flex justify-between items-center text-[11px] font-extrabold text-accent-red">
-                        <span>SLOT {s}</span>
-                        <span className="w-1.5 h-1.5 rounded-full bg-accent-red" />
+                        <span className="truncate">{sDef.displayLabel}</span>
+                        <span className="w-1.5 h-1.5 rounded-full bg-accent-red shrink-0" />
                       </div>
                       <div>
                         <div className="text-[10px] text-white font-bold truncate">{occupied.username}</div>
@@ -178,24 +180,24 @@ const StartBillingModal = ({ queueItem, onClose }) => {
 
                 return (
                   <button
-                    key={s}
+                    key={sDef.key}
                     type="button"
-                    onClick={() => setSlot(s)}
+                    onClick={() => setSlot(sDef.key)}
                     className={`p-2 rounded-xl border text-left flex flex-col justify-between min-h-[58px] transition-all cursor-pointer ${
                       isSelected
                         ? 'border-accent-green bg-accent-green/20 ring-2 ring-accent-green/60 shadow-md shadow-accent-green/10'
-                        : isDesignated
-                        ? isVVIP
+                        : isSameTier
+                        ? isVvip
                           ? 'border-rose-500/40 bg-rose-950/20 hover:border-rose-400'
-                          : isVIP
+                          : isVip
                           ? 'border-amber-500/40 bg-amber-950/20 hover:border-amber-400'
                           : 'border-cyan-500/30 bg-bg-primary hover:border-cyan-400'
                         : 'border-border-default bg-bg-primary hover:border-accent-cyan/50 hover:bg-white/[0.02]'
                     }`}
                   >
                     <div className="flex justify-between items-center text-[11px] font-black">
-                      <span className={isSelected ? 'text-accent-green' : 'text-text-secondary'}>SLOT {s}</span>
-                      <span className={`w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-accent-green animate-ping' : 'bg-accent-green'}`} />
+                      <span className={`truncate ${isSelected ? 'text-accent-green' : 'text-text-secondary'}`}>{sDef.displayLabel}</span>
+                      <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${isSelected ? 'bg-accent-green animate-ping' : 'bg-accent-green'}`} />
                     </div>
                     <div className="text-[9px] text-emerald-400 font-bold">
                       {isSelected ? '✓ Terpilih' : '🟢 Kosong'}
@@ -221,7 +223,7 @@ const StartBillingModal = ({ queueItem, onClose }) => {
               className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl text-xs font-extrabold text-white bg-accent-green hover:bg-accent-green-dark active:scale-95 transition-all shadow-lg shadow-accent-green/20 disabled:opacity-50 cursor-pointer"
             >
               <Play size={14} />
-              <span>{loading ? 'Memproses...' : `✔ Mulai Billing Slot ${slot}`}</span>
+              <span>{loading ? 'Memproses...' : `✔ Mulai ${formatSlotLabel ? formatSlotLabel(slot, queueItem.service) : 'Slot ' + slot}`}</span>
             </button>
           </div>
         </form>

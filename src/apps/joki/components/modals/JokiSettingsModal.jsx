@@ -14,7 +14,8 @@ import {
   User,
   DollarSign,
   Layers,
-  Sparkles,
+  Plus,
+  Minus,
   ShieldCheck
 } from 'lucide-react';
 import { updateJokiSettings } from '../../services/jokiFirebase';
@@ -35,9 +36,9 @@ const JokiSettingsModal = ({ isOpen, onClose }) => {
 
   // Editable Services List State
   const [editableServices, setEditableServices] = useState([
-    { id: 'basic', name: 'Basic', tier: 'Basic', price: 4000, slots: [1, 2, 3, 4], enabled: true },
-    { id: 'vip', name: 'VIP Priority', tier: 'VIP', price: 6000, slots: [5], enabled: true },
-    { id: 'vvip', name: 'VVIP Super', tier: 'VVIP', price: 10000, slots: [6], enabled: true }
+    { id: 'basic', name: 'Basic', tier: 'Basic', price: 4000, slotCount: 4, enabled: true },
+    { id: 'vip', name: 'VIP', tier: 'VIP', price: 6000, slotCount: 2, enabled: true },
+    { id: 'vvip', name: 'VVIP', tier: 'VVIP', price: 10000, slotCount: 1, enabled: true }
   ]);
   const [loadingPricing, setLoadingPricing] = useState(false);
   
@@ -96,46 +97,41 @@ const JokiSettingsModal = ({ isOpen, onClose }) => {
     }));
   };
 
-  const toggleSlotForService = (serviceId, slotNum) => {
+  const handleSlotCountChange = (serviceId, delta) => {
     setEditableServices(prev => prev.map(s => {
-      const currentSlots = s.slots || [];
       if (s.id === serviceId) {
-        if (currentSlots.includes(slotNum)) {
-          return { ...s, slots: currentSlots.filter(x => x !== slotNum) };
-        } else {
-          return { ...s, slots: [...currentSlots, slotNum].sort((a, b) => a - b) };
-        }
-      } else {
-        // Remove from other service so each slot belongs to one service cleanly
-        return { ...s, slots: currentSlots.filter(x => x !== slotNum) };
+        const current = Number(s.slotCount) || 1;
+        const next = Math.max(1, Math.min(12, current + delta));
+        return { ...s, slotCount: next };
       }
+      return s;
     }));
   };
 
   const applySlotPreset = (presetType) => {
-    if (presetType === '6_DEFAULT') {
+    if (presetType === '4_2_1') {
       setEditableServices(prev => [
-        { ...prev[0], slots: [1, 2, 3, 4], enabled: true },
-        { ...prev[1], slots: [5], enabled: true },
-        { ...prev[2], slots: [6], enabled: true }
+        { ...prev[0], slotCount: 4, enabled: true },
+        { ...prev[1], slotCount: 2, enabled: true },
+        { ...prev[2], slotCount: 1, enabled: true }
       ]);
-    } else if (presetType === '6_SPLIT') {
+    } else if (presetType === '4_1_1') {
       setEditableServices(prev => [
-        { ...prev[0], slots: [1, 2, 3], enabled: true },
-        { ...prev[1], slots: [4, 5], enabled: true },
-        { ...prev[2], slots: [6], enabled: true }
+        { ...prev[0], slotCount: 4, enabled: true },
+        { ...prev[1], slotCount: 1, enabled: true },
+        { ...prev[2], slotCount: 1, enabled: true }
       ]);
-    } else if (presetType === '4_SLOT') {
+    } else if (presetType === '3_2_1') {
       setEditableServices(prev => [
-        { ...prev[0], slots: [1, 2], enabled: true },
-        { ...prev[1], slots: [3], enabled: true },
-        { ...prev[2], slots: [4], enabled: true }
+        { ...prev[0], slotCount: 3, enabled: true },
+        { ...prev[1], slotCount: 2, enabled: true },
+        { ...prev[2], slotCount: 1, enabled: true }
       ]);
-    } else if (presetType === '8_MEGA') {
+    } else if (presetType === '6_2_2') {
       setEditableServices(prev => [
-        { ...prev[0], slots: [1, 2, 3, 4, 5], enabled: true },
-        { ...prev[1], slots: [6, 7], enabled: true },
-        { ...prev[2], slots: [8], enabled: true }
+        { ...prev[0], slotCount: 6, enabled: true },
+        { ...prev[1], slotCount: 2, enabled: true },
+        { ...prev[2], slotCount: 2, enabled: true }
       ]);
     }
     addToast('Preset slot berhasil diterapkan!', 'info');
@@ -226,9 +222,9 @@ const JokiSettingsModal = ({ isOpen, onClose }) => {
   ];
 
   // Calculate total configured slots across enabled services
-  const allActiveSlots = Array.from(new Set(
-    editableServices.filter(s => s.enabled).flatMap(s => s.slots || [])
-  )).sort((a, b) => a - b);
+  const totalSlotsCount = editableServices
+    .filter(s => s.enabled)
+    .reduce((sum, s) => sum + (Number(s.slotCount) || 1), 0);
 
   return (
     <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-[fadeIn_0.15s_ease]">
@@ -382,16 +378,16 @@ const JokiSettingsModal = ({ isOpen, onClose }) => {
                   <span>Preset Alokasi Slot 1-Klik:</span>
                 </span>
                 <span className="text-[11px] font-mono font-black text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-lg border border-emerald-500/20">
-                  Total {allActiveSlots.length} Slot Buka
+                  Total {totalSlotsCount} Slot Terbuka
                 </span>
               </div>
 
               <div className="grid grid-cols-4 gap-1.5">
                 {[
-                  { id: '6_DEFAULT', label: '6 Slot (4 Basic + 1 VIP + 1 VVIP)' },
-                  { id: '6_SPLIT', label: '6 Slot (3 Basic + 2 VIP + 1 VVIP)' },
-                  { id: '4_SLOT', label: '4 Slot (2 Basic + 1 VIP + 1 VVIP)' },
-                  { id: '8_MEGA', label: '8 Slot (5 Basic + 2 VIP + 1 VVIP)' }
+                  { id: '4_2_1', label: '4 Basic + 2 VIP + 1 VVIP (7 Slot)' },
+                  { id: '4_1_1', label: '4 Basic + 1 VIP + 1 VVIP (6 Slot)' },
+                  { id: '3_2_1', label: '3 Basic + 2 VIP + 1 VVIP (6 Slot)' },
+                  { id: '6_2_2', label: '6 Basic + 2 VIP + 2 VVIP (10 Slot)' }
                 ].map(p => (
                   <button
                     key={p.id}
@@ -411,12 +407,23 @@ const JokiSettingsModal = ({ isOpen, onClose }) => {
                 const isBasic = srv.tier === 'Basic';
                 const isVip = srv.tier === 'VIP';
                 const isVvip = srv.tier === 'VVIP';
+                const sName = srv.name || srv.tier;
+                const slotCount = Number(srv.slotCount) || 1;
 
                 const badgeTheme = isVvip 
                   ? 'border-rose-500/40 bg-rose-500/10 text-rose-300'
                   : isVip
                   ? 'border-amber-500/40 bg-amber-500/10 text-amber-300'
                   : 'border-cyan-500/40 bg-cyan-500/10 text-cyan-300';
+
+                // Generate slot name preview for this tier
+                const previewSlots = [];
+                for (let i = 1; i <= slotCount; i++) {
+                  if (isBasic) previewSlots.push(`SLOT ${i} ${sName}`);
+                  else if (isVip) previewSlots.push(`SLOT VIP ${i}`);
+                  else if (isVvip) previewSlots.push(`SLOT VVIP ${i}`);
+                  else previewSlots.push(`SLOT ${i} ${sName}`);
+                }
 
                 return (
                   <div 
@@ -490,39 +497,52 @@ const JokiSettingsModal = ({ isOpen, onClose }) => {
                           </div>
                         </div>
 
-                        {/* Right: Slot Allocation Pills (7 cols) */}
+                        {/* Right: Slot Count Stepper (7 cols) */}
                         <div className="md:col-span-7">
-                          <div className="flex items-center justify-between mb-1">
-                            <label className="text-[10px] font-bold text-text-dim uppercase block">
-                              Alokasi Slot Billing (Klik untuk pilih)
-                            </label>
-                            <span className="text-[10px] font-mono text-cyan-300 font-bold">
-                              {(srv.slots || []).length} Slot
-                            </span>
+                          <label className="text-[10px] font-bold text-text-dim uppercase block mb-1">
+                            Jumlah Slot Billing Dibuka
+                          </label>
+
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleSlotCountChange(srv.id, -1)}
+                              disabled={slotCount <= 1}
+                              className="w-8 h-8 rounded-xl bg-black/40 hover:bg-white/10 border border-white/10 flex items-center justify-center text-white disabled:opacity-30 cursor-pointer"
+                            >
+                              <Minus size={12} />
+                            </button>
+
+                            <div className="flex-1 bg-[#151821] border border-border-default rounded-xl py-1.5 px-3 text-center text-xs font-mono font-black text-cyan-300">
+                              {slotCount} Slot ({srv.tier})
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() => handleSlotCountChange(srv.id, 1)}
+                              disabled={slotCount >= 12}
+                              className="w-8 h-8 rounded-xl bg-black/40 hover:bg-white/10 border border-white/10 flex items-center justify-center text-white disabled:opacity-30 cursor-pointer"
+                            >
+                              <Plus size={12} />
+                            </button>
                           </div>
 
-                          <div className="flex flex-wrap gap-1">
-                            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(slotNum => {
-                              const isSelected = (srv.slots || []).includes(slotNum);
-                              return (
-                                <button
-                                  key={slotNum}
-                                  type="button"
-                                  onClick={() => toggleSlotForService(srv.id, slotNum)}
-                                  className={`w-7 h-7 rounded-lg text-xs font-mono font-black transition-all cursor-pointer border ${
-                                    isSelected
-                                      ? isVvip
-                                        ? 'bg-rose-600 text-white border-rose-400 shadow-sm shadow-rose-600/30'
-                                        : isVip
-                                        ? 'bg-amber-400 text-black border-amber-300 shadow-sm shadow-amber-400/30'
-                                        : 'bg-cyan-500 text-black border-cyan-300 shadow-sm shadow-cyan-500/30'
-                                      : 'bg-black/40 text-slate-500 border-white/10 hover:text-white'
-                                  }`}
-                                >
-                                  {slotNum}
-                                </button>
-                              );
-                            })}
+                          {/* Slot Naming Preview */}
+                          <div className="mt-1.5 flex flex-wrap gap-1">
+                            {previewSlots.map((label, idx) => (
+                              <span 
+                                key={idx}
+                                className={`text-[9.5px] font-mono font-black px-1.5 py-0.5 rounded-md border ${
+                                  isVvip 
+                                    ? 'bg-rose-500/20 text-rose-200 border-rose-500/40' 
+                                    : isVip 
+                                    ? 'bg-amber-500/20 text-amber-200 border-amber-500/40' 
+                                    : 'bg-cyan-500/20 text-cyan-200 border-cyan-500/40'
+                                }`}
+                              >
+                                {label}
+                              </span>
+                            ))}
                           </div>
                         </div>
                       </div>

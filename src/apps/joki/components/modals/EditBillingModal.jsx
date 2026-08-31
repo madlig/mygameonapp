@@ -44,6 +44,8 @@ const EditBillingModal = ({ customer, onClose }) => {
     services,
     configuredSlots,
     getServiceDetails,
+    formatSlotLabel,
+    matchCustomerToSlot,
     updateJokiCustomer, 
     moveCustomerToQueue, 
     priceBasic, 
@@ -58,7 +60,7 @@ const EditBillingModal = ({ customer, onClose }) => {
   const [copiedField, setCopiedField] = useState(null);
 
   const [service, setService] = useState('Basic');
-  const [slot, setSlot] = useState(1);
+  const [slot, setSlot] = useState('1');
   const [price, setPrice] = useState(4000);
   const [loading, setLoading] = useState(false);
   const [showMoveConfirm, setShowMoveConfirm] = useState(false);
@@ -86,9 +88,6 @@ const EditBillingModal = ({ customer, onClose }) => {
   if (!customer) return null;
 
   const currentServiceDetails = getServiceDetails(service);
-  const isVVIP = currentServiceDetails.tier === 'VVIP';
-  const isVIP = currentServiceDetails.tier === 'VIP';
-  const designatedSlots = currentServiceDetails.slots || [];
   const ratePerHour = Number(currentServiceDetails.price) || priceBasic;
 
   // Initial duration in hours
@@ -167,11 +166,15 @@ const EditBillingModal = ({ customer, onClose }) => {
         ? (c.remainingAtPause || 0)
         : Math.max(0, Math.floor((c.endTime - Date.now()) / 1000));
       
-      occupiedSlots[c.slot.toString()] = {
-        username: c.username || c.name,
-        remaining,
-        paused: c.paused,
-      };
+      configuredSlots.forEach(sDef => {
+        if (matchCustomerToSlot(c, sDef)) {
+          occupiedSlots[sDef.key] = {
+            username: c.username || c.name,
+            remaining,
+            paused: c.paused,
+          };
+        }
+      });
     }
   });
 
@@ -189,7 +192,7 @@ const EditBillingModal = ({ customer, onClose }) => {
 
     try {
       setLoading(true);
-      const chosenSlot = isVVIP ? 'VVIP' : (isVIP ? 'VIP' : slot);
+      const chosenSlot = slot || '1';
 
       const updates = {
         username: username.trim(),
@@ -516,60 +519,56 @@ const EditBillingModal = ({ customer, onClose }) => {
                 <label className="text-[10.5px] font-extrabold text-text-dim uppercase tracking-wider block">
                   Pindah Slot AFK Billing
                 </label>
-                {designatedSlots.length > 0 && (
-                  <span className="text-[10px] text-cyan-300 font-bold block">
-                    Alokasi {currentServiceDetails.name}: Slot {designatedSlots.join(', ')}
-                  </span>
-                )}
               </div>
               <span className="text-[10.5px] text-text-dim">
-                Slot Terpilih: <strong className="text-accent-cyan font-mono">SLOT {slot}</strong>
+                Slot Terpilih: <strong className="text-accent-cyan font-mono">{formatSlotLabel ? formatSlotLabel(slot, currentServiceDetails.name) : `SLOT ${slot}`}</strong>
               </span>
             </div>
 
-            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
-              {configuredSlots.map((s) => {
-                const sStr = s.toString();
-                const occupied = occupiedSlots[sStr];
-                const isSelected = slot.toString() === sStr;
-                const isCurrentSlot = customer.slot && customer.slot.toString() === sStr;
-                const isDesignated = designatedSlots.includes(s);
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+              {configuredSlots.map((sDef) => {
+                const occupied = occupiedSlots[sDef.key];
+                const isSelected = slot === sDef.key;
+                const isCurrentSlot = matchCustomerToSlot(customer, sDef);
+                const isSameTier = sDef.tier === currentServiceDetails.tier;
+                const isVvip = sDef.tier === 'VVIP';
+                const isVip = sDef.tier === 'VIP';
 
                 return (
                   <button
-                    key={s}
+                    key={sDef.key}
                     type="button"
-                    onClick={() => setSlot(s)}
+                    onClick={() => setSlot(sDef.key)}
                     className={`p-2 rounded-xl border text-left transition-all cursor-pointer relative flex flex-col justify-between min-h-[58px] ${
                       isSelected
-                        ? 'bg-accent-cyan/20 border-accent-cyan ring-2 ring-accent-cyan/60'
+                        ? 'bg-accent-cyan/20 border-accent-cyan ring-2 ring-accent-cyan/60 shadow-md shadow-accent-cyan/20'
                         : isCurrentSlot
                         ? 'bg-accent-purple/20 border-accent-purple/50'
-                        : isDesignated
-                        ? isVVIP
+                        : isSameTier
+                        ? isVvip
                           ? 'bg-rose-950/20 border-rose-500/40 hover:border-rose-400'
-                          : isVIP
+                          : isVip
                           ? 'bg-amber-950/20 border-amber-500/40 hover:border-amber-400'
                           : 'bg-bg-primary border-cyan-500/30 hover:border-cyan-400'
                         : occupied
-                        ? 'bg-bg-primary border-accent-red/25'
+                        ? 'bg-bg-primary border-accent-red/25 opacity-80'
                         : 'bg-bg-primary border-border-default hover:border-border-muted'
                     }`}
                   >
                     <div className="flex items-center justify-between">
-                      <span className={`font-mono text-xs font-black ${
+                      <span className={`font-mono text-xs font-black truncate ${
                         isSelected ? 'text-accent-cyan' : isCurrentSlot ? 'text-accent-purple-light' : occupied ? 'text-text-primary' : 'text-text-secondary'
                       }`}>
-                        SLOT {s}
+                        {sDef.displayLabel}
                       </span>
                       {isCurrentSlot ? (
-                        <span className="text-[8.5px] font-black px-1 py-0.2 rounded bg-accent-purple/30 text-accent-purple-light">
+                        <span className="text-[8.5px] font-black px-1 py-0.2 rounded bg-accent-purple/30 text-accent-purple-light shrink-0">
                           Aktif
                         </span>
                       ) : occupied ? (
-                        <span className="w-1.5 h-1.5 rounded-full bg-accent-red" />
+                        <span className="w-1.5 h-1.5 rounded-full bg-accent-red shrink-0" />
                       ) : (
-                        <span className="w-1.5 h-1.5 rounded-full bg-accent-green" />
+                        <span className="w-1.5 h-1.5 rounded-full bg-accent-green shrink-0" />
                       )}
                     </div>
                     {occupied && !isCurrentSlot ? (
@@ -582,7 +581,7 @@ const EditBillingModal = ({ customer, onClose }) => {
                       </div>
                     ) : (
                       <div className="text-[9px] font-bold text-accent-purple-light mt-0.5">
-                        Slot Customer
+                        Slot Customer Ini
                       </div>
                     )}
                   </button>

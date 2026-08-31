@@ -151,123 +151,142 @@ export const updateJokiSettings = async (workspaceId = DEFAULT_WORKSPACE_ID, dat
   await setDoc(docRef, data, { merge: true });
 };
 
-// ── Semi-Automatic Time-Based Live Status Engine ──
+// ── Dual Mode (Schedule / Manual) Live Status Engine ──
 export const computeLiveStatus = (settings, activeCustomers = []) => {
-  // If there are customers currently running in live slots (not paused)
+  // Check if any active customer is currently running (unpaused)
   const hasRunningSlots = activeCustomers && activeCustomers.some(c => !c.finished && !c.paused);
 
   if (!settings) {
     if (hasRunningSlots) {
       return {
         status: 'LIVE',
+        mode: 'auto',
         label: 'Live Stream',
         subtext: 'Sedang live streaming sekarang! Pantau slot dan tiket kamu di sini.'
       };
     }
     return {
-      status: 'LIVE',
-      label: 'Live Stream',
-      subtext: 'Sedang live streaming sekarang! Pantau slot dan tiket kamu di sini.'
-    };
-  }
-
-  const { liveStartTime, liveEndTime, manualOverride, streamStatus, nextStreamSchedule } = settings;
-
-  // 1. Explicit Stream Status Override (LIVE, BREAK, OFFLINE)
-  if (streamStatus === 'LIVE') {
-    return {
-      status: 'LIVE',
-      label: 'Live Stream',
-      subtext: nextStreamSchedule ? nextStreamSchedule : 'Sedang live streaming sekarang! Pantau slot dan tiket kamu di sini.'
-    };
-  }
-
-  if (streamStatus === 'BREAK') {
-    return {
-      status: 'BREAK',
-      label: 'Break / Istirahat',
-      subtext: nextStreamSchedule ? nextStreamSchedule : 'Streamer lagi istirahat/makan sebentar. Joki segera dilanjutkan!'
-    };
-  }
-
-  if (manualOverride && streamStatus === 'OFFLINE') {
-    return {
       status: 'OFFLINE',
+      mode: 'auto',
       label: 'Off Stream',
-      subtext: nextStreamSchedule 
-        ? `Jadwal live berikutnya: ${nextStreamSchedule}`
-        : 'Akun aman di antrean dan akan dimainkan pada sesi live berikutnya.'
+      subtext: 'Streamer sedang off stream. Akun aman di antrean.'
     };
   }
 
-  // 2. If active slots are currently running, streamer is unequivocally LIVE!
-  if (hasRunningSlots) {
-    return {
-      status: 'LIVE',
-      label: 'Live Stream',
-      subtext: nextStreamSchedule ? nextStreamSchedule : 'Sedang live streaming sekarang! Pantau slot dan tiket kamu di sini.'
-    };
-  }
+  const {
+    statusMode = settings.manualOverride ? 'manual' : 'auto', // 'auto' | 'manual'
+    manualStatus = settings.streamStatus || 'OFFLINE', // 'LIVE' | 'BREAK' | 'OFFLINE'
+    liveStartTime = '09:00',
+    liveEndTime = '15:00',
+    nextStreamSchedule = ''
+  } = settings;
 
-  // 3. Time-based automated schedule (if enabled without manual override)
-  if (liveStartTime && liveEndTime && !manualOverride) {
-    const now = new Date();
-    const currentMinutes = now.getHours() * 60 + now.getMinutes();
+  const note = nextStreamSchedule?.trim() || '';
 
-    const [startH, startM] = liveStartTime.split(':').map(Number);
-    const [endH, endM] = liveEndTime.split(':').map(Number);
-
-    const startMinutes = (startH || 0) * 60 + (startM || 0);
-    const endMinutes = (endH || 0) * 60 + (endM || 0);
-
-    let isLiveNow = false;
-    if (startMinutes <= endMinutes) {
-      isLiveNow = currentMinutes >= startMinutes && currentMinutes < endMinutes;
-    } else {
-      // Cross midnight (e.g. 21:00 to 03:00)
-      isLiveNow = currentMinutes >= startMinutes || currentMinutes < endMinutes;
-    }
-
-    if (isLiveNow) {
+  // ── 1. MODE MANUAL: 100% Mengikuti Pilihan Streamer ──
+  if (statusMode === 'manual') {
+    if (manualStatus === 'LIVE') {
       return {
         status: 'LIVE',
+        mode: 'manual',
         label: 'Live Stream',
         liveStartTime,
         liveEndTime,
-        subtext: nextStreamSchedule ? nextStreamSchedule : `Streamer sedang live sampai pukul ${liveEndTime} WIB.`
-      };
-    } else if (currentMinutes < startMinutes) {
-      return {
-        status: 'OFFLINE',
-        label: 'Off Stream',
-        liveStartTime,
-        liveEndTime,
-        subtext: nextStreamSchedule ? nextStreamSchedule : `Jadwal live hari ini: pukul ${liveStartTime} - ${liveEndTime} WIB.`
-      };
-    } else {
-      return {
-        status: 'OFFLINE',
-        label: 'Off Stream',
-        liveStartTime,
-        liveEndTime,
-        subtext: nextStreamSchedule ? nextStreamSchedule : `Sesi live hari ini telah selesai (berakhir pukul ${liveEndTime} WIB). Live lagi besok pukul ${liveStartTime} WIB.`
+        subtext: note || 'Sedang live streaming sekarang! Pantau slot dan tiket kamu di sini.'
       };
     }
-  }
-
-  // 4. Default fallback: If streamStatus is set to OFFLINE explicitly
-  if (streamStatus === 'OFFLINE') {
+    if (manualStatus === 'BREAK') {
+      return {
+        status: 'BREAK',
+        mode: 'manual',
+        label: 'Break / Istirahat',
+        liveStartTime,
+        liveEndTime,
+        subtext: note || 'Streamer lagi istirahat sebentar. Joki segera dilanjutkan!'
+      };
+    }
+    // Default manual status: OFFLINE
     return {
       status: 'OFFLINE',
+      mode: 'manual',
       label: 'Off Stream',
-      subtext: nextStreamSchedule ? nextStreamSchedule : 'Akun aman di antrean dan akan dimainkan pada live berikutnya.'
+      liveStartTime,
+      liveEndTime,
+      subtext: note 
+        ? `Jadwal live berikutnya: ${note}`
+        : 'Streamer sedang off stream. Akun aman di antrean dan akan dimainkan pada sesi live berikutnya.'
     };
   }
 
-  // Default to LIVE
-  return {
-    status: 'LIVE',
-    label: 'Live Stream',
-    subtext: nextStreamSchedule ? nextStreamSchedule : 'Sedang live streaming sekarang! Pantau slot dan tiket kamu di sini.'
-  };
+  // ── 2. MODE OTOMATIS: Berdasarkan Jam Rutin Live & Slot Aktif ──
+  // Jika ada slot yang aktif berjalan live (tidak dijeda), otomatis status LIVE
+  if (hasRunningSlots) {
+    return {
+      status: 'LIVE',
+      mode: 'auto',
+      label: 'Live Stream',
+      liveStartTime,
+      liveEndTime,
+      subtext: note || 'Sedang live streaming sekarang! Pantau slot dan tiket kamu di sini.'
+    };
+  }
+
+  // Evaluasi waktu berdasarkan Jam WIB (Asia/Jakarta)
+  try {
+    const now = new Date();
+    const wibFormatter = new Intl.DateTimeFormat('en-GB', {
+      timeZone: 'Asia/Jakarta',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    });
+    const [currH, currM] = wibFormatter.format(now).split(':').map(Number);
+    const currentMinutes = (currH || 0) * 60 + (currM || 0);
+
+    const [startH, startM] = (liveStartTime || '09:00').split(':').map(Number);
+    const [endH, endM] = (liveEndTime || '15:00').split(':').map(Number);
+    const startMinutes = (startH || 0) * 60 + (startM || 0);
+    const endMinutes = (endH || 0) * 60 + (endM || 0);
+
+    let isWithinLiveHours = false;
+    if (startMinutes <= endMinutes) {
+      // Jadwal siang/normal (misal 10:00 - 16:30)
+      isWithinLiveHours = currentMinutes >= startMinutes && currentMinutes < endMinutes;
+    } else {
+      // Jadwal lintas malam (misal 21:00 - 03:00)
+      isWithinLiveHours = currentMinutes >= startMinutes || currentMinutes < endMinutes;
+    }
+
+    if (isWithinLiveHours) {
+      return {
+        status: 'LIVE',
+        mode: 'auto',
+        label: 'Live Stream',
+        liveStartTime,
+        liveEndTime,
+        subtext: note || `Streamer sedang live sampai pukul ${liveEndTime} WIB.`
+      };
+    }
+
+    return {
+      status: 'OFFLINE',
+      mode: 'auto',
+      label: 'Off Stream',
+      liveStartTime,
+      liveEndTime,
+      subtext: note 
+        ? `Jadwal live berikutnya: ${note}`
+        : `Sesi live hari ini telah selesai (jadwal: ${liveStartTime} - ${liveEndTime} WIB). Live lagi besok pukul ${liveStartTime} WIB.`
+    };
+  } catch (err) {
+    console.error('Error computing WIB live status:', err);
+    return {
+      status: 'OFFLINE',
+      mode: 'auto',
+      label: 'Off Stream',
+      liveStartTime,
+      liveEndTime,
+      subtext: note || 'Streamer sedang off stream.'
+    };
+  }
 };

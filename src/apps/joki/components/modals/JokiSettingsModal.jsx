@@ -16,7 +16,10 @@ import {
   Layers,
   Plus,
   Minus,
-  ShieldCheck
+  ShieldCheck,
+  Radio,
+  Coffee,
+  Moon
 } from 'lucide-react';
 import { updateJokiSettings } from '../../services/jokiFirebase';
 
@@ -28,10 +31,10 @@ const JokiSettingsModal = ({ isOpen, onClose }) => {
 
   // Schedule & Stream States
   const [streamerName, setStreamerName] = useState(activeWorkspace?.name || '');
-  const [liveStartTime, setLiveStartTime] = useState(globalSettings?.liveStartTime || '09:00');
-  const [liveEndTime, setLiveEndTime] = useState(globalSettings?.liveEndTime || '15:00');
-  const [manualOverride, setManualOverride] = useState(globalSettings?.manualOverride || false);
-  const [streamStatus, setStreamStatus] = useState(globalSettings?.streamStatus || 'OFFLINE');
+  const [statusMode, setStatusMode] = useState(globalSettings?.statusMode || (globalSettings?.manualOverride ? 'manual' : 'auto'));
+  const [manualStatus, setManualStatus] = useState(globalSettings?.manualStatus || globalSettings?.streamStatus || 'OFFLINE');
+  const [liveStartTime, setLiveStartTime] = useState(globalSettings?.liveStartTime || '10:00');
+  const [liveEndTime, setLiveEndTime] = useState(globalSettings?.liveEndTime || '16:30');
   const [nextStreamSchedule, setNextStreamSchedule] = useState(globalSettings?.nextStreamSchedule || '');
 
   // Editable Services List State
@@ -51,10 +54,10 @@ const JokiSettingsModal = ({ isOpen, onClose }) => {
 
   useEffect(() => {
     if (globalSettings) {
-      setLiveStartTime(globalSettings.liveStartTime || '09:00');
-      setLiveEndTime(globalSettings.liveEndTime || '15:00');
-      setManualOverride(globalSettings.manualOverride || false);
-      setStreamStatus(globalSettings.streamStatus || 'OFFLINE');
+      setStatusMode(globalSettings.statusMode || (globalSettings.manualOverride ? 'manual' : 'auto'));
+      setManualStatus(globalSettings.manualStatus || globalSettings.streamStatus || 'OFFLINE');
+      setLiveStartTime(globalSettings.liveStartTime || '10:00');
+      setLiveEndTime(globalSettings.liveEndTime || '16:30');
       setNextStreamSchedule(globalSettings.nextStreamSchedule || '');
     }
   }, [globalSettings]);
@@ -72,14 +75,16 @@ const JokiSettingsModal = ({ isOpen, onClose }) => {
     try {
       setLoadingStream(true);
       await updateJokiSettings(activeWorkspaceId, {
+        statusMode,
+        manualStatus,
+        manualOverride: statusMode === 'manual',
+        streamStatus: manualStatus,
         liveStartTime: liveStartTime.trim(),
         liveEndTime: liveEndTime.trim(),
-        manualOverride,
-        streamStatus,
         nextStreamSchedule: nextStreamSchedule.trim(),
         updatedAt: Date.now()
       });
-      addToast('Jadwal jam live & status siaran otomatis berhasil diperbarui!', 'success');
+      addToast('✓ Pengaturan status & jadwal siaran berhasil disimpan!', 'success');
     } catch (err) {
       console.error(err);
       addToast('Gagal mengupdate jadwal siaran.', 'error');
@@ -298,6 +303,111 @@ const JokiSettingsModal = ({ isOpen, onClose }) => {
         {/* 1. TAB SCHEDULE */}
         {activeTab === 'SCHEDULE' && (
           <form onSubmit={handleUpdateScheduleAndStatus} className="space-y-4 overflow-y-auto pr-1">
+            {/* Section 1: Mode Kontrol Status Siaran */}
+            <div className="p-4 rounded-2xl bg-bg-surface/80 border border-border-default space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-black text-white flex items-center gap-1.5">
+                  <Radio size={14} className="text-accent-purple" />
+                  <span>Mode Penentuan Status Live Stream</span>
+                </span>
+                <span className="text-[10.5px] font-bold text-accent-cyan bg-accent-cyan/10 px-2 py-0.5 rounded-full border border-accent-cyan/20">
+                  {statusMode === 'auto' ? '🤖 Otomatis (Ikuti Jam)' : '🎯 Pilihan Manual'}
+                </span>
+              </div>
+
+              {/* Mode Switcher Buttons */}
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setStatusMode('auto')}
+                  className={`p-3 rounded-2xl border text-left transition-all cursor-pointer ${
+                    statusMode === 'auto'
+                      ? 'bg-accent-purple/20 border-accent-purple text-white shadow-lg ring-1 ring-accent-purple/40'
+                      : 'bg-white/[0.02] border-white/10 hover:border-white/20 text-text-secondary'
+                  }`}
+                >
+                  <div className="flex items-center gap-1.5 font-black text-xs text-white mb-0.5">
+                    <Clock size={13} className="text-accent-cyan" />
+                    <span>1. Otomatis (Jam Rutin)</span>
+                  </div>
+                  <span className="text-[10.5px] text-text-dim block leading-tight">
+                    Status live otomatis ON saat masuk rentang jam rutin ({liveStartTime} - {liveEndTime} WIB).
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setStatusMode('manual')}
+                  className={`p-3 rounded-2xl border text-left transition-all cursor-pointer ${
+                    statusMode === 'manual'
+                      ? 'bg-accent-purple/20 border-accent-purple text-white shadow-lg ring-1 ring-accent-purple/40'
+                      : 'bg-white/[0.02] border-white/10 hover:border-white/20 text-text-secondary'
+                  }`}
+                >
+                  <div className="flex items-center gap-1.5 font-black text-xs text-white mb-0.5">
+                    <Radio size={13} className="text-accent-red" />
+                    <span>2. Pilihan Manual</span>
+                  </div>
+                  <span className="text-[10.5px] text-text-dim block leading-tight">
+                    Status live diatur langsung oleh Anda (Live, Break, atau Off Stream bebas kapan saja).
+                  </span>
+                </button>
+              </div>
+
+              {/* If Manual Mode Selected: Show 3 Status Cards */}
+              {statusMode === 'manual' && (
+                <div className="pt-2 border-t border-white/10 space-y-2 animate-[fadeIn_0.2s_ease]">
+                  <label className="text-[10.5px] text-text-dim uppercase font-bold block">
+                    Pilih Status Siaran Saat Ini:
+                  </label>
+                  <div className="grid grid-cols-3 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setManualStatus('LIVE')}
+                      className={`p-2.5 rounded-xl border text-center transition-all cursor-pointer ${
+                        manualStatus === 'LIVE'
+                          ? 'bg-rose-500/25 border-rose-500 text-white font-black shadow-lg shadow-rose-500/20 ring-1 ring-rose-500'
+                          : 'bg-black/30 border-white/10 text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      <span className="w-2 h-2 rounded-full bg-rose-500 inline-block mr-1.5 animate-ping" />
+                      <span className="text-xs font-black">SEDANG LIVE</span>
+                      <span className="text-[9.5px] block text-slate-300 mt-0.5">Siaran Aktif</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setManualStatus('BREAK')}
+                      className={`p-2.5 rounded-xl border text-center transition-all cursor-pointer ${
+                        manualStatus === 'BREAK'
+                          ? 'bg-amber-500/25 border-amber-500 text-white font-black shadow-lg shadow-amber-500/20 ring-1 ring-amber-500'
+                          : 'bg-black/30 border-white/10 text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      <Coffee size={12} className="inline-block mr-1 text-amber-400" />
+                      <span className="text-xs font-black">BREAK / JEDA</span>
+                      <span className="text-[9.5px] block text-slate-300 mt-0.5">Istirahat Sebentar</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setManualStatus('OFFLINE')}
+                      className={`p-2.5 rounded-xl border text-center transition-all cursor-pointer ${
+                        manualStatus === 'OFFLINE'
+                          ? 'bg-purple-600/30 border-purple-400 text-white font-black shadow-lg ring-1 ring-purple-400'
+                          : 'bg-black/30 border-white/10 text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      <Moon size={12} className="inline-block mr-1 text-purple-300" />
+                      <span className="text-xs font-black">OFF STREAM</span>
+                      <span className="text-[9.5px] block text-slate-300 mt-0.5">Tidak Siaran</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Section 2: Jam Rutin Live Harian (WIB) */}
             <div className="p-4 rounded-2xl bg-bg-surface/80 border border-border-default space-y-3">
               <span className="text-xs font-black text-white flex items-center gap-1.5">
                 <Clock size={14} className="text-accent-cyan" />
@@ -326,6 +436,7 @@ const JokiSettingsModal = ({ isOpen, onClose }) => {
               </div>
             </div>
 
+            {/* Section 3: Pengumuman Jadwal Live Stream */}
             <div className="p-4 rounded-2xl bg-bg-surface/80 border border-border-default space-y-3">
               <span className="text-xs font-black text-white flex items-center gap-1.5">
                 <span>Pengumuman Jadwal Live Stream</span>

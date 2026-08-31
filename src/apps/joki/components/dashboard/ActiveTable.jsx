@@ -255,13 +255,11 @@ const ActiveTable = ({
     return true;
   });
 
-  // Calculate duplicate slot occurrences
+  // Calculate duplicate slot occurrences by formatted tier slot label
   const slotCounts = {};
   filteredCustomers.forEach(c => {
-    const s = getCleanSlot(c);
-    if (s !== 'VIP') {
-      slotCounts[s] = (slotCounts[s] || 0) + 1;
-    }
+    const label = formatSlotLabel ? formatSlotLabel(c.slot, c.service) : String(c.slot);
+    slotCounts[label] = (slotCounts[label] || 0) + 1;
   });
 
   // Apply Smart Sorting
@@ -273,10 +271,11 @@ const ActiveTable = ({
     }
     if (sortBy === 'SLOT') {
       const getSlotVal = (c) => {
-        const s = getCleanSlot(c);
-        if (s === 'VVIP') return -2;
-        if (s === 'VIP') return -1;
-        return Number(s) || 99;
+        const srv = (c.service || '').toUpperCase();
+        const s = String(c.slot || '');
+        if (srv.includes('VVIP') || s.includes('VVIP')) return 1000 + (parseInt(s.replace(/\D/g, ''), 10) || 1);
+        if (srv.includes('VIP') || s.includes('VIP')) return 500 + (parseInt(s.replace(/\D/g, ''), 10) || 1);
+        return parseInt(s.replace(/\D/g, ''), 10) || 99;
       };
       return getSlotVal(a) - getSlotVal(b);
     }
@@ -321,11 +320,8 @@ const ActiveTable = ({
                   const isFinished = customer.finished || customer.isPendingClearance || (remaining <= 0 && !customer.paused);
                   const isWarning = !isFinished && !customer.paused && remaining > 0 && remaining <= 300;
                   const cleanService = getCleanService(customer.service);
-                  const cleanSlot = getCleanSlot(customer);
-                  const isVVIP = cleanService === 'VVIP' || cleanSlot === 'VVIP';
-                  const isVIP = cleanService === 'VIP' || cleanSlot === 'VIP';
-                  const isSpecialSlot = cleanSlot === 'VVIP' || cleanSlot === 'VIP';
-                  const isDuplicateSlot = !isSpecialSlot && (slotCounts[cleanSlot] > 1);
+                  const slotLabel = formatSlotLabel ? formatSlotLabel(customer.slot, customer.service) : `SLOT ${customer.slot}`;
+                  const isDuplicateSlot = (slotCounts[slotLabel] > 1);
                   const isMenuOpen = menuState?.customer?.id === customer.id;
 
                   return (
@@ -368,15 +364,15 @@ const ActiveTable = ({
                       <td className="py-2.5 px-2 text-center">
                         <div className="inline-flex flex-col items-center gap-0.5">
                           <span className={`inline-flex items-center justify-center px-2.5 py-0.5 rounded-lg text-xs font-black font-mono tracking-tight ${
-                            cleanService === 'VVIP' || (customer.slot && String(customer.slot).toUpperCase().includes('VVIP'))
+                            isDuplicateSlot
+                              ? 'bg-accent-red/20 text-accent-red border border-accent-red/40 animate-pulse'
+                              : cleanService === 'VVIP' || (customer.slot && String(customer.slot).toUpperCase().includes('VVIP'))
                               ? 'bg-rose-500/20 text-rose-300 border border-rose-500/50 shadow-sm'
                               : cleanService === 'VIP' || (customer.slot && String(customer.slot).toUpperCase().includes('VIP'))
                               ? 'bg-accent-yellow/15 text-accent-yellow border border-accent-yellow/35'
-                              : isDuplicateSlot
-                              ? 'bg-accent-red/20 text-accent-red border border-accent-red/40 animate-pulse'
                               : 'bg-accent-cyan/15 text-accent-cyan border border-accent-cyan/35'
                           }`}>
-                            {formatSlotLabel ? formatSlotLabel(customer.slot, customer.service) : `SLOT ${customer.slot}`}
+                            {slotLabel}
                           </span>
                         </div>
                       </td>

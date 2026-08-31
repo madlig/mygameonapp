@@ -85,6 +85,7 @@ const JokiSettingsModal = ({ isOpen, onClose }) => {
         updatedAt: Date.now()
       });
       addToast('✓ Pengaturan status & jadwal siaran berhasil disimpan!', 'success');
+      if (onClose) onClose();
     } catch (err) {
       console.error(err);
       addToast('Gagal mengupdate jadwal siaran.', 'error');
@@ -159,6 +160,7 @@ const JokiSettingsModal = ({ isOpen, onClose }) => {
         updatedAt: Date.now()
       });
       addToast('✓ Pengaturan layanan, tarif, dan alokasi slot berhasil disimpan!', 'success');
+      if (onClose) onClose();
     } catch (err) {
       console.error(err);
       addToast('Gagal mengubah pengaturan layanan.', 'error');
@@ -180,6 +182,7 @@ const JokiSettingsModal = ({ isOpen, onClose }) => {
         name: streamerName.trim()
       });
       addToast('Nama streamer berhasil diperbarui!', 'success');
+      if (onClose) onClose();
     } catch (err) {
       console.error(err);
       addToast('Gagal mengubah nama streamer.', 'error');

@@ -486,7 +486,12 @@ export const JokiProvider = ({ children }) => {
   const addJokiQueue = (data) => fbAddQueue(activeWorkspaceId, data);
   const updateJokiQueue = (id, data) => fbUpdateQueue(activeWorkspaceId, id, data);
   const deleteJokiQueue = (id) => fbDeleteQueue(activeWorkspaceId, id);
-  const updateJokiSettings = (data) => fbUpdateSettings(activeWorkspaceId, data);
+  const updateJokiSettings = (workspaceOrData, maybeData) => {
+    if (maybeData !== undefined && typeof workspaceOrData === 'string') {
+      return fbUpdateSettings(workspaceOrData, maybeData);
+    }
+    return fbUpdateSettings(activeWorkspaceId, workspaceOrData);
+  };
 
   const activeWorkspace = workspaces.find(w => w.id === activeWorkspaceId) || {
     id: activeWorkspaceId,

@@ -16,7 +16,8 @@ const OverlayPageContent = () => {
     queue, 
     activeWorkspace, 
     activeWorkspaceId, 
-    changeWorkspace 
+    changeWorkspace,
+    configuredSlots 
   } = useJoki();
 
   const [now, setNow] = useState(Date.now());
@@ -28,7 +29,8 @@ const OverlayPageContent = () => {
   const scale = (searchParams.get('scale') || 'xl').toLowerCase();
   const layout = (searchParams.get('layout') || (mode === 'split' ? 'list' : 'grid')).toLowerCase();
   const cols = parseInt(searchParams.get('cols') || '3', 10);
-  const totalSlots = parseInt(searchParams.get('totalSlots') || '6', 10);
+  const defaultTotal = (configuredSlots && configuredSlots.length > 0) ? Math.max(...configuredSlots) : 6;
+  const totalSlots = parseInt(searchParams.get('totalSlots') || defaultTotal.toString(), 10);
   const showEmpty = searchParams.get('showEmpty') !== 'false' && searchParams.get('empty') !== 'false';
   const rotateSec = Math.max(5, parseInt(searchParams.get('rotateSec') || '15', 10));
 

@@ -63,10 +63,10 @@ const getCleanService = (service) => {
 
 // Clean helper to strictly display Slot Badge
 const getCleanSlot = (customer) => {
-  const srv = getCleanService(customer.service);
-  if (srv === 'VVIP' || customer.slot === 'VVIP') return 'VVIP';
-  if (srv === 'VIP' || customer.slot === 'VIP') return 'VIP';
-  return customer.slot || '1';
+  if (customer.slot !== undefined && customer.slot !== null) {
+    return customer.slot.toString();
+  }
+  return '1';
 };
 
 const ActiveTable = ({ 

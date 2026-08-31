@@ -36,10 +36,10 @@ const DURATION_PRESETS = [
 const AddJokiModal = ({ isOpen, onClose }) => {
   const { 
     customers, 
-    enableVvipSlot,
+    services,
+    configuredSlots,
+    getServiceDetails,
     priceBasic,
-    priceVip,
-    priceVvip,
     addJokiCustomer, 
     addJokiQueue, 
     globalPaused, 
@@ -60,36 +60,32 @@ const AddJokiModal = ({ isOpen, onClose }) => {
 
   useEffect(() => {
     if (isOpen) {
+      const defaultSrv = services.find(s => s.enabled)?.name || 'Basic';
       setDestination('SLOT');
       setUsername('');
       setTiktokName('');
       setPasswordRoblox('');
       setEmailRoblox('');
-      setService('Basic');
-      setSlot(suggestSlot());
+      setService(defaultSrv);
+      setSlot(suggestSlot(defaultSrv));
       setDurationValue(1);
       setDurationUnit('hour');
     }
-  }, [isOpen, customers]);
+  }, [isOpen, customers, services]);
 
   // Sync slot with service change
   const handleServiceChange = (e) => {
     const val = e.target.value;
     setService(val);
-    if (val === 'VVIP') {
-      setSlot('VVIP');
-    } else if (val === 'VIP') {
-      setSlot('VIP');
-    } else {
-      setSlot(suggestSlot());
-    }
+    setSlot(suggestSlot(val));
   };
 
   if (!isOpen) return null;
 
-  const isVVIP = service === 'VVIP';
-  const isVIP = !isVVIP && service === 'VIP';
-  const standardSlots = [1, 2, 3, 4, 5, 6];
+  const currentServiceDetails = getServiceDetails(service);
+  const isVVIP = currentServiceDetails.tier === 'VVIP';
+  const isVIP = currentServiceDetails.tier === 'VIP';
+  const designatedSlots = currentServiceDetails.slots || [];
 
   // Unique repeat customer list for autocomplete
   const customerHistoryMap = {};
@@ -141,7 +137,7 @@ const AddJokiModal = ({ isOpen, onClose }) => {
     ? Number(durationValue || 0)
     : Number(durationValue || 0) / 60;
 
-  const pricePerHour = isVVIP ? priceVvip : (isVIP ? priceVip : priceBasic);
+  const pricePerHour = Number(currentServiceDetails.price) || priceBasic;
   const totalPrice = Math.round(calculatedHours * pricePerHour);
 
   const handleSave = async (e) => {
@@ -167,20 +163,20 @@ const AddJokiModal = ({ isOpen, onClose }) => {
           tiktokName: tiktokName.trim().replace(/^@/, ''),
           passwordRoblox: passwordRoblox.trim(),
           emailRoblox: emailRoblox.trim(),
-          service: service,
+          service: currentServiceDetails.name || service,
           duration: calculatedHours,
           price: totalPrice,
           paymentStatus: 'Lunas',
           createdAt: now
         });
-        addToast(`Customer ${username} (${service}) berhasil masuk antrean!`, 'success');
+        addToast(`Customer ${username} (${currentServiceDetails.name}) berhasil masuk antrean!`, 'success');
         onClose();
         return;
       }
 
       // OPTION 2: MULAI DI SLOT LIVE
       const durationSeconds = calculatedHours * 3600;
-      const chosenSlot = isVVIP ? 'VVIP' : (isVIP ? 'VIP' : slot);
+      const chosenSlot = slot;
 
       const customer = {
         username: username.trim(),
@@ -386,11 +382,11 @@ const AddJokiModal = ({ isOpen, onClose }) => {
                 onChange={handleServiceChange}
                 className="w-full bg-bg-primary border border-border-default rounded-xl py-2 px-3 text-xs text-text-primary outline-none focus:border-accent-purple/50 cursor-pointer font-bold shadow-inner"
               >
-                <option value="Basic">Basic (Rp {Number(priceBasic || 4000).toLocaleString('id-ID')} / Jam)</option>
-                <option value="VIP">VIP (Rp {Number(priceVip || 6000).toLocaleString('id-ID')} / Jam - Priority)</option>
-                {enableVvipSlot && (
-                  <option value="VVIP">VVIP (Rp {Number(priceVvip || 10000).toLocaleString('id-ID')} / Jam - Super Priority)</option>
-                )}
+                {services.filter(s => s.enabled).map((s) => (
+                  <option key={s.id} value={s.name}>
+                    {s.name} (Rp {Number(s.price || 4000).toLocaleString('id-ID')} / Jam {s.slots && s.slots.length > 0 ? `• Slot ${s.slots.join(', ')}` : ''})
+                  </option>
+                ))}
               </select>
             </div>
 
@@ -443,78 +439,75 @@ const AddJokiModal = ({ isOpen, onClose }) => {
 
           {/* Section 3: Visual Slot Selector (Only if destination === 'SLOT') */}
           {destination === 'SLOT' ? (
-            <div className="pt-2 border-t border-border-subtle">
-              {isVVIP ? (
-                <div className="bg-rose-500/10 border border-rose-500/30 rounded-2xl p-3 text-center">
-                  <div className="text-xs font-black text-rose-300 flex items-center justify-center gap-1.5">
-                    <Gem size={14} className="text-rose-400" />
-                    <span>💎 SLOT VVIP (Alokasi Super Priority)</span>
-                  </div>
-                </div>
-              ) : isVIP ? (
-                <div className="bg-accent-yellow/10 border border-accent-yellow/30 rounded-2xl p-3 text-center">
-                  <div className="text-xs font-black text-accent-yellow flex items-center justify-center gap-1.5">
-                    <Crown size={14} className="text-accent-yellow" />
-                    <span>👑 SLOT VIP (Alokasi Khusus)</span>
-                  </div>
-                </div>
-              ) : (
+            <div className="pt-2 border-t border-border-subtle space-y-2">
+              <div className="flex items-center justify-between">
                 <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <label className="text-[10.5px] font-extrabold text-text-dim uppercase tracking-wider">
-                      Pilih Slot AFK (1 - 6)
-                    </label>
-                    <span className="text-[10.5px] text-text-dim">
-                      Slot Terpilih: <strong className="text-accent-purple-light font-mono">SLOT {slot}</strong>
+                  <label className="text-[10.5px] font-extrabold text-text-dim uppercase tracking-wider block">
+                    Pilih Slot AFK Billing
+                  </label>
+                  {designatedSlots.length > 0 && (
+                    <span className="text-[10px] text-cyan-300 font-bold block">
+                      Alokasi {currentServiceDetails.name}: Slot {designatedSlots.join(', ')}
                     </span>
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-2">
-                    {standardSlots.map((s) => {
-                      const sStr = s.toString();
-                      const occupied = occupiedSlots[sStr];
-                      const isSelected = slot.toString() === sStr;
-
-                      return (
-                        <button
-                          key={s}
-                          type="button"
-                          onClick={() => setSlot(s)}
-                          className={`p-2 rounded-xl border text-left transition-all cursor-pointer relative flex flex-col justify-between min-h-[56px] ${
-                            isSelected
-                              ? 'bg-accent-purple/20 border-accent-purple ring-1 ring-accent-purple'
-                              : occupied
-                              ? 'bg-bg-primary border-accent-red/25'
-                              : 'bg-bg-primary border-border-default hover:border-border-muted'
-                          }`}
-                        >
-                          <div className="flex items-center justify-between">
-                            <span className={`font-mono text-xs font-black ${
-                              isSelected ? 'text-accent-purple-light' : occupied ? 'text-text-primary' : 'text-text-secondary'
-                            }`}>
-                              SLOT {s}
-                            </span>
-                            {occupied ? (
-                              <span className="w-1.5 h-1.5 rounded-full bg-accent-red" />
-                            ) : (
-                              <span className="w-1.5 h-1.5 rounded-full bg-accent-green" />
-                            )}
-                          </div>
-                          {occupied ? (
-                            <div className="text-[10px] font-bold text-text-muted truncate mt-0.5">
-                              {occupied.username}
-                            </div>
-                          ) : (
-                            <div className="text-[9.5px] font-bold text-accent-green mt-0.5">
-                              🟢 Kosong
-                            </div>
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
+                  )}
                 </div>
-              )}
+                <span className="text-[11px] text-text-dim">
+                  Slot Terpilih: <strong className="text-accent-purple-light font-mono text-xs">SLOT {slot}</strong>
+                </span>
+              </div>
+
+              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
+                {configuredSlots.map((s) => {
+                  const sStr = s.toString();
+                  const occupied = occupiedSlots[sStr];
+                  const isSelected = slot.toString() === sStr;
+                  const isDesignated = designatedSlots.includes(s);
+
+                  return (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => setSlot(s)}
+                      className={`p-2 rounded-xl border text-left transition-all cursor-pointer relative flex flex-col justify-between min-h-[60px] ${
+                        isSelected
+                          ? 'bg-accent-purple/25 border-accent-purple ring-2 ring-accent-purple/60'
+                          : isDesignated
+                          ? isVVIP 
+                            ? 'bg-rose-950/20 border-rose-500/40 hover:border-rose-500/70'
+                            : isVIP
+                            ? 'bg-amber-950/20 border-amber-500/40 hover:border-amber-500/70'
+                            : 'bg-bg-primary border-cyan-500/30 hover:border-cyan-500/60'
+                          : occupied
+                          ? 'bg-bg-primary border-accent-red/25'
+                          : 'bg-bg-primary border-border-default hover:border-border-muted'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between w-full">
+                        <span className={`font-mono text-xs font-black ${
+                          isSelected ? 'text-accent-purple-light' : occupied ? 'text-text-primary' : 'text-text-secondary'
+                        }`}>
+                          SLOT {s}
+                        </span>
+                        {occupied ? (
+                          <span className="w-1.5 h-1.5 rounded-full bg-accent-red shrink-0" />
+                        ) : (
+                          <span className="w-1.5 h-1.5 rounded-full bg-accent-green shrink-0" />
+                        )}
+                      </div>
+
+                      {occupied ? (
+                        <div className="text-[9.5px] font-bold text-text-muted truncate mt-1">
+                          {occupied.username}
+                        </div>
+                      ) : (
+                        <div className="text-[9.5px] font-bold text-accent-green mt-1 flex items-center gap-1">
+                          <span>🟢 Kosong</span>
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           ) : (
             /* Banner Destination Antrean */
@@ -527,7 +520,7 @@ const AddJokiModal = ({ isOpen, onClose }) => {
             }`}>
               {isVVIP ? <Gem size={15} /> : isVIP ? <Crown size={15} /> : <Gamepad2 size={15} />}
               <span>
-                Customer akan dimasukkan ke <strong>ANTREAN {isVVIP ? 'VVIP (SUPER PRIORITY)' : isVIP ? 'VIP (PRIORITY)' : 'BASIC'}</strong> di sidebar.
+                Customer akan dimasukkan ke antrean <strong>{currentServiceDetails.name.toUpperCase()}</strong> di sidebar.
               </span>
             </div>
           )}

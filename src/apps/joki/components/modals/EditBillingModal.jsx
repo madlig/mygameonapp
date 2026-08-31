@@ -39,7 +39,16 @@ const formatClock = (timestamp) => {
 };
 
 const EditBillingModal = ({ customer, onClose }) => {
-  const { customers, updateJokiCustomer, moveCustomerToQueue, enableVvipSlot, priceBasic, priceVip, priceVvip, addToast } = useJoki();
+  const { 
+    customers, 
+    services,
+    configuredSlots,
+    getServiceDetails,
+    updateJokiCustomer, 
+    moveCustomerToQueue, 
+    priceBasic, 
+    addToast 
+  } = useJoki();
 
   const [username, setUsername] = useState('');
   const [tiktokName, setTiktokName] = useState('');
@@ -76,10 +85,11 @@ const EditBillingModal = ({ customer, onClose }) => {
 
   if (!customer) return null;
 
-  const isVVIP = service === 'VVIP';
-  const isVIP = !isVVIP && service === 'VIP';
-  const standardSlots = [1, 2, 3, 4, 5, 6];
-  const ratePerHour = isVVIP ? priceVvip : (isVIP ? priceVip : priceBasic);
+  const currentServiceDetails = getServiceDetails(service);
+  const isVVIP = currentServiceDetails.tier === 'VVIP';
+  const isVIP = currentServiceDetails.tier === 'VIP';
+  const designatedSlots = currentServiceDetails.slots || [];
+  const ratePerHour = Number(currentServiceDetails.price) || priceBasic;
 
   // Initial duration in hours
   const initialDurationHours = Number(customer.duration || 1);
@@ -107,15 +117,9 @@ const EditBillingModal = ({ customer, onClose }) => {
   const handleServiceChange = (e) => {
     const newService = e.target.value;
     setService(newService);
-    const newRate = newService === 'VVIP' ? priceVvip : (newService === 'VIP' ? priceVip : priceBasic);
+    const newDetails = getServiceDetails(newService);
+    const newRate = Number(newDetails.price) || priceBasic;
     setPrice(Math.round(calculatedTotalHours * newRate));
-    if (newService === 'VVIP') {
-      setSlot('VVIP');
-    } else if (newService === 'VIP') {
-      setSlot('VIP');
-    } else if (slot === 'VIP' || slot === 'VVIP') {
-      setSlot(1);
-    }
   };
 
   // Auto-hide password after 5 seconds
@@ -463,11 +467,11 @@ const EditBillingModal = ({ customer, onClose }) => {
                 onChange={handleServiceChange}
                 className="w-full bg-bg-primary border border-border-default rounded-xl py-2 px-2.5 text-xs text-text-primary outline-none focus:border-accent-cyan/50 cursor-pointer font-bold"
               >
-                <option value="Basic">Basic ({priceBasic ? `${priceBasic/1000}k` : '4k'}/j)</option>
-                <option value="VIP">VIP ({priceVip ? `${priceVip/1000}k` : '6k'}/j)</option>
-                {(enableVvipSlot || service === 'VVIP') && (
-                  <option value="VVIP">VVIP ({priceVvip ? `${Math.round(priceVvip/1000)}k` : '10k'}/j)</option>
-                )}
+                {services.filter(s => s.enabled || s.name === service).map((s) => (
+                  <option key={s.id} value={s.name}>
+                    {s.name} (Rp {Number(s.price || 4000).toLocaleString('id-ID')} / Jam {s.slots && s.slots.length > 0 ? `• Slot ${s.slots.join(', ')}` : ''})
+                  </option>
+                ))}
               </select>
             </div>
 
@@ -506,77 +510,85 @@ const EditBillingModal = ({ customer, onClose }) => {
           </div>
 
           {/* SECTION 4: PINDAH SLOT VISUAL */}
-          <div className="pt-2 border-t border-border-subtle">
-            {isVVIP ? (
-              <div className="bg-rose-500/10 border border-rose-500/30 rounded-2xl p-3 text-center">
-                <div className="text-xs font-black text-rose-300">💎 SLOT VVIP AKTIF (SUPER PRIORITY)</div>
-              </div>
-            ) : isVIP ? (
-              <div className="bg-accent-yellow/10 border border-accent-yellow/30 rounded-2xl p-3 text-center">
-                <div className="text-xs font-black text-accent-yellow">👑 SLOT VIP AKTIF</div>
-              </div>
-            ) : (
+          <div className="pt-2 border-t border-border-subtle space-y-2">
+            <div className="flex items-center justify-between">
               <div>
-                <div className="flex items-center justify-between mb-2">
-                  <label className="text-[10.5px] font-extrabold text-text-dim uppercase tracking-wider">
-                    Pindah Slot AFK (1 - 6)
-                  </label>
-                  <span className="text-[10.5px] text-text-dim">
-                    Slot Terpilih: <strong className="text-accent-cyan font-mono">SLOT {slot}</strong>
+                <label className="text-[10.5px] font-extrabold text-text-dim uppercase tracking-wider block">
+                  Pindah Slot AFK Billing
+                </label>
+                {designatedSlots.length > 0 && (
+                  <span className="text-[10px] text-cyan-300 font-bold block">
+                    Alokasi {currentServiceDetails.name}: Slot {designatedSlots.join(', ')}
                   </span>
-                </div>
-
-                <div className="grid grid-cols-3 gap-2">
-                  {standardSlots.map((s) => {
-                    const sStr = s.toString();
-                    const occupied = occupiedSlots[sStr];
-                    const isSelected = slot.toString() === sStr;
-                    const isCurrentSlot = customer.slot && customer.slot.toString() === sStr;
-
-                    return (
-                      <button
-                        key={s}
-                        type="button"
-                        onClick={() => setSlot(s)}
-                        className={`p-2 rounded-xl border text-left transition-all cursor-pointer relative flex flex-col justify-between min-h-[58px] ${
-                          isSelected
-                            ? 'bg-accent-cyan/15 border-accent-cyan ring-1 ring-accent-cyan'
-                            : occupied
-                            ? 'bg-bg-primary border-accent-red/25'
-                            : 'bg-bg-primary border-border-default hover:border-border-muted'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <span className={`font-mono text-xs font-black ${
-                            isSelected ? 'text-accent-cyan' : occupied ? 'text-text-primary' : 'text-text-secondary'
-                          }`}>
-                            SLOT {s}
-                          </span>
-                          {isCurrentSlot ? (
-                            <span className="text-[9px] font-bold px-1 py-0.2 rounded bg-accent-purple/20 text-accent-purple-light">
-                              Sekarang
-                            </span>
-                          ) : occupied ? (
-                            <span className="w-1.5 h-1.5 rounded-full bg-accent-red" />
-                          ) : (
-                            <span className="w-1.5 h-1.5 rounded-full bg-accent-green" />
-                          )}
-                        </div>
-                        {occupied ? (
-                          <div className="text-[10px] font-bold text-text-muted truncate mt-0.5">
-                            {occupied.username}
-                          </div>
-                        ) : !isCurrentSlot ? (
-                          <div className="text-[9.5px] font-bold text-accent-green mt-0.5">
-                            🟢 Kosong
-                          </div>
-                        ) : null}
-                      </button>
-                    );
-                  })}
-                </div>
+                )}
               </div>
-            )}
+              <span className="text-[10.5px] text-text-dim">
+                Slot Terpilih: <strong className="text-accent-cyan font-mono">SLOT {slot}</strong>
+              </span>
+            </div>
+
+            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
+              {configuredSlots.map((s) => {
+                const sStr = s.toString();
+                const occupied = occupiedSlots[sStr];
+                const isSelected = slot.toString() === sStr;
+                const isCurrentSlot = customer.slot && customer.slot.toString() === sStr;
+                const isDesignated = designatedSlots.includes(s);
+
+                return (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => setSlot(s)}
+                    className={`p-2 rounded-xl border text-left transition-all cursor-pointer relative flex flex-col justify-between min-h-[58px] ${
+                      isSelected
+                        ? 'bg-accent-cyan/20 border-accent-cyan ring-2 ring-accent-cyan/60'
+                        : isCurrentSlot
+                        ? 'bg-accent-purple/20 border-accent-purple/50'
+                        : isDesignated
+                        ? isVVIP
+                          ? 'bg-rose-950/20 border-rose-500/40 hover:border-rose-400'
+                          : isVIP
+                          ? 'bg-amber-950/20 border-amber-500/40 hover:border-amber-400'
+                          : 'bg-bg-primary border-cyan-500/30 hover:border-cyan-400'
+                        : occupied
+                        ? 'bg-bg-primary border-accent-red/25'
+                        : 'bg-bg-primary border-border-default hover:border-border-muted'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className={`font-mono text-xs font-black ${
+                        isSelected ? 'text-accent-cyan' : isCurrentSlot ? 'text-accent-purple-light' : occupied ? 'text-text-primary' : 'text-text-secondary'
+                      }`}>
+                        SLOT {s}
+                      </span>
+                      {isCurrentSlot ? (
+                        <span className="text-[8.5px] font-black px-1 py-0.2 rounded bg-accent-purple/30 text-accent-purple-light">
+                          Aktif
+                        </span>
+                      ) : occupied ? (
+                        <span className="w-1.5 h-1.5 rounded-full bg-accent-red" />
+                      ) : (
+                        <span className="w-1.5 h-1.5 rounded-full bg-accent-green" />
+                      )}
+                    </div>
+                    {occupied && !isCurrentSlot ? (
+                      <div className="text-[9.5px] font-bold text-text-muted truncate mt-0.5">
+                        {occupied.username}
+                      </div>
+                    ) : !isCurrentSlot ? (
+                      <div className="text-[9px] font-bold text-accent-green mt-0.5">
+                        🟢 Kosong
+                      </div>
+                    ) : (
+                      <div className="text-[9px] font-bold text-accent-purple-light mt-0.5">
+                        Slot Customer
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           {/* ACTION BUTTONS */}

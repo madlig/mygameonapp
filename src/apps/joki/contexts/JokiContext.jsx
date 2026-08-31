@@ -197,17 +197,82 @@ export const JokiProvider = ({ children }) => {
     addToast(!streamerMode ? "Streamer mode aktif (Omset & data sensitif disensor)" : "Streamer mode dinonaktifkan", "info");
   };
 
-  // Helper to suggest smallest free slot
-  const suggestSlot = () => {
+  // Helper to normalize services list from globalSettings or defaults
+  const services = React.useMemo(() => {
+    if (globalSettings?.services && Array.isArray(globalSettings.services) && globalSettings.services.length > 0) {
+      return globalSettings.services;
+    }
+    // Fallback based on legacy settings
+    const pBasic = Number(globalSettings?.priceBasic) || PRICE_BASIC;
+    const pVip = Number(globalSettings?.priceVip) || PRICE_VIP;
+    const pVvip = Number(globalSettings?.priceVvip) || PRICE_VVIP;
+    const enableVvip = globalSettings?.enableVvipSlot !== undefined
+      ? Boolean(globalSettings.enableVvipSlot)
+      : (activeWorkspaceId === 'saviours');
+
+    return [
+      { id: 'basic', name: 'Basic', tier: 'Basic', price: pBasic, slots: [1, 2, 3, 4], enabled: true },
+      { id: 'vip', name: 'VIP Priority', tier: 'VIP', price: pVip, slots: [5], enabled: true },
+      { id: 'vvip', name: 'VVIP Super', tier: 'VVIP', price: pVvip, slots: [6], enabled: enableVvip }
+    ];
+  }, [globalSettings, activeWorkspaceId]);
+
+  // Get all active configured slots across all enabled services
+  const configuredSlots = React.useMemo(() => {
+    const activeSlots = new Set();
+    services.filter(s => s.enabled).forEach(s => {
+      (s.slots || []).forEach(slotNum => {
+        const parsed = parseInt(String(slotNum).replace(/\D/g, ''), 10);
+        if (!isNaN(parsed) && parsed > 0) {
+          activeSlots.add(parsed);
+        }
+      });
+    });
+    const sorted = Array.from(activeSlots).sort((a, b) => a - b);
+    return sorted.length > 0 ? sorted : [1, 2, 3, 4, 5, 6];
+  }, [services]);
+
+  // Helper to find service details
+  const getServiceDetails = (serviceNameOrId = '') => {
+    const norm = String(serviceNameOrId || '').toLowerCase();
+    const found = services.find(s => 
+      s.id.toLowerCase() === norm || s.name.toLowerCase() === norm || s.tier.toLowerCase() === norm
+    );
+    if (found) return found;
+    return services[0] || { id: 'basic', name: 'Basic', tier: 'Basic', price: 4000, slots: [1, 2, 3, 4], enabled: true };
+  };
+
+  // Helper to suggest smallest free slot for a given service
+  const suggestSlot = (serviceNameOrId = '') => {
     const usedSlots = new Set();
     customers.forEach((c) => {
-      if (!c.finished && c.slot && c.slot !== 'VIP' && c.slot !== 'VVIP') {
-        const num = parseInt(c.slot, 10);
+      if (!c.finished && c.slot) {
+        const num = parseInt(String(c.slot).replace(/\D/g, ''), 10);
         if (!isNaN(num)) {
           usedSlots.add(num);
         }
       }
     });
+
+    // If specific service is requested, find its designated slots first
+    if (serviceNameOrId) {
+      const normQuery = String(serviceNameOrId).toLowerCase();
+      const matchedService = services.find(s => 
+        s.enabled && (s.id.toLowerCase() === normQuery || s.name.toLowerCase() === normQuery || s.tier.toLowerCase() === normQuery)
+      );
+
+      if (matchedService && Array.isArray(matchedService.slots) && matchedService.slots.length > 0) {
+        // Find first free slot in this service's designated slots
+        const freeInService = matchedService.slots.find(s => !usedSlots.has(Number(s)));
+        if (freeInService) return Number(freeInService);
+        // If all designated slots are taken, pick the first one as fallback
+        return Number(matchedService.slots[0]);
+      }
+    }
+
+    // Default: find lowest available slot in configuredSlots or lowest natural number
+    const freeConfigured = configuredSlots.find(s => !usedSlots.has(s));
+    if (freeConfigured) return freeConfigured;
 
     let n = 1;
     while (usedSlots.has(n)) {
@@ -217,25 +282,24 @@ export const JokiProvider = ({ children }) => {
   };
 
   // Check if VVIP is enabled for current workspace
-  const hasVvipData = customers.some(c => (c.service || '').toUpperCase().includes('VVIP') || c.slot === 'VVIP') ||
-                      queue.some(q => (q.service || '').toUpperCase().includes('VVIP'));
-  const enableVvipSlot = globalSettings?.enableVvipSlot !== undefined
-    ? Boolean(globalSettings.enableVvipSlot)
-    : (activeWorkspaceId === 'saviours' || hasVvipData);
-  const priceBasic = Number(globalSettings?.priceBasic) || PRICE_BASIC;
-  const priceVip = Number(globalSettings?.priceVip) || PRICE_VIP;
-  const priceVvip = Number(globalSettings?.priceVvip) || PRICE_VVIP;
+  const enableVvipSlot = services.some(s => s.tier === 'VVIP' && s.enabled);
+  const basicService = services.find(s => s.tier === 'Basic') || services[0];
+  const vipService = services.find(s => s.tier === 'VIP') || services[1] || services[0];
+  const vvipService = services.find(s => s.tier === 'VVIP') || services[2] || services[0];
+
+  const priceBasic = basicService?.price || PRICE_BASIC;
+  const priceVip = vipService?.price || PRICE_VIP;
+  const priceVvip = vvipService?.price || PRICE_VVIP;
 
   // Start billing from queue
   const startBillingFromQueue = async (queueItem, selectedSlot) => {
     const now = Date.now();
     const duration = Number(queueItem.duration || 1);
     const durationSeconds = duration * 3600;
-    const isVVIP = (queueItem.service || '').toUpperCase() === 'VVIP' || selectedSlot === 'VVIP';
-    const isVIP = (queueItem.service || '').toUpperCase() === 'VIP' || selectedSlot === 'VIP';
-    const finalService = isVVIP ? 'VVIP' : (isVIP ? 'VIP' : 'Basic');
-    const finalSlot = isVVIP ? 'VVIP' : (isVIP ? 'VIP' : (selectedSlot || suggestSlot()));
-    const pricePerHour = isVVIP ? priceVvip : (isVIP ? priceVip : priceBasic);
+    const serviceDetails = getServiceDetails(queueItem.service);
+    const finalService = serviceDetails.name || queueItem.service || 'Basic';
+    const finalSlot = selectedSlot || suggestSlot(queueItem.service);
+    const pricePerHour = Number(serviceDetails.price) || priceBasic;
     const price = Math.round(duration * pricePerHour);
 
     const customerData = {
@@ -365,6 +429,9 @@ export const JokiProvider = ({ children }) => {
     globalPaused,
     globalPauseStarted,
     globalSettings,
+    services,
+    configuredSlots,
+    getServiceDetails,
     enableVvipSlot,
     priceBasic,
     priceVip,

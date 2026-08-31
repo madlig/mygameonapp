@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useJoki } from '../../contexts/JokiContext';
+import { useJoki, getCustomerTier } from '../../contexts/JokiContext';
 import { 
   Users, 
   Plus, 
@@ -120,9 +120,9 @@ const QueueSidebar = ({ onStartFromQueue, onRequestClearQueue }) => {
   // Calculate actual duration in hours and price
   const calculatedHours = qUnit === 'hour' ? Number(qAmount || 0) : Number(qAmount || 0) / 60;
   const getRate = (srv) => {
-    const s = (srv || '').toUpperCase();
-    if (s === 'VVIP') return priceVvip;
-    if (s === 'VIP') return priceVip;
+    const tier = getCustomerTier({ service: srv });
+    if (tier === 'VVIP') return priceVvip;
+    if (tier === 'VIP') return priceVip;
     return priceBasic;
   };
   const pricePerHour = getRate(qService);
@@ -252,12 +252,9 @@ const QueueSidebar = ({ onStartFromQueue, onRequestClearQueue }) => {
     }
   };
 
-  const vvipQueue = queue.filter(q => (q.service || '').toUpperCase() === 'VVIP');
-  const vipQueue = queue.filter(q => (q.service || '').toUpperCase() === 'VIP');
-  const basicQueue = queue.filter(q => {
-    const s = (q.service || '').toUpperCase();
-    return s !== 'VIP' && s !== 'VVIP';
-  });
+  const vvipQueue = queue.filter(q => getCustomerTier(q) === 'VVIP');
+  const vipQueue = queue.filter(q => getCustomerTier(q) === 'VIP');
+  const basicQueue = queue.filter(q => getCustomerTier(q) === 'Basic');
 
   const handleDrop = async (e, targetIndex, queueType) => {
     e.preventDefault();

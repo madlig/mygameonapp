@@ -42,7 +42,7 @@ const StartBillingModal = ({ queueItem, onClose }) => {
     if (queueItem) {
       setSlot(suggestSlot(queueItem.service));
     }
-  }, [queueItem, customers]);
+  }, [queueItem]);
 
   if (!queueItem) return null;
 

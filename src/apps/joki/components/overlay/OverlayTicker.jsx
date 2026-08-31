@@ -1,4 +1,5 @@
 import React from 'react';
+import { useJoki, formatSlotLabel } from '../../contexts/JokiContext';
 import { Flame, Users, Crown, Clock } from 'lucide-react';
 
 const formatTime = (seconds) => {
@@ -11,14 +12,6 @@ const formatTime = (seconds) => {
 
 const formatRupiah = (value) => {
   return "Rp " + Number(value || 0).toLocaleString("id-ID");
-};
-
-const getCleanSlot = (c) => {
-  if (c.slot !== undefined && c.slot !== null) {
-    const parsed = parseInt(String(c.slot).replace(/\D/g, ''), 10);
-    if (!isNaN(parsed)) return parsed;
-  }
-  return 1;
 };
 
 const OverlayTicker = ({ 
@@ -54,16 +47,16 @@ const OverlayTicker = ({
 
   const getThemeBg = () => {
     switch (theme) {
-      case 'gold': return 'bg-[#141008]/90 border-amber-500/40 text-amber-300';
-      case 'crimson': return 'bg-[#18080c]/90 border-rose-500/40 text-rose-300';
-      case 'dark': return 'bg-[#0f1115]/92 border-white/15 text-slate-200';
+      case 'gold': return 'bg-[#141008]/95 border-amber-500/50 text-amber-300 shadow-amber-500/20';
+      case 'crimson': return 'bg-[#18080c]/95 border-rose-500/50 text-rose-300 shadow-rose-500/20';
+      case 'dark': return 'bg-[#0f1115]/95 border-white/25 text-slate-200 shadow-black/70';
       case 'neon':
-      default: return 'bg-[#070b14]/90 border-cyan-500/30 text-cyan-300';
+      default: return 'bg-[#070b14]/95 border-cyan-500/40 text-cyan-300 shadow-cyan-500/20';
     }
   };
 
   return (
-    <div className={`w-full overflow-hidden select-none backdrop-blur-md rounded-2xl border px-3 py-2 shadow-2xl ${getThemeBg()}`}>
+    <div className={`w-full overflow-hidden select-none backdrop-blur-md rounded-2xl border-2 px-3 py-2 shadow-2xl ${getThemeBg()}`}>
       <style>{`
         @keyframes tickerMarquee {
           0% { transform: translateX(0%); }
@@ -81,7 +74,7 @@ const OverlayTicker = ({
 
       <div className="flex items-center gap-3">
         {/* Static Badge Left */}
-        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-gradient-to-r from-rose-600 to-amber-600 text-white font-black text-xs uppercase shrink-0 shadow-md">
+        <div className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-gradient-to-r from-rose-600 to-amber-600 text-white font-black text-xs uppercase shrink-0 shadow-md shadow-rose-600/30">
           <Flame size={13} className="animate-bounce" />
           <span>{workspaceName}</span>
         </div>
@@ -95,48 +88,46 @@ const OverlayTicker = ({
                 const rem = getRemaining(c);
                 const isEnding = rem > 0 && rem <= 300;
                 return (
-                  <div key={`c-${c.id || c.slot}`} className="flex items-center gap-1.5 bg-white/5 px-2.5 py-0.5 rounded-lg border border-white/10">
-                    <span className="font-black text-cyan-400">SLOT {getCleanSlot(c)}:</span>
-                    <span className="text-white font-bold">{c.username || c.name}</span>
-                    <span className="text-[10px] text-slate-400 font-mono">({c.service || 'Basic'})</span>
-                    <span className={`font-mono font-bold px-1.5 py-0.2 rounded text-[11px] ${isEnding ? 'bg-rose-600 text-white animate-pulse' : 'text-emerald-400'}`}>
+                  <div key={`c-${c.id || c.slot}`} className="flex items-center gap-1.5 bg-black/60 px-3 py-1 rounded-xl border border-white/15">
+                    <span className="font-black text-cyan-300 font-mono">{formatSlotLabel(c.slot, c.service)}:</span>
+                    <span className="text-white font-black">{c.username || c.name}</span>
+                    <span className={`font-mono font-black px-2 py-0.5 rounded-lg text-xs ${isEnding ? 'bg-rose-600 text-white animate-pulse' : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'}`}>
                       {formatTime(rem)}
                     </span>
                   </div>
                 );
               })
             ) : (
-              <span className="text-slate-400 flex items-center gap-1">
-                <Clock size={12} /> Semua slot siap diorder!
+              <span className="text-slate-300 flex items-center gap-1 font-bold">
+                <Clock size={12} className="text-cyan-400" /> Semua slot siap diorder!
               </span>
             )}
 
             {/* Segment 2: Waiting Queue */}
             {queue.length > 0 && (
-              <div className="flex items-center gap-2 bg-purple-950/40 px-2.5 py-0.5 rounded-lg border border-purple-500/30 text-purple-300">
-                <Users size={12} />
-                <span className="font-bold text-white">Antrian ({queue.length}):</span>
-                <span>{queue.slice(0, 3).map((q, i) => `#${i + 1} ${q.username || q.name}`).join(' • ')}</span>
+              <div className="flex items-center gap-2 bg-purple-950/60 px-3 py-1 rounded-xl border border-purple-500/40 text-purple-200">
+                <Users size={12} className="text-purple-400" />
+                <span className="font-black text-white">Antrian ({queue.length}):</span>
+                <span className="font-bold">{queue.slice(0, 3).map((q, i) => `#${i + 1} ${q.username || q.name}`).join(' • ')}</span>
               </div>
             )}
 
             {/* Segment 3: Top Sultan */}
             {topSultan && (
-              <div className="flex items-center gap-1.5 bg-amber-500/15 px-2.5 py-0.5 rounded-lg border border-amber-500/40 text-amber-300">
+              <div className="flex items-center gap-1.5 bg-amber-500/20 px-3 py-1 rounded-xl border border-amber-500/50 text-amber-300">
                 <Crown size={12} className="text-amber-400" />
                 <span className="font-black">👑 Sultan Utama:</span>
-                <span className="text-white font-extrabold">{topSultan.username}</span>
-                <span className="text-amber-300 font-mono font-bold">({formatRupiah(topSultan.totalSpent)})</span>
+                <span className="text-white font-black">{topSultan.username}</span>
+                <span className="text-amber-300 font-mono font-black">({formatRupiah(topSultan.totalSpent)})</span>
               </div>
             )}
 
             {/* Duplication for Seamless Loop */}
             {activeCustomers.length > 0 && activeCustomers.map(c => (
-              <div key={`c-dup-${c.id || c.slot}`} className="flex items-center gap-1.5 bg-white/5 px-2.5 py-0.5 rounded-lg border border-white/10">
-                <span className="font-black text-cyan-400">SLOT {getCleanSlot(c)}:</span>
-                <span className="text-white font-bold">{c.username || c.name}</span>
-                <span className="text-[10px] text-slate-400 font-mono">({c.service || 'Basic'})</span>
-                <span className="text-emerald-400 font-mono font-bold text-[11px]">{formatTime(getRemaining(c))}</span>
+              <div key={`c-dup-${c.id || c.slot}`} className="flex items-center gap-1.5 bg-black/60 px-3 py-1 rounded-xl border border-white/15">
+                <span className="font-black text-cyan-300 font-mono">{formatSlotLabel(c.slot, c.service)}:</span>
+                <span className="text-white font-black">{c.username || c.name}</span>
+                <span className="text-emerald-300 font-mono font-black text-xs">{formatTime(getRemaining(c))}</span>
               </div>
             ))}
           </div>

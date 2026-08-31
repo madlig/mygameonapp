@@ -25,11 +25,11 @@ const OverlayPageContent = () => {
   // Parse Query Parameters
   const paramWs = searchParams.get('ws') || searchParams.get('workspace') || pathWsId || activeWorkspaceId || 'mygameon';
   const mode = (searchParams.get('mode') || 'active').toLowerCase();
-  const theme = (searchParams.get('theme') || 'neon').toLowerCase();
+  const theme = (searchParams.get('theme') || 'gold').toLowerCase();
   const scale = (searchParams.get('scale') || 'xl').toLowerCase();
   const layout = (searchParams.get('layout') || (mode === 'split' ? 'list' : 'grid')).toLowerCase();
   const cols = parseInt(searchParams.get('cols') || '3', 10);
-  const defaultTotal = (configuredSlots && configuredSlots.length > 0) ? Math.max(...configuredSlots) : 6;
+  const defaultTotal = (configuredSlots && configuredSlots.length > 0) ? configuredSlots.length : 6;
   const totalSlots = parseInt(searchParams.get('totalSlots') || defaultTotal.toString(), 10);
   const showEmpty = searchParams.get('showEmpty') !== 'false' && searchParams.get('empty') !== 'false';
   const rotateSec = Math.max(5, parseInt(searchParams.get('rotateSec') || '15', 10));
@@ -62,13 +62,15 @@ const OverlayPageContent = () => {
     return () => clearInterval(rotTimer);
   }, [mode, rotateSec]);
 
-  // Remove default body background & scrollbar when on overlay page
+  // Remove default body background & scrollbar when on overlay page + High-DPI text crispness
   useEffect(() => {
     document.body.style.backgroundColor = 'transparent';
     document.documentElement.style.backgroundColor = 'transparent';
+    document.body.style.overflow = 'hidden';
     return () => {
       document.body.style.backgroundColor = '';
       document.documentElement.style.backgroundColor = '';
+      document.body.style.overflow = '';
     };
   }, []);
 
@@ -76,7 +78,23 @@ const OverlayPageContent = () => {
   const isFullWidthLayout = layout === 'grid' || mode === 'ticker';
 
   return (
-    <div className="w-full min-h-screen bg-transparent p-2.5 flex flex-col justify-start items-start select-none">
+    <div 
+      className="w-full min-h-screen bg-transparent p-2.5 flex flex-col justify-start items-start select-none"
+      style={{
+        WebkitFontSmoothing: 'antialiased',
+        MozOsxFontSmoothing: 'grayscale',
+        textRendering: 'optimizeLegibility',
+      }}
+    >
+      {/* High-DPI Crisp Styles */}
+      <style>{`
+        * {
+          -webkit-font-smoothing: antialiased;
+          -moz-osx-font-smoothing: grayscale;
+          text-rendering: optimizeLegibility;
+        }
+      `}</style>
+
       {/* 1. RUNNING TICKER MODE */}
       {mode === 'ticker' && (
         <OverlayTicker 

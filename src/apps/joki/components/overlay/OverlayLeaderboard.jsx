@@ -15,6 +15,7 @@ const getCleanService = (s) => {
 const OverlayLeaderboard = ({ 
   customers = [], 
   theme = 'neon',
+  scale = 'normal',
   maxItems = 5,
   showPodium = true,
   title = 'TOP SULTAN LIVE'
@@ -56,7 +57,7 @@ const OverlayLeaderboard = ({
     }
   });
 
-  // Sort Formula Opsi A: Total Spent (Rp) -> Total Duration -> Total Orders
+  // Sort Formula: Total Spent (Rp) -> Total Duration -> Total Orders
   const topSultans = Object.values(customerAggregates)
     .sort((a, b) => {
       if (b.totalSpent !== a.totalSpent) return b.totalSpent - a.totalSpent;
@@ -100,9 +101,10 @@ const OverlayLeaderboard = ({
   };
 
   const t = getThemeStyles();
+  const scaleClass = scale === 'ultra' ? 'text-base' : scale === '2xl' ? 'text-sm' : scale === 'compact' ? 'text-xs' : 'text-sm';
 
   return (
-    <div className="w-full font-sans select-none text-sm">
+    <div className={`w-full font-sans select-none ${scaleClass}`}>
       {/* Header */}
       <div className={`flex items-center justify-between px-3.5 py-2 rounded-t-2xl border-t border-x bg-gradient-to-r ${t.headerBg} backdrop-blur-md shadow-lg`}>
         <div className="flex items-center gap-2">
@@ -121,38 +123,38 @@ const OverlayLeaderboard = ({
       <div className={`p-2.5 rounded-b-2xl border-b border-x backdrop-blur-xl ${t.cardBg} space-y-2.5 shadow-2xl`}>
         {/* Top 1 Sultan Exclusive Highlight Card */}
         {showPodium && top1 && (
-          <div className="bg-gradient-to-b from-amber-500/25 via-amber-500/10 to-black/60 border border-amber-500/50 rounded-2xl p-3 text-center shadow-xl relative">
-            <div className="flex items-center justify-center gap-2 mb-1">
-              <span className="px-2.5 py-0.5 rounded-full bg-gradient-to-r from-amber-400 to-yellow-300 text-black font-black text-[10.5px] uppercase flex items-center gap-1 shadow-md">
-                <Crown size={12} />
-                <span>SULTAN UTAMA #1</span>
+          <div className="bg-gradient-to-b from-amber-500/30 via-amber-500/15 to-black/70 border-2 border-amber-400/80 rounded-2xl p-3 text-center shadow-xl relative">
+            <div className="flex items-center justify-center gap-2 mb-1.5">
+              <span className="px-3 py-1 rounded-full bg-gradient-to-r from-amber-400 to-yellow-300 text-black font-black text-xs uppercase flex items-center gap-1.5 shadow-md shadow-amber-400/40">
+                <Crown size={13} />
+                <span>TOP 1 SULTAN STREAMER</span>
               </span>
             </div>
-            <div className="font-black text-white truncate text-base drop-shadow">
+            <div className="font-black text-white truncate text-base drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
               {top1.username}
             </div>
             {top1.tiktokName && (
-              <div className="text-xs text-amber-300 font-bold drop-shadow">
+              <div className="text-xs text-amber-300 font-extrabold drop-shadow mt-0.5">
                 @{top1.tiktokName}
               </div>
             )}
-            <div className="mt-2 py-1.5 px-3 rounded-xl bg-black/60 border border-amber-500/40 grid grid-cols-2 gap-2 text-xs font-mono">
+            <div className="mt-2.5 py-2 px-3 rounded-xl bg-black/70 border border-amber-500/50 grid grid-cols-2 gap-2 text-xs font-mono">
               <div>
-                <span className="text-[9.5px] text-amber-200/70 block uppercase font-bold">Total Belanja</span>
+                <span className="text-[10px] text-amber-200/80 block uppercase font-bold">Total Belanja</span>
                 <strong className="text-amber-300 font-black text-sm">{formatRupiah(top1.totalSpent)}</strong>
               </div>
               <div>
-                <span className="text-[9.5px] text-amber-200/70 block uppercase font-bold">Total Waktu</span>
+                <span className="text-[10px] text-amber-200/80 block uppercase font-bold">Total Waktu</span>
                 <strong className="text-white font-black text-sm">{top1.totalDuration.toFixed(1)} Jam</strong>
               </div>
             </div>
           </div>
         )}
 
-        {/* List of Sultans starting from Rank #2 onwards */}
+        {/* List of Sultans starting directly from Rank #2 onwards */}
         {topSultans.length === 0 ? (
-          <div className="py-8 text-center text-slate-400 font-bold text-xs">
-            <Trophy size={22} className="mx-auto mb-1.5 opacity-40 text-amber-400 animate-pulse" />
+          <div className="py-8 text-center text-slate-300 font-bold text-xs">
+            <Trophy size={22} className="mx-auto mb-1.5 opacity-60 text-amber-400 animate-pulse" />
             <span>Belum ada riwayat sultan streamer.</span>
           </div>
         ) : displayedList.length > 0 ? (
@@ -166,12 +168,12 @@ const OverlayLeaderboard = ({
                   key={item.username}
                   className={`flex items-center justify-between p-2 rounded-xl border transition-all ${
                     actualRank === 1
-                      ? 'bg-amber-500/15 border-amber-500/40'
+                      ? 'bg-amber-500/20 border-amber-500/50'
                       : actualRank === 2 
-                      ? 'bg-slate-400/15 border-slate-400/30' 
+                      ? 'bg-slate-400/20 border-slate-300/40' 
                       : actualRank === 3 
-                      ? 'bg-amber-700/15 border-amber-700/30'
-                      : 'bg-white/[0.03] border-white/10'
+                      ? 'bg-amber-700/20 border-amber-600/40' 
+                      : 'bg-white/[0.04] border-white/15'
                   }`}
                 >
                   {/* Left: Rank & Name */}
@@ -180,20 +182,20 @@ const OverlayLeaderboard = ({
                       actualRank === 1
                         ? 'bg-amber-400 text-black border-amber-300 shadow-md shadow-amber-400/30'
                         : actualRank === 2 
-                        ? 'bg-slate-300 text-black border-slate-200 shadow-md' 
-                        : actualRank === 3
-                        ? 'bg-amber-600 text-white border-amber-500 shadow-md'
-                        : 'bg-white/10 text-slate-400 border-white/15'
+                        ? 'bg-slate-200 text-black border-white shadow-md' 
+                        : actualRank === 3 
+                        ? 'bg-amber-600 text-white border-amber-400 shadow-md' 
+                        : 'bg-white/15 text-slate-200 border-white/20'
                     }`}>
                       #{actualRank}
                     </div>
 
                     <div className="min-w-0">
-                      <div className="font-black text-white truncate text-xs drop-shadow">
+                      <div className="font-black text-white truncate text-xs drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
                         {item.username}
                       </div>
                       {item.tiktokName && (
-                        <div className="text-[10.5px] text-amber-300/90 font-bold truncate">
+                        <div className="text-[10.5px] text-amber-300 font-bold truncate">
                           @{item.tiktokName}
                         </div>
                       )}
@@ -207,17 +209,17 @@ const OverlayLeaderboard = ({
                         <div className="text-xs font-mono font-black text-amber-300 drop-shadow">
                           {formatRupiah(item.totalSpent)}
                         </div>
-                        <div className="text-[10px] text-slate-400 font-mono">
+                        <div className="text-[10px] text-slate-300 font-mono">
                           {item.totalDuration.toFixed(1)} Jam • {item.totalOrders} Order
                         </div>
                       </div>
                     ) : (
                       <div>
-                        <span className="px-2 py-0.5 rounded-md bg-white/10 text-amber-300 text-[9.5px] font-black border border-white/15 inline-flex items-center gap-1 shadow-sm">
-                          <Sparkles size={9} />
+                        <span className="px-2 py-0.5 rounded-md bg-white/10 text-amber-300 text-[10px] font-black border border-white/15 inline-flex items-center gap-1 shadow-sm">
+                          <Sparkles size={10} />
                           <span>Sultan Member</span>
                         </span>
-                        <div className="text-[10px] text-slate-400 font-mono mt-0.5">
+                        <div className="text-[10px] text-slate-300 font-mono mt-0.5">
                           {item.totalDuration.toFixed(1)} Jam • {item.totalOrders} Order
                         </div>
                       </div>

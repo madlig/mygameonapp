@@ -73,7 +73,7 @@ const AddJokiModal = ({ isOpen, onClose }) => {
       setDurationValue(1);
       setDurationUnit('hour');
     }
-  }, [isOpen, customers, services]);
+  }, [isOpen]);
 
   // Sync slot with service change
   const handleServiceChange = (e) => {

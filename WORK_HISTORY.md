@@ -115,9 +115,38 @@ Dokumen ini adalah catatan resmi (*audit trail*) dan riwayat kemajuan pengerjaan
 
 ---
 
+### [Milestone 05] — Sistem Klaim Pesanan Shopee & Cloud Sync Library (Poin 7 Roadmap)
+- **Waktu Pengerjaan**: 2026-09-16
+- **Latar Belakang & Masalah**: 
+  1. Halaman `/claim` sebelumnya memiliki bug sintaks/import (`MessageSquare` tidak diimpor dari `lucide-react`, memicu crash runtime saat error), dan memanggil fungsi `n8nService.submitClaim` yang tidak terdaftar di adapter.
+  2. Data klaim belum disimpan secara persisten di Firestore, pembeli tidak dapat melihat status pesanannya di `/library`, dan belum ada pencegahan pengajuan ganda untuk nomor pesanan yang sama.
+- **Implementasi**:
+  1. **Adapter Otomatisasi**: [`src/services/api/n8nService.js`](file:///c:/mad/website/mygameonapp/src/services/api/n8nService.js)
+     - Menambahkan alias `submitClaim()` yang mengarah ke `dispatchOrderClaim()`.
+     - Mempertahankan fallback otomatis ke pesan WhatsApp resmi jika n8n webhook offline.
+  2. **Halaman Klaim Terpadu V2**: [`src/features/claim/ClaimOrderPage.jsx`](file:///c:/mad/website/mygameonapp/src/features/claim/ClaimOrderPage.jsx)
+     - Integrasi sesi login `useAuth()`: auto-populate alamat Gmail pembeli dan username Shopee yang tersimpan di profil.
+     - Pengecekan duplikasi nomor pesanan Shopee di koleksi `claims` sebelum submit, memberikan notifikasi tanggal klaim terdahulu dan tombol konsultasi WA jika invoice sudah terdaftar.
+     - Simpan data klaim terstruktur ke Firestore: koleksi global `claims` dan sub-koleksi privat `users/{uid}/claims/{id}`.
+     - Auto-sync: jika pembeli memasukkan username Shopee di form klaim, profil akunnya otomatis diperbarui.
+     - Pembedaan pemenuhan produk (Fulfillment):
+       - **The Sims 4**: Kotak khusus License Key dengan tombol 1-klik *Salin Key* + panduan input key ke *MyGameON Ultimate Launcher* + tombol download launcher.
+       - **Game PC**: Info share Google Drive + tombol langsung menuju brankas *Koleksi Game Saya*.
+       - Tombol konfirmasi kilat via WhatsApp Toko dengan template pesan otomatis.
+  3. **Brankas & Riwayat Klaim di Library**: [`src/features/library/UserLibraryPage.jsx`](file:///c:/mad/website/mygameonapp/src/features/library/UserLibraryPage.jsx)
+     - Menambahkan *real-time listener* koleksi `claims` berdasarkan email pembeli.
+     - Menampilkan section kartu **Status Klaim Pesanan Shopee** lengkap dengan indikator status (*Menunggu Konfirmasi* / *Klaim Aktif*), invoice ID, tombol salin License Key untuk The Sims 4, dan tombol tanya admin via WhatsApp.
+  4. **Keamanan Data**: [`firestore.rules`](file:///c:/mad/website/mygameonapp/firestore.rules)
+     - Menambahkan aturan keamanan `claims/{claimId}`: publik dapat membuat klaim dengan validasi format invoice & email, sedangkan pembacaan hanya diizinkan untuk pemilik akun (`userId == auth.uid` atau `email == auth.token.email`) dan admin.
+- **Hasil Verifikasi**:
+  - `npm run build` berhasil 100% tanpa error (PASS, 11.04s).
+  - HTTP Status: `GET /claim` $\rightarrow$ **200 OK**, `GET /library` $\rightarrow$ **200 OK**.
+
+---
+
 ## 📋 Rencana Kerja Berikutnya (Upcoming Tasks)
-1. **Poin 7 — Sistem Klaim Pesanan Shopee & Cloud Sync di `/claim`**:
-   - Membangun alur verifikasi nomor pesanan Shopee anti-bocor (kolaborasi webhook n8n / email notifikasi Shopee).
-   - Memastikan game langsung masuk ke `users/{uid}.ownedGames` dan folder Google Drive terbuka otomatis setelah klaim tervalidasi.
-2. **Poin 2 — Fitur "Can I Run It" Advanced & Rekomendasi Game Dinamis**:
-   - Peningkatan basis data perbandingan GPU/CPU dan fitur benchmark skor performa.
+1. **Poin 2 — Pengembangan Lanjutan Fitur "Can I Run It"**:
+   - Peningkatan basis data perbandingan GPU/CPU diskrit vs integrated.
+   - Penambahan perkiraan performa (estimasi FPS / kelancaran resolusi 1080p, 720p).
+2. **Poin 4 — Integrasi SEO & OpenGraph Dinamis**:
+   - Peningkatan preview kartu media sosial saat link game dibagikan ke WhatsApp / Telegram.

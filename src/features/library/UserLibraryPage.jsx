@@ -1,12 +1,14 @@
 // src/features/library/UserLibraryPage.jsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { 
   Gamepad2, HardDrive, ShoppingBag, CheckCircle2, 
   ExternalLink, ArrowLeft, LogOut, Loader2, Sparkles, 
-  FolderDown, ShieldCheck, AlertCircle, HelpCircle, ArrowRight, UserCheck
+  FolderDown, ShieldCheck, AlertCircle, HelpCircle, ArrowRight, UserCheck,
+  Disc, Key, Copy, Check, Clock
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { db, collection, query, where, onSnapshot } from '../../config/firebaseConfig';
 import LandingNavbar from '../landing/components/LandingNavbar';
 import Seo from '../../components/common/Seo';
 import WhatsAppIcon from '../../components/common/WhatsAppIcon';
@@ -80,6 +82,49 @@ const UserLibraryPage = () => {
       setSaveSuccess(true);
       setIsEditingShopee(false);
       setTimeout(() => setSaveSuccess(false), 4000);
+    }
+  };
+
+  // Real-time Claims tracking from Firestore
+  const [claims, setClaims] = useState([]);
+  const [copiedInvoice, setCopiedInvoice] = useState('');
+
+  useEffect(() => {
+    if (!currentUser?.email) {
+      setClaims([]);
+      return;
+    }
+
+    const q = query(
+      collection(db, 'claims'),
+      where('email', '==', currentUser.email.toLowerCase())
+    );
+
+    const unsub = onSnapshot(
+      q,
+      (snapshot) => {
+        const list = snapshot.docs.map((d) => ({
+          id: d.id,
+          ...d.data(),
+        }));
+        list.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+        setClaims(list);
+      },
+      (err) => {
+        console.warn('Claims fetch notice:', err);
+      }
+    );
+
+    return () => unsub();
+  }, [currentUser]);
+
+  const copyKey = async (key) => {
+    try {
+      await navigator.clipboard.writeText(key);
+      setCopiedInvoice(key);
+      setTimeout(() => setCopiedInvoice(''), 2500);
+    } catch {
+      // ignore
     }
   };
 
@@ -320,6 +365,100 @@ const UserLibraryPage = () => {
                 >
                   Ubah Username Shopee
                 </button>
+              </div>
+            )}
+
+            {/* ── RIWAYAT KLAIM PESANAN SHOPEE (JIKA ADA KLAIM) ── */}
+            {claims.length > 0 && (
+              <div className="p-4 sm:p-5 rounded-2xl bg-[#080B11] border border-white/10 space-y-3 shadow-lg">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <ShoppingBag size={16} className="text-shopee-orange" />
+                    <h4 className="text-xs sm:text-sm font-bold text-white">
+                      Status Klaim Pesanan Shopee ({claims.length})
+                    </h4>
+                  </div>
+                  <Link
+                    to="/claim"
+                    className="text-[11px] font-bold text-amber-400 hover:text-amber-300 transition-colors flex items-center gap-1"
+                  >
+                    <span>+ Klaim Baru</span>
+                  </Link>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {claims.map((claim) => {
+                    const isSims = claim.orderType === 'sims4';
+                    const isProcessed = claim.status === 'processed' || claim.status === 'active';
+                    const isCopied = copiedInvoice === claim.invoice;
+
+                    return (
+                      <div
+                        key={claim.id}
+                        className="p-3.5 rounded-xl bg-black/40 border border-white/5 flex flex-col justify-between gap-2.5"
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${isSims ? 'bg-amber-400/15 text-amber-400' : 'bg-emerald-500/15 text-emerald-400'}`}>
+                              {isSims ? <Disc size={16} /> : <Gamepad2 size={16} />}
+                            </div>
+                            <div className="min-w-0">
+                              <div className="text-xs font-bold text-white truncate" title={claim.gameTitle}>
+                                {claim.gameTitle}
+                              </div>
+                              <div className="text-[10px] text-slate-400 font-mono">
+                                No. Pesanan: {claim.invoice}
+                              </div>
+                            </div>
+                          </div>
+
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 flex items-center gap-1 ${
+                            isProcessed 
+                              ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30' 
+                              : 'bg-amber-400/15 text-amber-400 border border-amber-400/30'
+                          }`}>
+                            {isProcessed ? <CheckCircle2 size={11} /> : <Clock size={11} />}
+                            <span>{isProcessed ? 'Klaim Aktif' : 'Menunggu Konfirmasi'}</span>
+                          </span>
+                        </div>
+
+                        {/* Card bottom actions */}
+                        <div className="pt-2 border-t border-white/5 flex items-center justify-between text-[11px]">
+                          {isSims ? (
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-[10px] text-slate-400">Key:</span>
+                              <button
+                                type="button"
+                                onClick={() => copyKey(claim.invoice)}
+                                className="px-2 py-0.5 rounded bg-white/5 hover:bg-white/10 text-amber-300 font-mono text-[11px] font-bold flex items-center gap-1 transition-colors"
+                                title="Klik untuk salin License Key"
+                              >
+                                {isCopied ? <Check size={11} className="text-emerald-400" /> : <Copy size={11} />}
+                                <span>{isCopied ? 'Tersalin' : 'Salin Key'}</span>
+                              </button>
+                            </div>
+                          ) : (
+                            <span className="text-[10px] text-slate-400">
+                              {isProcessed ? 'Akses folder Drive aktif' : 'Sedang diverifikasi admin'}
+                            </span>
+                          )}
+
+                          <a
+                            href={buildWhatsAppUrl({
+                              text: `Halo Admin MyGameON, mau tanya status klaim Shopee No: ${claim.invoice} (${claim.gameTitle}).`,
+                            })}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-slate-400 hover:text-white transition-colors text-[10px] flex items-center gap-1"
+                          >
+                            <WhatsAppIcon className="w-3 h-3 fill-emerald-400" />
+                            <span>Tanya Admin</span>
+                          </a>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             )}
 

@@ -9,6 +9,14 @@ import { INTEGRATIONS, isN8nClaimConfigured, buildWhatsAppUrl } from '../../conf
 
 export const n8nService = {
   /**
+   * Submit Shopee Order Claim (Alias for dispatchOrderClaim)
+   * @param {Object} payload
+   */
+  async submitClaim(payload) {
+    return this.dispatchOrderClaim(payload);
+  },
+
+  /**
    * Dispatch Shopee Order Claim to n8n Webhook
    * @param {Object} payload
    * @param {string} payload.invoice - Shopee Invoice ID

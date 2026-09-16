@@ -214,6 +214,21 @@ service cloud.firestore {
     }
 
     // ========================================================
+    // CLAIMS — Shopee customer order claims from /claim
+    // ========================================================
+
+    match /claims/{claimId} {
+      allow create: if request.resource.data.invoice is string &&
+        request.resource.data.invoice.size() >= 5 &&
+        request.resource.data.email is string &&
+        request.resource.data.email.matches('^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$');
+      allow read: if isAdmin() || 
+        (isSignedIn() && resource.data.userId == request.auth.uid) ||
+        (isSignedIn() && resource.data.email == request.auth.token.email);
+      allow update, delete: if isAdmin();
+    }
+
+    // ========================================================
     // ADMIN / OPERATIONAL COLLECTIONS (preserved from existing)
     // ========================================================
 

@@ -1,5 +1,5 @@
 {
-  "name": "MyGameON - Shopee Order Parser & WhatsApp Telemetry Alert",
+  "name": "MyGameON - Shopee Email Auto-Sync to Firestore & WhatsApp Alert",
   "nodes": [
     {
       "parameters": {
@@ -11,24 +11,37 @@
           ]
         },
         "filters": {
-          "q": "from:info@mail.shopee.co.id subject:\"Siap Dikirim\""
+          "q": "from:info@mail.shopee.co.id \"Siap Dikirim\""
         }
       },
-      "id": "1",
+      "id": "node-gmail-trigger",
       "name": "Gmail Trigger (Shopee Orders)",
       "type": "n8n-nodes-base.gmailTrigger",
       "typeVersion": 1,
-      "position": [240, 300]
+      "position": [240, 260]
     },
     {
       "parameters": {
-        "jsCode": "// Ekstrak No. Pesanan, Username Pembeli, dan Daftar Game (Single & Multi-Item)\nconst item = $input.item;\nconst text = item.json.snippet || item.json.textPlain || item.json.html || '';\n\n// 1. Ekstrak Nomor Pesanan\nconst invoiceMatch = text.match(/#([A-Z0-9]{10,})/i);\nconst invoice = invoiceMatch ? invoiceMatch[1].trim().toUpperCase() : null;\n\n// 2. Ekstrak Username Pembeli\nconst buyerMatch = text.match(/pesanan ke\\s+([a-zA-Z0-9._]+)/i);\nconst buyerUsername = buyerMatch ? buyerMatch[1].trim() : 'Pembeli Shopee';\n\n// 3. Ekstrak Tanggal Pesanan\nconst dateMatch = text.match(/Tanggal Pesanan:\\s*([^\n\r]+)/i);\nconst orderDate = dateMatch ? dateMatch[1].trim() : new Date().toLocaleString('id-ID');\n\n// 4. Ekstrak Setiap Item Game (1., 2., 3., dst.)\nconst itemRegex = /(\\d+)\\.\\s+([^\\n\\r]+)(?:[\\r\\n]+Variasi:\\s*([^\\n\\r]*))?/g;\nconst items = [];\nlet match;\n\nwhile ((match = itemRegex.exec(text)) !== null) {\n  const rawTitle = match[2].trim();\n  const variation = (match[3] || '').trim();\n  \n  // Bersihkan embel-embel judul Shopee\n  const cleanTitle = rawTitle\n    .replace(/\\s*-\\s*Game PC.*$/i, '')\n    .replace(/\\s*-\\s*PC Offline.*$/i, '')\n    .replace(/\\s*-\\s*Bisa Auto Update.*$/i, '')\n    .trim();\n\n  const isSims4 = /sims 4/i.test(cleanTitle) || /sims 4/i.test(rawTitle);\n\n  items.push({\n    index: parseInt(match[1]),\n    title: cleanTitle,\n    rawTitle: rawTitle,\n    variation: variation,\n    isSims4: isSims4,\n    allowCC: /CC/i.test(variation)\n  });\n}\n\nif (!invoice || items.length === 0) {\n  return [];\n}\n\nreturn [{\n  json: {\n    invoice,\n    buyerUsername,\n    orderDate,\n    items,\n    totalGames: items.length,\n    hasSims4: items.some(i => i.isSims4),\n    status: 'ready',\n    createdAt: new Date().toISOString()\n  }\n}];"
+        "jsCode": "// ─── MYGAMEON SHOPEE EMAIL PARSER ENGINE ───\nconst item = $input.item;\nconst subject = item.json.subject || '';\nconst snippet = item.json.snippet || '';\nconst textPlain = item.json.textPlain || '';\nconst html = item.json.html || '';\nconst fullText = `${subject}\\n${snippet}\\n${textPlain}\\n${html}`;\n\n// 1. Ekstrak Nomor Pesanan\nlet invoice = null;\nconst invoiceSubjectMatch = subject.match(/Pesanan\\s*#?([A-Z0-9]{10,})/i);\nif (invoiceSubjectMatch) {\n  invoice = invoiceSubjectMatch[1].trim().toUpperCase();\n} else {\n  const invoiceBodyMatch = fullText.match(/(?:No\\.\\s*Pesanan:\\s*#?|pembayaran\\s+pesanan\\s+#?)([A-Z0-9]{10,})/i);\n  if (invoiceBodyMatch) {\n    invoice = invoiceBodyMatch[1].trim().toUpperCase();\n  }\n}\n\n// 2. Ekstrak Username Pembeli\nlet buyerUsername = 'Pembeli Shopee';\nconst buyerMatch = fullText.match(/kirimkan\\s+pesanan\\s+ke\\s+([a-zA-Z0-9._]+)/i);\nif (buyerMatch) {\n  buyerUsername = buyerMatch[1].replace(/[.,]/g, '').trim();\n}\n\n// 3. Ekstrak Tanggal Pesanan\nlet orderDate = new Date().toLocaleString('id-ID');\nconst dateMatch = fullText.match(/Tanggal\\s+Pesanan:\\s*([^\\n\\r]+)/i);\nif (dateMatch) {\n  orderDate = dateMatch[1].trim();\n}\n\n// 4. Ekstrak Setiap Item Game (Daftar bernomor 1., 2., 3., dst.)\n// Batasi hanya di blok setelah RINCIAN PESANAN dan sebelum Subtotal\nlet itemsSection = fullText;\nconst rincianIndex = fullText.search(/RINCIAN\\s+PESANAN/i);\nif (rincianIndex !== -1) {\n  itemsSection = fullText.slice(rincianIndex);\n}\nconst subtotalIndex = itemsSection.search(/(?:Subtotal|LANGKAH\\s+SELANJUTNYA)/i);\nif (subtotalIndex !== -1) {\n  itemsSection = itemsSection.slice(0, subtotalIndex);\n}\n\nconst itemRegex = /(?:^|[\\r\\n])\\s*(\\d+)\\.\\s+([^\\n\\r]+)(?:[\\r\\n]+\\s*Variasi:\\s*([^\\n\\r]*))?(?:[\\r\\n]+\\s*Jumlah:\\s*(\\d+))?(?:[\\r\\n]+\\s*Harga:\\s*(Rp\\s*[\\d.,]+))?/g;\nconst items = [];\nlet match;\n\nwhile ((match = itemRegex.exec(itemsSection)) !== null) {\n  const rawTitle = match[2].trim();\n  const rawVariation = (match[3] || '').trim();\n  const quantity = parseInt(match[4] || '1', 10);\n  const price = (match[5] || '').trim();\n  const variation = rawVariation === '-' ? '' : rawVariation;\n\n  // Bersihkan embel-embel judul Shopee\n  const cleanTitle = rawTitle\n    .replace(/\\s*-\\s*Game PC.*$/i, '')\n    .replace(/\\s*-\\s*PC Offline.*$/i, '')\n    .replace(/\\s*-\\s*PC Game.*$/i, '')\n    .replace(/\\s*-\\s*Bisa Auto Update.*$/i, '')\n    .trim();\n\n  const isSims4 = /sims\\s*4/i.test(cleanTitle) || /sims\\s*4/i.test(rawTitle);\n  const allowCC = /CC/i.test(variation) || /CC/i.test(rawTitle);\n\n  items.push({\n    index: parseInt(match[1], 10),\n    title: cleanTitle,\n    rawTitle: rawTitle,\n    variation: variation,\n    quantity: quantity,\n    price: price,\n    isSims4: isSims4,\n    allowCC: allowCC,\n  });\n}\n\nif (!invoice || items.length === 0) {\n  return [];\n}\n\nreturn [{\n  json: {\n    invoice,\n    buyerUsername,\n    orderDate,\n    items,\n    totalGames: items.length,\n    hasSims4: items.some(i => i.isSims4),\n    status: 'ready',\n    source: 'n8n_gmail_automation',\n    createdAt: new Date().toISOString()\n  }\n}];"
       },
-      "id": "2",
+      "id": "node-parse-email",
       "name": "Parse Shopee Email",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [460, 300]
+      "position": [480, 260]
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "collection": "shopee_orders",
+        "docId": "={{ $json.invoice }}",
+        "columns": "invoice,buyerUsername,orderDate,items,totalGames,hasSims4,status,source,createdAt"
+      },
+      "id": "node-firestore-save",
+      "name": "Save to Firestore (shopee_orders)",
+      "type": "n8n-nodes-base.googleFirebaseCloudFirestore",
+      "typeVersion": 1,
+      "position": [720, 260]
     },
     {
       "parameters": {
@@ -36,11 +49,11 @@
         "path": "telemetry-alert",
         "options": {}
       },
-      "id": "3",
+      "id": "node-webhook-alert",
       "name": "Webhook Telemetry Alert",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [240, 520],
+      "position": [240, 500],
       "webhookId": "telemetry-alert"
     },
     {
@@ -49,26 +62,41 @@
           "string": [
             {
               "value1": "={{ $json.body.type }}",
-              "value2": "UNVERIFIED_INVOICE_ATTEMPT"
+              "operation": "contains",
+              "value2": "INVOICE"
             }
           ]
         }
       },
-      "id": "4",
-      "name": "Filter Unverified Attempt",
+      "id": "node-filter-alert",
+      "name": "Filter Telemetry Event",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [460, 520]
+      "position": [480, 500]
     },
     {
       "parameters": {
-        "notice": "Ganti node ini dengan WhatsApp Gateway Anda (misal Fonnte / Waha / WA Business Cloud API / Telegram Bot) untuk mengirim pesan darurat ke admin."
+        "method": "POST",
+        "url": "https://api.fonnte.com/send",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "YOUR_FONNTE_OR_WA_TOKEN"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"target\": \"6285121309829\",\n  \"message\": \"{{ $json.body.alertMessage }}\\n\\n🕒 Waktu: {{ $json.body.clientTime }}\\n💻 Web Origin: {{ $json.body.appOrigin || 'MyGameON App' }}\"\n}",
+        "options": {}
       },
-      "id": "5",
+      "id": "node-dispatch-wa",
       "name": "Kirim Alert ke WA Admin (6285121309829)",
-      "type": "n8n-nodes-base.noOp",
-      "typeVersion": 1,
-      "position": [680, 520]
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [720, 500]
     }
   ],
   "connections": {
@@ -83,18 +111,29 @@
         ]
       ]
     },
-    "Webhook Telemetry Alert": {
+    "Parse Shopee Email": {
       "main": [
         [
           {
-            "node": "Filter Unverified Attempt",
+            "node": "Save to Firestore (shopee_orders)",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Filter Unverified Attempt": {
+    "Webhook Telemetry Alert": {
+      "main": [
+        [
+          {
+            "node": "Filter Telemetry Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Telemetry Event": {
       "main": [
         [
           {

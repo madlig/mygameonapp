@@ -208,6 +208,33 @@ Dokumen ini adalah catatan resmi (*audit trail*) dan riwayat kemajuan pengerjaan
 
 ---
 
+### [Milestone 08] — Setup & Pengujian Integrasi n8n Workflow Pembaca Email Shopee ke Firestore
+- **Waktu Pengerjaan**: 2026-09-16
+- **Latar Belakang & Masalah**: 
+  1. Halaman klaim cerdas `/claim` membutuhkan data pesanan Shopee di koleksi Firestore `shopee_orders/{invoice}` agar pembeli bisa langsung mendeteksi game secara otomatis.
+  2. Format email pesanan Shopee di Gmail pribadi (`madlighifari29@gmail.com`) masuk ke tab *Info Terbaru* (`category:updates`) dan memiliki berbagai variasi format (single game, multi-item bundling, dan variasi The Sims 4 + CC).
+  3. Workflow n8n template sebelumnya belum memiliki node Firestore Upsert dan belum diuji secara menyeluruh terhadap sampel email nyata toko.
+- **Implementasi**:
+  1. **Test Suite & Simulator Parser Mandiri**: [`scripts/test-shopee-parser.js`](file:///c:/mad/website/mygameonapp/scripts/test-shopee-parser.js)
+     - Dibangun script pengujian berbasis Node.js yang memuat 3 sampel teks mentah dari email asli toko MyGameON:
+       - *Sample 1*: Single Game PC (*Age of Empires 3 Definitive Edition*, buyer: `muhammadfakih01_`).
+       - *Sample 2*: Multi-Item Bundling (*Spider-Man 2* + *The Sims 3*, buyer: `farrelajah`).
+       - *Sample 3*: The Sims 4 All DLC + Online Gallery + CC (*ONLINE FULLPACK + CC*, buyer: `ambraerikss1`).
+     - Berhasil mendeteksi dan menyelesaikan bug *false positive* boundary regex antara teks sambutan/username dan daftar rincian item dengan membatasi cakupan parsing hanya antara `RINCIAN PESANAN` dan `Subtotal`.
+     - Hasil pengujian: **3 Lulus, 0 Gagal (100% PASS)**.
+  2. **Penyempurnaan Template Workflow n8n**: [`scripts/n8n-shopee-workflow-template.json`](file:///c:/mad/website/mygameonapp/scripts/n8n-shopee-workflow-template.json)
+     - Menambahkan node `Save to Firestore (shopee_orders)` tipe `n8n-nodes-base.googleFirebaseCloudFirestore` (operasi `upsert` ke koleksi `shopee_orders` dengan doc ID `={{ $json.invoice }}`).
+     - Menghubungkan trigger Gmail dengan query global `from:info@mail.shopee.co.id "Siap Dikirim"` (menjangkau seluruh tab Gmail termasuk tab *Info Terbaru*).
+     - Menambahkan integrasi webhook telemetri alert ke WhatsApp Business Admin (`6285121309829`) via HTTP Request node.
+  3. **Buku Panduan Setup Step-by-Step**: [`docs/N8N_SHOPEE_SETUP_GUIDE.md`](file:///c:/mad/website/mygameonapp/docs/N8N_SHOPEE_SETUP_GUIDE.md)
+     - Panduan lengkap tata cara import template JSON ke n8n, setup OAuth2 Gmail (`madlighifari29@gmail.com`), setup kredensial Firebase Service Account Key JSON, hingga pengujian dan aktivasi workflow.
+- **Hasil Verifikasi**:
+  - `node scripts/test-shopee-parser.js` $\rightarrow$ **3 Lulus, 0 Gagal (PASS)**.
+  - `npm.cmd run build` $\rightarrow$ **Berhasil 100% (PASS, 12.20s)**.
+  - Endpoint `http://localhost:5173/claim` $\rightarrow$ **200 OK**.
+
+---
+
 ## 📋 Rencana Kerja Berikutnya (Upcoming Tasks)
 1. **Poin 2 — Pengembangan Lanjutan Fitur "Can I Run It"**:
    - Peningkatan basis data perbandingan GPU/CPU diskrit vs integrated.

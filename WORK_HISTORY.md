@@ -67,9 +67,10 @@ Dokumen ini adalah catatan resmi (*audit trail*) dan riwayat kemajuan pengerjaan
        - Staf / Admin $\rightarrow$ otomatis diarahkan ke `/dashboard`.
      - Perlindungan Brute-force (*lockout timer* 5 percobaan) tetap dipertahankan.
      - Penanganan spesifik kode error Firebase: `auth/operation-not-allowed` (notifikasi ramah untuk mengaktifkan provider di Firebase Console atau memakai registrasi email) dan `auth/unauthorized-domain`.
-  3. **Routing Register**: [`src/routes/AppRouter.jsx`](file:///c:/mad/website/mygameonapp/src/routes/AppRouter.jsx)
+  3. **Routing Register & Kebijakan Privasi**: [`src/routes/AppRouter.jsx`](file:///c:/mad/website/mygameonapp/src/routes/AppRouter.jsx)
      - Mendaftarkan rute `/register` yang otomatis membuka tab pendaftaran.
-- **Hasil Verifikasi**: Build `npm run build` sukses (PASS, 10.45s), rute `/login` dan `/register` return 200 OK.
+     - Membuat halaman resmi Kebijakan Privasi di [`src/pages/PrivacyPolicyPage.jsx`](file:///c:/mad/website/mygameonapp/src/pages/PrivacyPolicyPage.jsx) dan mendaftarkan rute `/privacy` serta `/terms` untuk memenuhi kepatuhan OAuth Consent Screen Google Cloud.
+- **Hasil Verifikasi**: Build `npm run build` sukses (PASS, 11.14s), rute `/login`, `/register`, dan `/privacy` return 200 OK.
 
 ---
 

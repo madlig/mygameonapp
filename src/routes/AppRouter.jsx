@@ -39,6 +39,7 @@ const LoginPage = lazy(() => import('../pages/LoginPage'));
 const FeedbackPage = lazy(() => import('../features/feedback/FeedbackPage'));
 const ContentPage = lazy(() => import('../features/content/ContentPage'));
 const AboutPage = lazy(() => import('../pages/AboutPage'));
+const PrivacyPolicyPage = lazy(() => import('../pages/PrivacyPolicyPage'));
 const NotFoundPage = lazy(() => import('../pages/NotFoundPage'));
 
 const AppRouter = () => {
@@ -74,6 +75,8 @@ const AppRouter = () => {
         <Route path="/link" element={<LinkBioPage />} />
         <Route path="/login" element={<LoginPage initialMode="login" />} />
         <Route path="/register" element={<LoginPage initialMode="register" />} />
+        <Route path="/privacy" element={<PrivacyPolicyPage />} />
+        <Route path="/terms" element={<PrivacyPolicyPage />} />
 
         {/* Rute Privat yang dilindungi dan menggunakan Layout */}
         <Route element={<PrivateRoute />}>

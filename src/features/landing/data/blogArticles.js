@@ -62,7 +62,7 @@ Cyberpunk 2077 semakin matang dengan setiap update. Kalau kamu belum punya game 
     slug: 'game-pc-ringan-low-spec',
     category: 'Tips',
     categoryColor: '#8B5CF6',
-    title: '7 Game PC Ringan yang Seru Banget untuk Spek Kentang',
+    title: '7 Game PC Ringan yang Seru Banget untuk Device Low Spek',
     excerpt:
       'RAM 4GB, GPU integrated, laptop lawas — bukan alasan untuk nggak main game. Ini rekomendasi game yang tetap seru meskipun spek PC terbatas.',
     date: '22 Mei 2026',
@@ -230,7 +230,7 @@ Jika kamu sudah punya launcher versi sebelumnya, update akan otomatis muncul saa
     slug: 'tips-optimasi-pc-gaming',
     category: 'Tips',
     categoryColor: '#8B5CF6',
-    title: 'Cara Optimasi PC Kentang untuk Gaming — 10 Tips yang Terbukti',
+    title: 'Cara Optimasi PC Low Spek untuk Gaming — 10 Tips yang Terbukti',
     excerpt:
       'Sebelum upgrade hardware, coba dulu tips optimasi ini. Bisa naikin FPS 20-40% tanpa keluar uang sepeser pun.',
     date: '8 Mei 2026',

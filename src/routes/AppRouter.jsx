@@ -17,7 +17,8 @@ const RequestsPage = lazy(() => import('../features/requests/RequestsPage'));
 const OperationalPage = lazy(
   () => import('../features/operational/OperationalPage')
 );
-const LandingPage = lazy(() => import('../features/landing/LandingPage'));
+const LandingPage = lazy(() => import('../features/landing/LandingPageV2'));
+const CatalogPage = lazy(() => import('../features/landing/CatalogPage'));
 const RequestGamePage = lazy(
   () => import('../features/landing/RequestGamePage')
 );
@@ -31,6 +32,8 @@ const DownloadsPage = lazy(() => import('../features/landing/DownloadsPage'));
 const LinkBioPage = lazy(() => import('../features/landing/LinkBioPage'));
 const TicketPage = lazy(() => import('../apps/joki/pages/TicketPage'));
 const OverlayPage = lazy(() => import('../apps/joki/pages/OverlayPage'));
+const ClaimOrderPage = lazy(() => import('../features/claim/ClaimOrderPage'));
+const UserLibraryPage = lazy(() => import('../features/library/UserLibraryPage'));
 // Import Halaman Umum
 const LoginPage = lazy(() => import('../pages/LoginPage'));
 const FeedbackPage = lazy(() => import('../features/feedback/FeedbackPage'));
@@ -52,6 +55,7 @@ const AppRouter = () => {
       <Routes>
         {/* Rute Publik tanpa Layout */}
         <Route path="/" element={<LandingPage />} />
+        <Route path="/katalog" element={<CatalogPage />} />
         <Route path="/ticket/:ticketId" element={<TicketPage />} />
         <Route path="/ticket/:workspaceId/:ticketId" element={<TicketPage />} />
         <Route path="/overlay" element={<OverlayPage />} />
@@ -64,8 +68,12 @@ const AppRouter = () => {
         <Route path="/videos" element={<VideosPage />} />
         <Route path="/blog" element={<BlogPage />} />
         <Route path="/downloads" element={<DownloadsPage />} />
+        <Route path="/claim" element={<ClaimOrderPage />} />
+        <Route path="/library" element={<UserLibraryPage />} />
+        <Route path="/koleksi" element={<UserLibraryPage />} />
         <Route path="/link" element={<LinkBioPage />} />
-        <Route path="/login" element={<LoginPage />} />
+        <Route path="/login" element={<LoginPage initialMode="login" />} />
+        <Route path="/register" element={<LoginPage initialMode="register" />} />
 
         {/* Rute Privat yang dilindungi dan menggunakan Layout */}
         <Route element={<PrivateRoute />}>

@@ -1,5 +1,5 @@
 import { initializeApp, getApps } from 'firebase/app';
-import { getFirestore, collection, addDoc, getDocs, onSnapshot, deleteDoc, doc, getDoc, setDoc, query, where, orderBy, serverTimestamp } from "firebase/firestore";
+import { getFirestore, collection, addDoc, getDocs, onSnapshot, deleteDoc, doc, getDoc, setDoc, query, where, orderBy, limit, serverTimestamp } from "firebase/firestore";
 import { getAuth } from 'firebase/auth';
 import { getStorage } from 'firebase/storage';
 import { getFunctions, httpsCallable } from 'firebase/functions';
@@ -38,6 +38,7 @@ export {
   query, 
   where, 
   orderBy, 
+  limit,
   serverTimestamp,
   firebaseConfig
 };

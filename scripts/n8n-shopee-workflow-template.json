@@ -18,17 +18,30 @@
       "name": "Gmail Trigger (Shopee Orders)",
       "type": "n8n-nodes-base.gmailTrigger",
       "typeVersion": 1,
-      "position": [240, 260]
+      "position": [200, 260]
     },
     {
       "parameters": {
-        "jsCode": "// ─── MYGAMEON SHOPEE EMAIL PARSER ENGINE ───\nconst item = $input.item;\nconst subject = item.json.subject || '';\nconst snippet = item.json.snippet || '';\nconst textPlain = item.json.textPlain || '';\nconst html = item.json.html || '';\nconst fullText = `${subject}\\n${snippet}\\n${textPlain}\\n${html}`;\n\n// 1. Ekstrak Nomor Pesanan\nlet invoice = null;\nconst invoiceSubjectMatch = subject.match(/Pesanan\\s*#?([A-Z0-9]{10,})/i);\nif (invoiceSubjectMatch) {\n  invoice = invoiceSubjectMatch[1].trim().toUpperCase();\n} else {\n  const invoiceBodyMatch = fullText.match(/(?:No\\.\\s*Pesanan:\\s*#?|pembayaran\\s+pesanan\\s+#?)([A-Z0-9]{10,})/i);\n  if (invoiceBodyMatch) {\n    invoice = invoiceBodyMatch[1].trim().toUpperCase();\n  }\n}\n\n// 2. Ekstrak Username Pembeli\nlet buyerUsername = 'Pembeli Shopee';\nconst buyerMatch = fullText.match(/kirimkan\\s+pesanan\\s+ke\\s+([a-zA-Z0-9._]+)/i);\nif (buyerMatch) {\n  buyerUsername = buyerMatch[1].replace(/[.,]/g, '').trim();\n}\n\n// 3. Ekstrak Tanggal Pesanan\nlet orderDate = new Date().toLocaleString('id-ID');\nconst dateMatch = fullText.match(/Tanggal\\s+Pesanan:\\s*([^\\n\\r]+)/i);\nif (dateMatch) {\n  orderDate = dateMatch[1].trim();\n}\n\n// 4. Ekstrak Setiap Item Game (Daftar bernomor 1., 2., 3., dst.)\n// Batasi hanya di blok setelah RINCIAN PESANAN dan sebelum Subtotal\nlet itemsSection = fullText;\nconst rincianIndex = fullText.search(/RINCIAN\\s+PESANAN/i);\nif (rincianIndex !== -1) {\n  itemsSection = fullText.slice(rincianIndex);\n}\nconst subtotalIndex = itemsSection.search(/(?:Subtotal|LANGKAH\\s+SELANJUTNYA)/i);\nif (subtotalIndex !== -1) {\n  itemsSection = itemsSection.slice(0, subtotalIndex);\n}\n\nconst itemRegex = /(?:^|[\\r\\n])\\s*(\\d+)\\.\\s+([^\\n\\r]+)(?:[\\r\\n]+\\s*Variasi:\\s*([^\\n\\r]*))?(?:[\\r\\n]+\\s*Jumlah:\\s*(\\d+))?(?:[\\r\\n]+\\s*Harga:\\s*(Rp\\s*[\\d.,]+))?/g;\nconst items = [];\nlet match;\n\nwhile ((match = itemRegex.exec(itemsSection)) !== null) {\n  const rawTitle = match[2].trim();\n  const rawVariation = (match[3] || '').trim();\n  const quantity = parseInt(match[4] || '1', 10);\n  const price = (match[5] || '').trim();\n  const variation = rawVariation === '-' ? '' : rawVariation;\n\n  // Bersihkan embel-embel judul Shopee\n  const cleanTitle = rawTitle\n    .replace(/\\s*-\\s*Game PC.*$/i, '')\n    .replace(/\\s*-\\s*PC Offline.*$/i, '')\n    .replace(/\\s*-\\s*PC Game.*$/i, '')\n    .replace(/\\s*-\\s*Bisa Auto Update.*$/i, '')\n    .trim();\n\n  const isSims4 = /sims\\s*4/i.test(cleanTitle) || /sims\\s*4/i.test(rawTitle);\n  const allowCC = /CC/i.test(variation) || /CC/i.test(rawTitle);\n\n  items.push({\n    index: parseInt(match[1], 10),\n    title: cleanTitle,\n    rawTitle: rawTitle,\n    variation: variation,\n    quantity: quantity,\n    price: price,\n    isSims4: isSims4,\n    allowCC: allowCC,\n  });\n}\n\nif (!invoice || items.length === 0) {\n  return [];\n}\n\nreturn [{\n  json: {\n    invoice,\n    buyerUsername,\n    orderDate,\n    items,\n    totalGames: items.length,\n    hasSims4: items.some(i => i.isSims4),\n    status: 'ready',\n    source: 'n8n_gmail_automation',\n    createdAt: new Date().toISOString()\n  }\n}];"
+        "operation": "get",
+        "messageId": "={{ $json.id }}",
+        "simple": false,
+        "options": {}
+      },
+      "id": "node-gmail-get",
+      "name": "Get Email Details",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [420, 260]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ─── MYGAMEON SHOPEE EMAIL PARSER ENGINE ───\nconst item = $input.item;\nconst subject = item.json.subject || (item.json.headers && item.json.headers.subject) || '';\nconst text = item.json.text || item.json.textPlain || item.json.snippet || '';\nconst html = item.json.html || '';\nconst fullText = `${subject}\\n${text}\\n${html}`;\n\n// 1. Ekstrak Nomor Pesanan\nlet invoice = null;\nconst invoiceSubjectMatch = subject.match(/Pesanan\\s*#?([A-Z0-9]{10,})/i);\nif (invoiceSubjectMatch) {\n  invoice = invoiceSubjectMatch[1].trim().toUpperCase();\n} else {\n  const invoiceBodyMatch = fullText.match(/(?:No\\.\\s*Pesanan:\\s*#?|pembayaran\\s+pesanan\\s+#?)([A-Z0-9]{10,})/i);\n  if (invoiceBodyMatch) {\n    invoice = invoiceBodyMatch[1].trim().toUpperCase();\n  }\n}\n\n// 2. Ekstrak Username Pembeli\nlet buyerUsername = 'Pembeli Shopee';\nconst buyerMatch = fullText.match(/kirimkan\\s+pesanan\\s+ke\\s+([a-zA-Z0-9._]+)/i);\nif (buyerMatch) {\n  buyerUsername = buyerMatch[1].replace(/[.,]/g, '').trim();\n}\n\n// 3. Ekstrak Tanggal Pesanan\nlet orderDate = new Date().toLocaleString('id-ID');\nconst dateMatch = fullText.match(/Tanggal\\s+Pesanan:\\s*([^\\n\\r]+)/i);\nif (dateMatch) {\n  orderDate = dateMatch[1].trim();\n}\n\n// 4. Ekstrak Setiap Item Game\nlet itemsSection = fullText;\nconst rincianIndex = fullText.search(/RINCIAN\\s+PESANAN/i);\nif (rincianIndex !== -1) {\n  itemsSection = fullText.slice(rincianIndex);\n}\nconst subtotalIndex = itemsSection.search(/(?:Subtotal|LANGKAH\\s+SELANJUTNYA)/i);\nif (subtotalIndex !== -1) {\n  itemsSection = itemsSection.slice(0, subtotalIndex);\n}\n\nconst itemRegex = /(?:^|[\\r\\n])\\s*(\\d+)\\.\\s+([^\\n\\r]+)(?:[\\r\\n]+\\s*Variasi:\\s*([^\\n\\r]*))?(?:[\\r\\n]+\\s*Jumlah:\\s*(\\d+))?(?:[\\r\\n]+\\s*Harga:\\s*(Rp\\s*[\\d.,]+))?/g;\nconst items = [];\nlet match;\n\nwhile ((match = itemRegex.exec(itemsSection)) !== null) {\n  const rawTitle = match[2].trim();\n  const rawVariation = (match[3] || '').trim();\n  const quantity = parseInt(match[4] || '1', 10);\n  const price = (match[5] || '').trim();\n  const variation = rawVariation === '-' ? '' : rawVariation;\n\n  const cleanTitle = rawTitle\n    .replace(/\\s*-\\s*Game PC.*$/i, '')\n    .replace(/\\s*-\\s*PC Offline.*$/i, '')\n    .replace(/\\s*-\\s*PC Game.*$/i, '')\n    .replace(/\\s*-\\s*Bisa Auto Update.*$/i, '')\n    .trim();\n\n  const isSims4 = /sims\\s*4/i.test(cleanTitle) || /sims\\s*4/i.test(rawTitle);\n  const allowCC = /CC/i.test(variation) || /CC/i.test(rawTitle);\n\n  items.push({\n    index: parseInt(match[1], 10),\n    title: cleanTitle,\n    rawTitle: rawTitle,\n    variation: variation,\n    quantity: quantity,\n    price: price,\n    isSims4: isSims4,\n    allowCC: allowCC,\n  });\n}\n\nif (!invoice || items.length === 0) {\n  return [];\n}\n\nreturn [{\n  json: {\n    invoice,\n    buyerUsername,\n    orderDate,\n    items,\n    totalGames: items.length,\n    hasSims4: items.some(i => i.isSims4),\n    status: 'ready',\n    source: 'n8n_gmail_automation',\n    createdAt: new Date().toISOString()\n  }\n}];"
       },
       "id": "node-parse-email",
       "name": "Parse Shopee Email",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [480, 260]
+      "position": [640, 260]
     },
     {
       "parameters": {
@@ -41,7 +54,7 @@
       "name": "Save to Firestore (shopee_orders)",
       "type": "n8n-nodes-base.googleFirebaseCloudFirestore",
       "typeVersion": 1,
-      "position": [720, 260]
+      "position": [860, 260]
     },
     {
       "parameters": {
@@ -53,7 +66,7 @@
       "name": "Webhook Telemetry Alert",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [240, 500],
+      "position": [200, 500],
       "webhookId": "telemetry-alert"
     },
     {
@@ -72,7 +85,7 @@
       "name": "Filter Telemetry Event",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [480, 500]
+      "position": [440, 500]
     },
     {
       "parameters": {
@@ -96,11 +109,22 @@
       "name": "Kirim Alert ke WA Admin (6285121309829)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [720, 500]
+      "position": [680, 500]
     }
   ],
   "connections": {
     "Gmail Trigger (Shopee Orders)": {
+      "main": [
+        [
+          {
+            "node": "Get Email Details",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Email Details": {
       "main": [
         [
           {

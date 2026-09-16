@@ -7,9 +7,28 @@
  * Jalankan: node scripts/test-shopee-parser.js
  */
 
+// Helper membersihkan tag HTML menjadi plain text dengan baris baru yang rapi
+function cleanHtml(rawHtml) {
+  if (!rawHtml) return '';
+  return rawHtml
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+    .replace(/<br\s*[\/]?>/gi, '\n')
+    .replace(/<\/(p|div|tr|h\d|li|table)>/gi, '\n')
+    .replace(/<\/td>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&#39;/gi, "'")
+    .replace(/&quot;/gi, '"')
+    .replace(/[ \t]+/g, ' ')
+    .replace(/\n\s*\n/g, '\n');
+}
+
 // ─── 1. FUNGSI PARSER UTAMA (Sama persis dengan n8n Code Node) ───
 function parseShopeeEmail({ subject = '', bodyText = '', html = '' }) {
-  const text = `${subject}\n${bodyText}\n${html}`;
+  const convertedHtml = cleanHtml(html);
+  const text = `${subject}\n${bodyText}\n${convertedHtml}`;
 
   // 1. Ekstrak Nomor Pesanan (dari subject atau body)
   // Contoh subject: "Pesanan #2609167HFANPAD Siap Dikirim"

@@ -2,7 +2,7 @@
 //
 // Smart Auto-Detect Shopee Order Claim Page.
 // Strict Security: Manual title input is completely locked down.
-// Failed / Unverified lookups trigger an automated Telemetry Alert to Admin WhatsApp.
+// Failed / Unverified lookups trigger an automated Telemetry Alert to Admin Telegram.
 
 import React, { useState, useEffect } from 'react';
 import { 
@@ -301,7 +301,7 @@ const ClaimOrderPage = () => {
           } catch {}
         }
 
-        // Kirim notifikasi darurat / telemetri alert ke WhatsApp Admin via n8n
+        // Kirim notifikasi darurat / telemetri alert ke Telegram Admin via n8n
         try {
           await n8nService.dispatchUnverifiedInvoiceAlert({
             invoice: cleanInvoice,

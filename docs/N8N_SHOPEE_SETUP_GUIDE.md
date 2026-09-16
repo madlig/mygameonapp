@@ -79,19 +79,30 @@ Node ini bertugas menuliskan data pesanan yang telah diekstrak ke koleksi `shope
 
 ---
 
-## 🚨 Langkah 4: Konfigurasi Notifikasi Alert WhatsApp Admin
+## 🚨 Langkah 4: Konfigurasi Notifikasi Alert Telegram Admin (100% Gratis)
 
-Node ini menerima peringatan telemetri secara real-time dari website jika ada pengguna/bot yang salah menginput nomor pesanan berulang kali (*bruteforce lockout*).
+Node ini menerima peringatan telemetri secara real-time dari website jika ada pengguna/bot yang salah menginput nomor pesanan berulang kali (*bruteforce lockout*). Alert dikirimkan langsung ke Telegram pribadi Admin secara instan tanpa biaya gateway bulanan.
 
-1. Salin **Production Webhook URL** dari node **`Webhook Telemetry Alert`** di n8n (contoh: `https://n8n.domain-anda.com/webhook/telemetry-alert`).
-2. Masukkan URL tersebut ke file konfigurasi web Anda di `src/config/integrations.js` pada field:
-   ```javascript
-   INTEGRATIONS.n8n.telemetryWebhookUrl = 'https://n8n.domain-anda.com/webhook/telemetry-alert';
-   ```
-3. Dobel klik node **`Kirim Alert ke WA Admin (6285121309829)`**:
-   - Jika menggunakan **Fonnte**: masukkan Token API Fonnte Anda pada header `Authorization`.
-   - Jika menggunakan **Waha** atau gateway lain: sesuaikan format payload HTTP Request sesuai dokumentasi gateway WA Anda.
-   - Nomor tujuan sudah terkonfigurasi ke nomor WhatsApp Business Anda: `6285121309829`.
+1. **Buat Bot Telegram (Hanya 1 Menit)**:
+   - Buka Telegram di HP / Desktop, cari **`@BotFather`**.
+   - Kirim perintah `/newbot`.
+   - Masukkan nama bot (contoh: `MyGameON Alert Bot`) dan username bot yang berakhiran `bot` (contoh: `mygameon_alert_bot`).
+   - Salin **API Token** yang diberikan oleh BotFather (contoh: `7123456789:AAHq_...`).
+   - Buka bot yang baru Anda buat, lalu klik **Start** (atau kirim `/start`) agar bot diizinkan mengirim pesan ke Anda.
+
+2. **Dapatkan ID Chat Telegram Anda**:
+   - Cari bot **`@userinfobot`** di Telegram $\rightarrow$ klik **Start**.
+   - Salin nomor **Id** Anda (contoh: `123456789`).
+
+3. **Konfigurasi Node Telegram di n8n**:
+   - Dobel klik node **`Kirim Alert ke Telegram Admin`**.
+   - Pada bagian **Credential to connect with**, buat kredensial baru $\rightarrow$ pilih **Telegram API** $\rightarrow$ masukkan **Access Token** dari BotFather.
+   - Pada input field **Chat ID**, masukkan nomor ID Telegram Anda (dari `@userinfobot`).
+   - Parameter Text dan Parse Mode (`HTML`) sudah terisi otomatis dan siap digunakan.
+
+4. **URL Webhook Telemetri**:
+   - Webhook URL sudah terdaftar di `.env.local`: `VITE_N8N_TELEMETRY_WEBHOOK=http://localhost:5678/webhook/telemetry-alert`.
+   - (Untuk produksi, ganti `localhost:5678` dengan URL publik instance n8n Anda).
 
 ---
 

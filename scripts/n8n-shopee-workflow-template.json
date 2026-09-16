@@ -89,26 +89,16 @@
     },
     {
       "parameters": {
-        "method": "POST",
-        "url": "https://api.fonnte.com/send",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Authorization",
-              "value": "YOUR_FONNTE_OR_WA_TOKEN"
-            }
-          ]
-        },
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={\n  \"target\": \"6285121309829\",\n  \"message\": \"{{ $json.body.alertMessage }}\\n\\n🕒 Waktu: {{ $json.body.clientTime }}\\n💻 Web Origin: {{ $json.body.appOrigin || 'MyGameON App' }}\"\n}",
-        "options": {}
+        "chatId": "YOUR_TELEGRAM_CHAT_ID",
+        "text": "=🚨 <b>[MYGAMEON SECURITY ALERT]</b>\n\n{{ $json.body.alertMessage }}\n\n🕒 <b>Waktu:</b> {{ $json.body.clientTime }}\n🌐 <b>Halaman:</b> {{ $json.body.url || 'Web Claim' }}\n⚠️ <b>Severity:</b> {{ $json.body.severity || 'WARNING' }}",
+        "additionalFields": {
+          "parse_mode": "HTML"
+        }
       },
-      "id": "node-dispatch-wa",
-      "name": "Kirim Alert ke WA Admin (6285121309829)",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.1,
+      "id": "node-dispatch-telegram",
+      "name": "Kirim Alert ke Telegram Admin",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
       "position": [680, 500]
     }
   ],
@@ -161,7 +151,7 @@
       "main": [
         [
           {
-            "node": "Kirim Alert ke WA Admin (6285121309829)",
+            "node": "Kirim Alert ke Telegram Admin",
             "type": "main",
             "index": 0
           }

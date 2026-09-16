@@ -113,30 +113,23 @@ export function AuthProvider({ children }) {
       }
 
       try {
+        const userEmail = user.email?.toLowerCase() || '';
+
         // 1. Cek Custom Claims dari token Firebase
         const tokenResult = await user.getIdTokenResult(true);
         const claims = tokenResult?.claims || {};
-        let hasAdminAccess = claims.admin === true || claims.role === 'admin';
+        let hasAdminAccess = (claims.admin === true || claims.role === 'admin') && userEmail === 'madlighifari29@gmail.com';
 
-        // 2. Cek Whitelist Firestore (Jika custom claims belum ter-set di token)
-        if (!hasAdminAccess && user.email) {
-          const email = user.email.toLowerCase();
-          
-          if (email === 'madlighifari29@gmail.com' || email === 'madlighifari@gmail.com' || email.includes('mygameon')) {
+        // 2. Strict Whitelist: Hanya madlighifari29@gmail.com yang memiliki akses admin
+        if (!hasAdminAccess && userEmail) {
+          if (userEmail === 'madlighifari29@gmail.com') {
             hasAdminAccess = true;
           } else {
             try {
-              // Cek dokumen di joki_admin_emails
-              const adminDoc = await getDoc(doc(db, 'joki_admin_emails', email));
+              // Cek dokumen di joki_admin_emails (khusus staf joki)
+              const adminDoc = await getDoc(doc(db, 'joki_admin_emails', userEmail));
               if (adminDoc.exists()) {
                 hasAdminAccess = true;
-              } else {
-                // Cek kepemilikan workspace di joki_workspaces
-                const q = query(collection(db, 'joki_workspaces'), where('ownerEmail', '==', email));
-                const snap = await getDocs(q);
-                if (!snap.empty) {
-                  hasAdminAccess = true;
-                }
               }
             } catch (err) {
               console.warn('Error verifying admin whitelist in Firestore:', err);
@@ -152,11 +145,17 @@ export function AuthProvider({ children }) {
           const userSnap = await getDoc(userDocRef);
 
           if (userSnap.exists()) {
-            setUserProfile(userSnap.data());
+            const data = userSnap.data();
+            // Perbaiki role di Firestore jika akun bukan admin resmi
+            if (!hasAdminAccess && data.role === 'admin') {
+              data.role = 'user';
+              await setDoc(userDocRef, { role: 'user' }, { merge: true });
+            }
+            setUserProfile(data);
           } else {
             const initialProfile = {
               uid: user.uid,
-              email: user.email?.toLowerCase() || '',
+              email: userEmail,
               displayName: user.displayName || 'Gamer MyGameON',
               photoURL: user.photoURL || '',
               shopeeUsername: '',
@@ -171,7 +170,7 @@ export function AuthProvider({ children }) {
           console.warn('Could not load user profile from Firestore:', profileErr);
           setUserProfile({
             uid: user.uid,
-            email: user.email?.toLowerCase() || '',
+            email: userEmail,
             displayName: user.displayName || 'Gamer MyGameON',
             photoURL: user.photoURL || '',
             shopeeUsername: '',

@@ -70,7 +70,11 @@ Dokumen ini adalah catatan resmi (*audit trail*) dan riwayat kemajuan pengerjaan
   3. **Routing Register & Kebijakan Privasi**: [`src/routes/AppRouter.jsx`](file:///c:/mad/website/mygameonapp/src/routes/AppRouter.jsx)
      - Mendaftarkan rute `/register` yang otomatis membuka tab pendaftaran.
      - Membuat halaman resmi Kebijakan Privasi di [`src/pages/PrivacyPolicyPage.jsx`](file:///c:/mad/website/mygameonapp/src/pages/PrivacyPolicyPage.jsx) dan mendaftarkan rute `/privacy` serta `/terms` untuk memenuhi kepatuhan OAuth Consent Screen Google Cloud.
-- **Hasil Verifikasi**: Build `npm run build` sukses (PASS, 11.14s), rute `/login`, `/register`, dan `/privacy` return 200 OK.
+  4. **Strict Admin Whitelist**: [`src/contexts/AuthContext.jsx`](file:///c:/mad/website/mygameonapp/src/contexts/AuthContext.jsx) & [`src/pages/LoginPage.jsx`](file:///c:/mad/website/mygameonapp/src/pages/LoginPage.jsx)
+     - Menghapus pengecekan longgar `email.includes('mygameon')` yang sebelumnya menyebabkan akun non-admin seperti `mygameonhub@gmail.com` mendapatkan status admin.
+     - Mengunci hak akses admin dan dashboard secara eksklusif hanya untuk email `madlighifari29@gmail.com`.
+     - Otomatis menormalkan role akun lain di Firestore menjadi `'user'`.
+- **Hasil Verifikasi**: Build `npm run build` sukses (PASS, 11.06s), rute `/login`, `/register`, dan `/privacy` return 200 OK.
 
 ---
 

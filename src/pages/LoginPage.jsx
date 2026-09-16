@@ -161,10 +161,11 @@ const LoginPage = ({ initialMode = 'login' }) => {
       const userCredential = await loginWithGoogle();
       clearLockState();
 
-      // Cek hak akses admin
+      // Cek hak akses admin (khusus madlighifari29@gmail.com)
+      const userEmail = userCredential.user.email?.toLowerCase() || '';
       const tokenResult = await userCredential.user.getIdTokenResult(true);
       const claims = tokenResult.claims || {};
-      const hasAdmin = claims.admin === true || claims.role === 'admin';
+      const hasAdmin = (claims.admin === true || claims.role === 'admin' || userEmail === 'madlighifari29@gmail.com') && userEmail === 'madlighifari29@gmail.com';
 
       if (hasAdmin) {
         navigate('/dashboard', { replace: true });
@@ -233,10 +234,11 @@ const LoginPage = ({ initialMode = 'login' }) => {
         // ── LOGIN EMAIL / PASSWORD ──
         const userCredential = await login(cleanEmail, password);
 
-        // Periksa custom claims admin
+        // Periksa custom claims admin (khusus madlighifari29@gmail.com)
+        const userEmail = userCredential.user.email?.toLowerCase() || '';
         const tokenResult = await userCredential.user.getIdTokenResult(true);
         const claims = tokenResult.claims || {};
-        const hasAdminClaim = claims.admin === true || claims.role === 'admin';
+        const hasAdminClaim = (claims.admin === true || claims.role === 'admin' || userEmail === 'madlighifari29@gmail.com') && userEmail === 'madlighifari29@gmail.com';
 
         clearLockState();
 

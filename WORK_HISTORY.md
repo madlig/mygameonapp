@@ -78,10 +78,46 @@ Dokumen ini adalah catatan resmi (*audit trail*) dan riwayat kemajuan pengerjaan
 
 ---
 
+### [Milestone 04] — Sistem Request Game Terstruktur & Pelacakan Tiket Real-Time (Poin 3 Roadmap)
+- **Waktu Pengerjaan**: 2026-09-16
+- **Latar Belakang & Masalah**: Sebelumnya, tombol request game di Landing Page dan Katalog langsung melempar pembeli ke chat WhatsApp tanpa struktur database. Pembeli tidak memiliki kode tiket untuk memantau proses penyediaan game, admin kesulitan mencatat prioritas permintaan, dan pencarian katalog yang kosong tidak mengonversi ke antrean tiket yang rapi.
+- **Implementasi**:
+  1. **Halaman Form Request Game V2**: [`src/features/landing/RequestGamePage.jsx`](file:///c:/mad/website/mygameonapp/src/features/landing/RequestGamePage.jsx)
+     - Desain visual tema gelap V2 (`#07090E`, `#0B0F17`, aksen amber-400).
+     - Auto-fill judul dari query param `?title=...` dan username Shopee dari profil akun pembeli (`useAuth()`).
+     - Pembuatan kode tiket instan format unik `RQ-XXXXXX` (misal: `RQ-9KP2X7`).
+     - Sistem voting & deteksi duplikat otomatis: jika game sedang dalam antrean aktif, sistem mencatat vote tambahan (`votes: increment(1)`) untuk memprioritaskan permintaan tersebut tanpa membuat tiket ganda yang membingungkan.
+     - Proteksi rate limiting (cooldown 2 menit per client) & bot honeypot.
+     - Pemisahan sub-koleksi privat `requests/{id}/private/contact` untuk menjaga privasi nomor WhatsApp dan username pembeli agar aman dari scraping publik.
+     - Tombol 1-klik kirim tiket resmi ke WhatsApp Admin dengan pesan terformat rapi.
+  2. **Halaman Pelacakan Tiket Real-Time V2**: [`src/features/landing/RequestStatusPage.jsx`](file:///c:/mad/website/mygameonapp/src/features/landing/RequestStatusPage.jsx)
+     - Desain visual V2 selaras dengan seluruh ekosistem MyGameON.
+     - Auto-detect kode tiket dari query param `?code=...` atau tiket terakhir di `localStorage`.
+     - Stepper 4 tahap progres visual interaktif:
+       - 1. *Menunggu Review*: Pengajuan diterima di sistem.
+       - 2. *Sedang Direview*: Admin mengecek ketersediaan master file & reputasi crack/repack.
+       - 3. *Sedang Diproses/Upload*: File sedang diunggah ke server Google Drive berkecepatan tinggi.
+       - 4. *Selesai & Siap di Katalog*: Game telah terbit di katalog dengan tombol langsung menuju detail produk.
+     - Penanganan status penolakan (*rejected*) lengkap dengan catatan/alasan dari admin (misal: "Online Only / Denuvo belum terbongkar") dan opsi konsultasi ke WhatsApp.
+  3. **Integrasi Seluruh Titik Masuk (Landing, Katalog, Navbar, Footer)**:
+     - [`src/features/landing/LandingPageV2.jsx`](file:///c:/mad/website/mygameonapp/src/features/landing/LandingPageV2.jsx):
+       - Header game: Tombol ganda `Cek Tiket` (`/request-status`) dan `Request Game` (`/request-game`).
+       - Empty search state: Tombol utama `Ajukan Request Bertiket` otomatis mengoper kata kunci pencarian ke `/request-game?title=...` + tombol cadangan WhatsApp.
+       - Footer: Tautan `Request Game` dan `Lacak Tiket`.
+     - [`src/features/landing/CatalogPage.jsx`](file:///c:/mad/website/mygameonapp/src/features/landing/CatalogPage.jsx):
+       - Empty search state: Tombol `Buat Tiket Request Game` membawa kata kunci pencarian.
+       - Bottom banner: Akses terpadu form request, lacak tiket, dan konsultasi admin.
+     - [`src/features/landing/components/LandingNavbar.jsx`](file:///c:/mad/website/mygameonapp/src/features/landing/components/LandingNavbar.jsx):
+       - Menu desktop & mobile drawer dilengkapi link langsung `Request Game` dan `Lacak Tiket`.
+- **Hasil Verifikasi**:
+  - `npm run build` berhasil 100% tanpa error (PASS, 11.15s).
+  - Verifikasi HTTP GET: `/request-game` (200 OK), `/request-status` (200 OK), `/katalog` (200 OK), `/ticket/demo` (200 OK — joki aman).
+
+---
+
 ## 📋 Rencana Kerja Berikutnya (Upcoming Tasks)
-1. **Poin 3 — Sistem Request Game & Tracking Status**:
-   - Memodifikasi alur request dari sekadar link WA ke form terstruktur dengan pembuatan Kode Tiket pelacakan (misal: `REQ-XXXX`).
-   - Menyediakan halaman cek status progres request game secara real-time.
-2. **Poin 7 — Sistem Klaim Pesanan Shopee & Cloud Sync di `/claim`**:
+1. **Poin 7 — Sistem Klaim Pesanan Shopee & Cloud Sync di `/claim`**:
    - Membangun alur verifikasi nomor pesanan Shopee anti-bocor (kolaborasi webhook n8n / email notifikasi Shopee).
    - Memastikan game langsung masuk ke `users/{uid}.ownedGames` dan folder Google Drive terbuka otomatis setelah klaim tervalidasi.
+2. **Poin 2 — Fitur "Can I Run It" Advanced & Rekomendasi Game Dinamis**:
+   - Peningkatan basis data perbandingan GPU/CPU dan fitur benchmark skor performa.

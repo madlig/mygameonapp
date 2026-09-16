@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { 
   Loader2, PlusCircle, HelpCircle, 
-  ShieldCheck, ArrowUpRight, ShoppingBag, Gamepad2
+  ShieldCheck, ArrowUpRight, ShoppingBag, Gamepad2, Search
 } from 'lucide-react';
 import WhatsAppIcon from '../../components/common/WhatsAppIcon';
 import LandingNavbar from './components/LandingNavbar';
@@ -198,15 +198,22 @@ const LandingPageV2 = () => {
               </p>
             </div>
 
-            <a
-              href={waRequestUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="hidden sm:inline-flex items-center gap-1.5 text-xs font-bold text-slate-300 hover:text-white bg-white/5 hover:bg-white/10 px-3.5 py-2 rounded-xl border border-white/10 transition-colors"
-            >
-              <PlusCircle size={14} className="text-amber-400" />
-              <span>Request Judul Game Lain</span>
-            </a>
+            <div className="hidden sm:flex items-center gap-2">
+              <Link
+                to="/request-status"
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-400 hover:text-white bg-white/5 hover:bg-white/10 px-3 py-2 rounded-xl border border-white/10 transition-colors"
+              >
+                <Search size={13} className="text-slate-400" />
+                <span>Cek Tiket</span>
+              </Link>
+              <Link
+                to="/request-game"
+                className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-950 bg-amber-400 hover:bg-amber-300 px-3.5 py-2 rounded-xl transition-colors shadow-sm"
+              >
+                <PlusCircle size={14} className="text-slate-950 stroke-[2.5]" />
+                <span>Request Game</span>
+              </Link>
+            </div>
           </div>
 
           {/* Grid Layout: 2 cols on mobile, 3 on tablet, 4 on desktop */}
@@ -261,17 +268,26 @@ const LandingPageV2 = () => {
                 Game "{searchQuery}" Belum Ditemukan
               </h3>
               <p className="text-xs text-slate-400 mb-5 leading-relaxed">
-                Kami memiliki 1.200+ koleksi game di server Google Drive. Cukup klik tombol di bawah untuk request judul game ini langsung ke admin!
+                Kami memiliki 1.200+ koleksi game di server Google Drive. Cukup ajukan form request untuk dapatkan tiket antrian atau hubungi admin via WhatsApp!
               </p>
-              <a
-                href={waRequestUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-black font-extrabold text-xs py-3 px-6 rounded-xl transition-colors shadow-lg shadow-emerald-500/10"
-              >
-                <WhatsAppIcon className="w-4 h-4 fill-current shrink-0" />
-                <span>Request Game via WhatsApp</span>
-              </a>
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-2.5">
+                <Link
+                  to={`/request-game?title=${encodeURIComponent(searchQuery)}`}
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs py-3 px-5 rounded-xl transition-colors shadow-lg shadow-amber-400/10"
+                >
+                  <PlusCircle size={16} className="text-slate-950 stroke-[2.5]" />
+                  <span>Ajukan Request Bertiket</span>
+                </Link>
+                <a
+                  href={waRequestUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-[#141A26] hover:bg-white/10 text-slate-300 font-bold text-xs py-3 px-5 rounded-xl border border-white/10 transition-colors"
+                >
+                  <WhatsAppIcon className="w-4 h-4 fill-emerald-400 shrink-0" />
+                  <span>Chat Admin via WA</span>
+                </a>
+              </div>
             </div>
           )}
         </section>
@@ -322,7 +338,9 @@ const LandingPageV2 = () => {
               © {new Date().getFullYear()} MyGameON. All Rights Reserved. Not affiliated with Electronic Arts or Steam.
             </p>
           </div>
-          <div className="flex items-center gap-4 text-xs">
+          <div className="flex flex-wrap items-center justify-center sm:justify-end gap-3 sm:gap-4 text-xs">
+            <Link to="/request-game" className="hover:text-amber-400 transition-colors font-medium">Request Game</Link>
+            <Link to="/request-status" className="hover:text-slate-300 transition-colors">Lacak Tiket</Link>
             <Link to="/faq" className="hover:text-slate-300 transition-colors">FAQ</Link>
             <Link to="/downloads" className="hover:text-slate-300 transition-colors">Downloads</Link>
             <Link to="/claim" className="hover:text-amber-400 transition-colors font-bold text-amber-400/90">Klaim Shopee</Link>

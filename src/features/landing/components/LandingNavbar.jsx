@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { ShoppingBag, Layers, Wrench, Disc, Menu, X, ShieldCheck, Download, Gamepad2, LogIn, HardDrive } from 'lucide-react';
+import { ShoppingBag, Layers, Wrench, Disc, Menu, X, ShieldCheck, Download, Gamepad2, LogIn, HardDrive, PlusCircle, Search } from 'lucide-react';
 import { buildWhatsAppUrl, INTEGRATIONS } from '../../../config/integrations';
 import WhatsAppIcon from '../../../components/common/WhatsAppIcon';
 import { useAuth } from '../../../contexts/AuthContext';
@@ -84,6 +84,12 @@ const LandingNavbar = () => {
             >
               DirectX & Tools
             </a>
+            <Link
+              to="/request-game"
+              className="font-medium px-3 py-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/5 transition-colors"
+            >
+              Request Game
+            </Link>
             <Link
               to="/claim"
               className="font-bold px-3 py-1.5 rounded-xl text-orange-400 bg-shopee-orange/10 border border-shopee-orange/30 hover:bg-shopee-orange/20 transition-all ml-1 flex items-center gap-1.5"
@@ -201,6 +207,22 @@ const LandingNavbar = () => {
             <Wrench size={16} className="text-cyan-400" />
             <span>DirectX & VC++ Toolkit</span>
           </a>
+          <Link
+            to="/request-game"
+            onClick={() => setMobileMenuOpen(false)}
+            className="px-3 py-2 rounded-lg text-sm font-medium text-slate-200 hover:bg-white/5 flex items-center gap-2.5"
+          >
+            <PlusCircle size={16} className="text-amber-400" />
+            <span>Request Game</span>
+          </Link>
+          <Link
+            to="/request-status"
+            onClick={() => setMobileMenuOpen(false)}
+            className="px-3 py-2 rounded-lg text-sm font-medium text-slate-200 hover:bg-white/5 flex items-center gap-2.5"
+          >
+            <Search size={16} className="text-slate-400" />
+            <span>Lacak Tiket Request</span>
+          </Link>
           <Link
             to="/library"
             onClick={() => setMobileMenuOpen(false)}

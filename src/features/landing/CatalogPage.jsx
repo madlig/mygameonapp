@@ -6,7 +6,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { 
-  Loader2, Search, HelpCircle, 
+  Loader2, Search, HelpCircle, PlusCircle,
   ArrowLeft, ChevronLeft, ChevronRight, SlidersHorizontal,
   HardDrive, ShieldCheck, X, RotateCcw
 } from 'lucide-react';
@@ -377,17 +377,26 @@ const CatalogPage = () => {
                   Game Belum Ditemukan
                 </h3>
                 <p className="text-xs text-slate-400 mb-5 leading-relaxed">
-                  Game yang Anda cari belum masuk etalase website? Hubungi admin via WhatsApp untuk request judul apapun, kami siapkan link Google Drive-nya.
+                  Game yang Anda cari belum masuk etalase website? Buat tiket request game sekarang atau hubungi admin via WhatsApp untuk kami siapkan link Google Drive-nya.
                 </p>
-                <a
-                  href={waRequestUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-black font-extrabold text-xs py-3 px-6 rounded-xl transition-colors shadow-lg shadow-emerald-500/10"
-                >
-                  <WhatsAppIcon className="w-4 h-4 fill-current shrink-0" />
-                  <span>Request Game ke Admin via WA</span>
-                </a>
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-2.5">
+                  <Link
+                    to={`/request-game?title=${encodeURIComponent(searchQuery || '')}`}
+                    className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs py-3 px-5 rounded-xl transition-colors shadow-lg shadow-amber-400/10"
+                  >
+                    <PlusCircle size={15} className="stroke-[2.5]" />
+                    <span>Buat Tiket Request Game</span>
+                  </Link>
+                  <a
+                    href={waRequestUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-[#141A26] hover:bg-white/10 text-slate-300 font-bold text-xs py-3 px-5 rounded-xl border border-white/10 transition-colors"
+                  >
+                    <WhatsAppIcon className="w-4 h-4 fill-emerald-400 shrink-0" />
+                    <span>Chat WA Admin</span>
+                  </a>
+                </div>
               </div>
             )}
 
@@ -440,18 +449,34 @@ const CatalogPage = () => {
                 </div>
                 <h3 className="text-lg sm:text-xl font-black text-white">Tidak Menemukan Game yang Dicari?</h3>
                 <p className="text-xs text-slate-300 mt-1 max-w-xl">
-                  Kami memiliki ratusan judul game lain di server Google Drive yang belum sempat masuk etalase web. Request langsung ke admin sekarang.
+                  Kami memiliki ratusan judul game lain di server Google Drive yang belum sempat masuk etalase web. Request langsung dengan sistem tiket real-time atau chat admin via WhatsApp.
                 </p>
               </div>
-              <a
-                href={waRequestUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="shrink-0 px-6 py-3.5 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-black font-extrabold text-xs sm:text-sm flex items-center gap-2 transition-all shadow-lg shadow-emerald-500/10"
-              >
-                <WhatsAppIcon className="w-4 h-4 fill-current shrink-0" />
-                <span>Chat Admin WhatsApp</span>
-              </a>
+              <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+                <Link
+                  to="/request-game"
+                  className="w-full sm:w-auto px-4 py-3 rounded-2xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs sm:text-sm flex items-center justify-center gap-2 transition-all shadow-lg shadow-amber-400/10"
+                >
+                  <PlusCircle size={15} className="stroke-[2.5]" />
+                  <span>Form Request</span>
+                </Link>
+                <Link
+                  to="/request-status"
+                  className="w-full sm:w-auto px-4 py-3 rounded-2xl bg-white/5 hover:bg-white/10 text-slate-300 font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 border border-white/10 transition-all"
+                >
+                  <Search size={14} />
+                  <span>Lacak Tiket</span>
+                </Link>
+                <a
+                  href={waRequestUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="w-full sm:w-auto px-3.5 py-3 rounded-2xl bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 border border-emerald-500/30 transition-all"
+                >
+                  <WhatsAppIcon className="w-3.5 h-3.5 fill-current" />
+                  <span>WA</span>
+                </a>
+              </div>
             </div>
 
           </div>

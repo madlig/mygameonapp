@@ -6,6 +6,7 @@ Dokumen ini adalah catatan resmi (*audit trail*) dan riwayat kemajuan pengerjaan
 
 ## 📌 Status Terkini Proyek
 - **Branch Git**: `feature/brand-refresh-v2`
+- **Commit Hash Terakhir**: `5b45dfc` (*feat: landing v2, can-i-run-it engine, customer library, and universal auth*)
 - **Environment**: Vite + React 19 + Tailwind CSS + Firebase Auth & Firestore
 - **Preview Server**: Running di `http://localhost:5173` (Daemon task)
 - **Status Joki & Overlay**: Subdomain `joki.mygameon.store` dan rute `/ticket/:id`, `/overlay` aman 100% dan terisolasi.

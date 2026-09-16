@@ -179,6 +179,35 @@ Dokumen ini adalah catatan resmi (*audit trail*) dan riwayat kemajuan pengerjaan
 
 ---
 
+### [Milestone 07] — Sistem Lockout Timer Akumulatif Berjenjang (Max 1 Jam) & Anti-Bypass Storage
+- **Waktu Pengerjaan**: 2026-09-16
+- **Latar Belakang & Masalah**: 
+  1. Proteksi lockout klaim Shopee sebelumnya hanya berupa durasi flat 5 menit yang tersimpan di memori state React (`lockoutTimer`). Pengunjung/bot dapat me-refresh halaman untuk me-reset hitungan mundur dan mencoba menebak nomor invoice kembali.
+  2. Belum ada eskalasi penalti waktu untuk pelaku yang berulang kali gagal setelah masa lockout berakhir.
+- **Implementasi**:
+  1. **Model Tangga Akumulasi Waktu (Exponential Backoff)**: [`src/features/claim/ClaimOrderPage.jsx`](file:///c:/mad/website/mygameonapp/src/features/claim/ClaimOrderPage.jsx)
+     - Diterapkan tabel penalti berjenjang `LOCKOUT_TIERS` yang dipicu setiap 3 kali gagal berturut-turut:
+       - **Akumulasi 1**: **5 Menit** (300 detik)
+       - **Akumulasi 2**: **10 Menit** (600 detik)
+       - **Akumulasi 3**: **20 Menit** (1.200 detik)
+       - **Akumulasi 4**: **40 Menit** (2.400 detik)
+       - **Akumulasi 5**: **60 Menit / 1 Jam** (3.600 detik — *Batas Maksimal / Cap*)
+  2. **Persistensi Anti-Bypass (`localStorage`)**:
+     - Kunci penyimpanan: `mygameon_claim_lockout_until`, `mygameon_claim_lockout_tier`, `mygameon_claim_active_tier`, dan `mygameon_claim_failed_attempts`.
+     - Saat halaman dimuat (`mount`), sistem membaca timestamp absolut `lockoutUntil` dan menghitung sisa waktu aktual secara presisi. Refresh browser tidak dapat membatalkan atau me-reset timer penguncian.
+     - Auto-cleanup: storage otomatis dibersihkan saat hitungan mundur mencapai 0 atau saat pembeli berhasil memverifikasi pesanan valid.
+  3. **Antarmuka Pengguna & Indikator Sisa Percobaan**:
+     - Box peringatan lockout dengan aksen merah-gelap, badge akumulasi (`Akumulasi Ke-X dari 5`), countdown digital (`MM:SS` / `HH:MM:SS`), dan tombol darurat bantuan WhatsApp Business Admin.
+     - Subtext input field menampilkan indikator sisa kesempatan aktif: `Sisa: Xx percobaan` sebelum penguncian dipicu.
+     - Tombol verifikasi menampilkan status real-time `Terkunci Sementara (MM:SS)`.
+  4. **Telemetri Peringatan Eskalasi WhatsApp Admin**: [`src/services/api/n8nService.js`](file:///c:/mad/website/mygameonapp/src/services/api/n8nService.js)
+     - `dispatchUnverifiedInvoiceAlert` kini mengirim informasi `accumulationTier` dan `lockoutDurationMin` ke webhook n8n agar admin dapat membedakan salah ketik biasa dari aktivitas brute-force berulang secara instan.
+- **Hasil Verifikasi**:
+  - `npm.cmd run build` sukses 100% tanpa error (PASS, 10.57s).
+  - HTTP Status: `GET /claim` $\rightarrow$ **200 OK**.
+
+---
+
 ## 📋 Rencana Kerja Berikutnya (Upcoming Tasks)
 1. **Poin 2 — Pengembangan Lanjutan Fitur "Can I Run It"**:
    - Peningkatan basis data perbandingan GPU/CPU diskrit vs integrated.

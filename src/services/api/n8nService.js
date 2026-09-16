@@ -80,15 +80,30 @@ export const n8nService = {
    * @param {string} params.invoice - Attempted invoice number
    * @param {string} [params.userEmail] - Email of user if logged in
    * @param {number} [params.attemptCount] - How many attempts so far
+   * @param {number} [params.accumulationTier] - Current cumulative penalty tier (1 - 5)
+   * @param {number} [params.lockoutDurationMin] - Lockout duration applied in minutes
    */
-  async dispatchUnverifiedInvoiceAlert({ invoice, userEmail = '', attemptCount = 1 }) {
+  async dispatchUnverifiedInvoiceAlert({ 
+    invoice, 
+    userEmail = '', 
+    attemptCount = 1,
+    accumulationTier = 1,
+    lockoutDurationMin = 0,
+  }) {
+    const isLockedOut = lockoutDurationMin > 0;
+    const alertMessage = isLockedOut
+      ? `🚨 [LOCKOUT AKTIF] Percobaan klaim nomor pesanan tidak terdaftar: #${invoice.trim()} mencapai batas! Akumulasi Tier ${accumulationTier} (Terkunci ${lockoutDurationMin} Menit)${userEmail ? ` oleh ${userEmail}` : ''}`
+      : `⚠️ Percobaan klaim nomor pesanan tidak terdaftar: #${invoice.trim()} (Percobaan ke-${attemptCount}, Tier ${accumulationTier})${userEmail ? ` oleh ${userEmail}` : ''}`;
+
     return this.dispatchTelemetryAlert({
-      type: 'UNVERIFIED_INVOICE_ATTEMPT',
-      severity: 'WARNING',
+      type: isLockedOut ? 'INVOICE_BRUTEFORCE_LOCKOUT' : 'UNVERIFIED_INVOICE_ATTEMPT',
+      severity: isLockedOut ? (accumulationTier >= 3 ? 'CRITICAL' : 'HIGH') : 'WARNING',
       invoice: invoice.trim(),
       userEmail: userEmail.trim(),
       attemptCount,
-      alertMessage: `🚨 Percobaan klaim nomor pesanan tidak terdaftar: #${invoice.trim()} (Percobaan ke-${attemptCount})${userEmail ? ` oleh ${userEmail}` : ''}`,
+      accumulationTier,
+      lockoutDurationMin,
+      alertMessage,
       clientTime: new Date().toLocaleString('id-ID'),
     });
   },

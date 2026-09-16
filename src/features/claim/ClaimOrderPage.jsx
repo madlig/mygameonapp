@@ -24,7 +24,40 @@ import WhatsAppIcon from '../../components/common/WhatsAppIcon';
 import Seo from '../../components/common/Seo';
 
 const MAX_FAILED_ATTEMPTS = 3;
-const LOCKOUT_DURATION_SEC = 300; // 5 minutes lockout for security
+
+// Tangga durasi lockout progresif:
+// Akumulasi 1 (salah 3x): 5 menit (300s)
+// Akumulasi 2 (salah 3x lagi): 10 menit (600s)
+// Akumulasi 3 (salah 3x lagi): 20 menit (1200s)
+// Akumulasi 4 (salah 3x lagi): 40 menit (2400s)
+// Akumulasi 5 (salah 3x lagi): 60 menit / 1 jam (3600s - Maksimal)
+const LOCKOUT_TIERS = [
+  { tier: 1, durationSec: 5 * 60, label: '5 Menit' },
+  { tier: 2, durationSec: 10 * 60, label: '10 Menit' },
+  { tier: 3, durationSec: 20 * 60, label: '20 Menit' },
+  { tier: 4, durationSec: 40 * 60, label: '40 Menit' },
+  { tier: 5, durationSec: 60 * 60, label: '1 Jam (Maksimal)' },
+];
+
+const STORAGE_KEYS = {
+  LOCKOUT_UNTIL: 'mygameon_claim_lockout_until',
+  ACCUMULATION_TIER: 'mygameon_claim_lockout_tier',
+  ACTIVE_LOCKOUT_TIER: 'mygameon_claim_active_tier',
+  FAILED_ATTEMPTS: 'mygameon_claim_failed_attempts',
+};
+
+// Helper format countdown: HH:MM:SS atau MM:SS
+const formatRemainingTime = (totalSeconds) => {
+  if (totalSeconds <= 0) return '00:00';
+  const hrs = Math.floor(totalSeconds / 3600);
+  const mins = Math.floor((totalSeconds % 3600) / 60);
+  const secs = totalSeconds % 60;
+
+  if (hrs > 0) {
+    return `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  }
+  return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+};
 
 const ClaimOrderPage = () => {
   const { currentUser, userProfile, updateUserProfile } = useAuth();
@@ -40,11 +73,13 @@ const ClaimOrderPage = () => {
   // Verified order state from Firestore
   const [verifiedOrder, setVerifiedOrder] = useState(null);
 
-  // Status & Telemetry
+  // Status, Security & Progressive Lockout
   const [isVerifying, setIsVerifying] = useState(false);
   const [isClaiming, setIsClaiming] = useState(false);
   const [lookupError, setLookupError] = useState(null); // { message, unverified: boolean, alreadyClaimed: boolean }
   const [failedAttempts, setFailedAttempts] = useState(0);
+  const [accumulationTier, setAccumulationTier] = useState(1);
+  const [activeLockoutTier, setActiveLockoutTier] = useState(1);
   const [lockoutTimer, setLockoutTimer] = useState(0);
   const [copiedKey, setCopiedKey] = useState(false);
 
@@ -55,11 +90,66 @@ const ClaimOrderPage = () => {
     }
   }, [currentUser, email]);
 
-  // Handle countdown lockout timer
+  // Baca persistensi lockout & akumulasi dari localStorage saat halaman di-load
+  useEffect(() => {
+    try {
+      const storedTier = localStorage.getItem(STORAGE_KEYS.ACCUMULATION_TIER);
+      const storedActiveTier = localStorage.getItem(STORAGE_KEYS.ACTIVE_LOCKOUT_TIER);
+      const storedAttempts = localStorage.getItem(STORAGE_KEYS.FAILED_ATTEMPTS);
+      const storedLockoutUntil = localStorage.getItem(STORAGE_KEYS.LOCKOUT_UNTIL);
+
+      if (storedTier) {
+        const parsedTier = parseInt(storedTier, 10);
+        if (!isNaN(parsedTier) && parsedTier >= 1) {
+          setAccumulationTier(Math.min(5, parsedTier));
+        }
+      }
+
+      if (storedActiveTier) {
+        const parsedActive = parseInt(storedActiveTier, 10);
+        if (!isNaN(parsedActive) && parsedActive >= 1) {
+          setActiveLockoutTier(Math.min(5, parsedActive));
+        }
+      }
+
+      if (storedAttempts) {
+        const parsedAttempts = parseInt(storedAttempts, 10);
+        if (!isNaN(parsedAttempts) && parsedAttempts >= 0) {
+          setFailedAttempts(parsedAttempts);
+        }
+      }
+
+      if (storedLockoutUntil) {
+        const untilTimestamp = parseInt(storedLockoutUntil, 10);
+        const remainingSec = Math.ceil((untilTimestamp - Date.now()) / 1000);
+
+        if (remainingSec > 0) {
+          setLockoutTimer(remainingSec);
+        } else {
+          // Waktu lockout sudah kedaluwarsa
+          localStorage.removeItem(STORAGE_KEYS.LOCKOUT_UNTIL);
+          setLockoutTimer(0);
+        }
+      }
+    } catch (storageErr) {
+      console.warn('Gagal membaca storage lockout:', storageErr);
+    }
+  }, []);
+
+  // Handle countdown lockout timer dengan auto-cleanup storage
   useEffect(() => {
     if (lockoutTimer <= 0) return;
     const timer = setInterval(() => {
-      setLockoutTimer((prev) => Math.max(0, prev - 1));
+      setLockoutTimer((prev) => {
+        const next = prev - 1;
+        if (next <= 0) {
+          try {
+            localStorage.removeItem(STORAGE_KEYS.LOCKOUT_UNTIL);
+          } catch {}
+          return 0;
+        }
+        return next;
+      });
     }, 1000);
     return () => clearInterval(timer);
   }, [lockoutTimer]);
@@ -159,13 +249,57 @@ const ClaimOrderPage = () => {
           totalGames: normalizedItems.length,
         });
 
-        // Reset kegagalan dan pindah ke Step 2 (Konfirmasi)
+        // Reset proteksi lockout dan kegagalan karena user sudah memasukkan invoice valid
+        try {
+          localStorage.removeItem(STORAGE_KEYS.LOCKOUT_UNTIL);
+          localStorage.removeItem(STORAGE_KEYS.ACCUMULATION_TIER);
+          localStorage.removeItem(STORAGE_KEYS.ACTIVE_LOCKOUT_TIER);
+          localStorage.removeItem(STORAGE_KEYS.FAILED_ATTEMPTS);
+        } catch {}
         setFailedAttempts(0);
+        setAccumulationTier(1);
+        setActiveLockoutTier(1);
+        setLockoutTimer(0);
         setStep('confirm');
       } else {
         // KASUS B: NOMOR PESANAN TIDAK DITEMUKAN (POTENSI COBA-COBA / BRUTEFORCE)
         const nextFailedCount = failedAttempts + 1;
         setFailedAttempts(nextFailedCount);
+
+        let activeDurationSec = 0;
+        let activeTierConfig = null;
+
+        // Jika sudah mencapai 3 kali salah pada siklus aktif: aktifkan lockout akumulatif
+        if (nextFailedCount >= MAX_FAILED_ATTEMPTS) {
+          const currentTierIdx = Math.min(LOCKOUT_TIERS.length - 1, Math.max(0, accumulationTier - 1));
+          activeTierConfig = LOCKOUT_TIERS[currentTierIdx];
+          activeDurationSec = activeTierConfig.durationSec;
+          const lockoutUntil = Date.now() + activeDurationSec * 1000;
+          const appliedTier = currentTierIdx + 1;
+
+          // Naikkan tier untuk siklus berikutnya (maksimal capped di 5 = 1 jam)
+          const nextTier = Math.min(5, accumulationTier + 1);
+
+          setLockoutTimer(activeDurationSec);
+          setActiveLockoutTier(appliedTier);
+          setFailedAttempts(0);
+          setAccumulationTier(nextTier);
+
+          // Simpan persistensi ke localStorage anti-refresh
+          try {
+            localStorage.setItem(STORAGE_KEYS.LOCKOUT_UNTIL, String(lockoutUntil));
+            localStorage.setItem(STORAGE_KEYS.ACCUMULATION_TIER, String(nextTier));
+            localStorage.setItem(STORAGE_KEYS.ACTIVE_LOCKOUT_TIER, String(appliedTier));
+            localStorage.setItem(STORAGE_KEYS.FAILED_ATTEMPTS, '0');
+          } catch (storageErr) {
+            console.warn('Gagal menyimpan status lockout:', storageErr);
+          }
+        } else {
+          // Simpan progres percobaan gagal sebelum mencapai batas 3x
+          try {
+            localStorage.setItem(STORAGE_KEYS.FAILED_ATTEMPTS, String(nextFailedCount));
+          } catch {}
+        }
 
         // Kirim notifikasi darurat / telemetri alert ke WhatsApp Admin via n8n
         try {
@@ -173,6 +307,8 @@ const ClaimOrderPage = () => {
             invoice: cleanInvoice,
             userEmail: currentUser?.email || '',
             attemptCount: nextFailedCount,
+            accumulationTier,
+            lockoutDurationMin: activeDurationSec > 0 ? Math.round(activeDurationSec / 60) : 0,
           });
         } catch (telemetryErr) {
           console.warn('Telemetry dispatch notice:', telemetryErr);
@@ -187,14 +323,12 @@ const ClaimOrderPage = () => {
             userId: currentUser?.uid || null,
             userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : '',
             attemptCount: nextFailedCount,
+            accumulationTier,
+            lockoutApplied: activeDurationSec > 0,
+            lockoutDurationSec: activeDurationSec,
           });
         } catch (auditErr) {
           console.warn('Audit record notice:', auditErr);
-        }
-
-        // Jika sudah 3 kali salah, aktifkan lockout timer 5 menit
-        if (nextFailedCount >= MAX_FAILED_ATTEMPTS) {
-          setLockoutTimer(LOCKOUT_DURATION_SEC);
         }
 
         setLookupError({
@@ -202,6 +336,8 @@ const ClaimOrderPage = () => {
           unverified: true,
           invoice: cleanInvoice,
           attemptCount: nextFailedCount,
+          lockedOut: activeDurationSec > 0,
+          durationLabel: activeTierConfig?.label || '',
         });
       }
     } catch (err) {
@@ -416,18 +552,72 @@ const ClaimOrderPage = () => {
                       <Search size={18} />
                     </div>
                   </div>
-                  <p className="text-[10px] text-slate-500 mt-1.5">
-                    Salin dari rincian pesanan Shopee Anda (Status: <em>Sudah Dikirim</em> atau <em>Perlu Dikirim</em>).
-                  </p>
+                  <div className="flex items-center justify-between text-[10px] text-slate-500 mt-1.5">
+                    <span>Salin dari rincian pesanan Shopee Anda (Status: <em>Sudah Dikirim</em> atau <em>Perlu Dikirim</em>).</span>
+                    {failedAttempts > 0 && lockoutTimer === 0 && (
+                      <span className="text-amber-400 font-semibold font-mono">
+                        Sisa: {MAX_FAILED_ATTEMPTS - failedAttempts}x percobaan
+                      </span>
+                    )}
+                  </div>
                 </div>
 
-                {/* Lockout Warning if bruteforce detected */}
+                {/* Lockout Warning with progressive cumulative countdown */}
                 {lockoutTimer > 0 && (
-                  <div className="p-4 bg-red-500/15 border border-red-500/30 text-red-300 text-xs rounded-2xl flex items-center gap-3">
-                    <Lock size={18} className="text-red-400 shrink-0" />
-                    <div>
-                      <strong className="block text-red-200">Akses Dibatasi Sementara ({lockoutTimer} detik)</strong>
-                      Terlalu banyak percobaan nomor pesanan yang tidak terdaftar. Sistem mengunci percobaan untuk mencegah spam.
+                  <div className="p-5 bg-gradient-to-br from-red-500/15 via-red-950/30 to-red-500/5 border border-red-500/35 rounded-2xl space-y-3.5 animate-in fade-in">
+                    <div className="flex items-start gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-red-500/20 border border-red-500/30 flex items-center justify-center shrink-0 text-red-400">
+                        <Lock size={20} />
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 flex-wrap mb-1">
+                          <span className="text-[10px] uppercase font-bold tracking-wider px-2.5 py-0.5 rounded-full bg-red-500/20 text-red-300 border border-red-500/30 font-mono">
+                            Keamanan Sistem • Akumulasi Ke-{activeLockoutTier} dari 5
+                          </span>
+                          <span className="text-[10px] text-slate-400 font-medium">
+                            (Maks. 1 Jam)
+                          </span>
+                        </div>
+                        <h4 className="text-sm font-black text-red-200">
+                          Akses Form Verifikasi Terkunci Sementara
+                        </h4>
+                      </div>
+                    </div>
+
+                    {/* Big Countdown Timer Display */}
+                    <div className="p-3.5 bg-black/60 rounded-xl border border-red-500/20 flex items-center justify-between">
+                      <span className="text-[11px] text-slate-300 font-medium">
+                        Sisa Waktu Penguncian:
+                      </span>
+                      <div className="flex items-center gap-2 font-mono text-xl sm:text-2xl font-black text-amber-400 tracking-widest">
+                        <Clock size={18} className="text-red-400 animate-spin" style={{ animationDuration: '4s' }} />
+                        <span>{formatRemainingTime(lockoutTimer)}</span>
+                      </div>
+                    </div>
+
+                    <p className="text-[11px] text-slate-300 leading-relaxed">
+                      Sistem mendeteksi 3 kali percobaan nomor pesanan yang tidak terdaftar. Akses formulir dikunci sementara selama <strong>{LOCKOUT_TIERS[Math.min(LOCKOUT_TIERS.length - 1, Math.max(0, activeLockoutTier - 1))].label}</strong>.
+                      {activeLockoutTier < 5 ? (
+                        <span className="text-slate-400 block mt-1">
+                          Jika masih salah pada siklus berikutnya, durasi penguncian bertambah (5m → 10m → 20m → 40m → 60m maksimal).
+                        </span>
+                      ) : (
+                        <span className="text-red-300 block mt-1 font-semibold">
+                          Telah mencapai batas maksimal pembatasan sistem (1 Jam).
+                        </span>
+                      )}
+                    </p>
+
+                    <div className="pt-2 border-t border-red-500/20">
+                      <a
+                        href={waSupportUrl()}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black py-2.5 px-4 rounded-xl text-xs flex items-center justify-center gap-2 transition-all shadow-md shadow-emerald-500/10"
+                      >
+                        <WhatsAppIcon className="w-4 h-4 fill-current shrink-0" />
+                        <span>Klaim Terkendala? Hubungi WhatsApp Admin Toko</span>
+                      </a>
                     </div>
                   </div>
                 )}
@@ -489,6 +679,11 @@ const ClaimOrderPage = () => {
                     <>
                       <Loader2 size={18} className="animate-spin text-slate-950" />
                       <span>Memeriksa Data Pesanan Shopee...</span>
+                    </>
+                  ) : lockoutTimer > 0 ? (
+                    <>
+                      <Lock size={18} className="text-slate-950" />
+                      <span>Terkunci Sementara ({formatRemainingTime(lockoutTimer)})</span>
                     </>
                   ) : (
                     <>

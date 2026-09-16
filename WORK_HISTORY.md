@@ -6,7 +6,7 @@ Dokumen ini adalah catatan resmi (*audit trail*) dan riwayat kemajuan pengerjaan
 
 ## 📌 Status Terkini Proyek
 - **Branch Git**: `feature/brand-refresh-v2`
-- **Commit Hash Terakhir**: `5b45dfc` (*feat: landing v2, can-i-run-it engine, customer library, and universal auth*)
+- **Commit Hash Terakhir**: `d327b44` (*feat(n8n): migrate telemetry alert dispatcher from WhatsApp to native Telegram Bot*)
 - **Environment**: Vite + React 19 + Tailwind CSS + Firebase Auth & Firestore
 - **Preview Server**: Running di `http://localhost:5173` (Daemon task)
 - **Status Joki & Overlay**: Subdomain `joki.mygameon.store` dan rute `/ticket/:id`, `/overlay` aman 100% dan terisolasi.
@@ -232,6 +232,26 @@ Dokumen ini adalah catatan resmi (*audit trail*) dan riwayat kemajuan pengerjaan
   - `node scripts/test-shopee-parser.js` $\rightarrow$ **3 Lulus, 0 Gagal (PASS)**.
   - `npm.cmd run build` $\rightarrow$ **Berhasil 100% (PASS, 12.20s)**.
   - Endpoint `http://localhost:5173/claim` $\rightarrow$ **200 OK**.
+
+---
+
+### [Milestone 09] — Migrasi Webhook Telemetry Alert n8n ke Telegram Bot (100% Gratis & Anti-Ban)
+- **Waktu Pengerjaan**: 2026-09-17
+- **Latar Belakang & Masalah**: 
+  1. Notifikasi darurat keamanan (*brute-force lockout alert* dari halaman `/claim`) sebelumnya dirancang menggunakan HTTP Request ke gateway WhatsApp pihak ketiga (Fonnte) yang memerlukan biaya langganan bulanan atau berisiko nomor terkena blokir karena spamming bot.
+  2. Pengguna memutuskan untuk memindahkan dispatcher notifikasi keamanan ke **Telegram Bot API** resmi yang 100% gratis selamanya, reliabel, tanpa biaya gateway, dan tidak berisiko kena blokir.
+- **Implementasi**:
+  1. **Update Template Workflow n8n**: [`scripts/n8n-shopee-workflow-template.json`](file:///c:/mad/website/mygameonapp/scripts/n8n-shopee-workflow-template.json)
+     - Mengganti node HTTP Request WhatsApp dengan node native `n8n-nodes-base.telegram` (`Kirim Alert ke Telegram Admin`).
+     - Mengonfigurasi mode pesan ke `HTML` parse mode dengan template pesan rapi berisikan detail percobaan, tingkat bahaya (*severity*), waktu kejadian, dan URL origin. Mode HTML dipilih karena kebal terhadap karakter underscore `_` pada username/URL yang sering merusak formatting Markdown Telegram.
+     - Memperbarui koneksi node dari `Filter Telemetry Event` ke node Telegram yang baru.
+  2. **Update Dokumentasi Panduan Setup**: [`docs/N8N_SHOPEE_SETUP_GUIDE.md`](file:///c:/mad/website/mygameonapp/docs/N8N_SHOPEE_SETUP_GUIDE.md)
+     - Menyediakan panduan ringkas pembuatan bot via `@BotFather`, cara mengambil token bot, cara mendapatkan personal `chat_id` via `@userinfobot`, serta penyambungan kredensial Telegram API di kanvas n8n.
+  3. **Update Komentar & Metadata Frontend**: [`src/features/claim/ClaimOrderPage.jsx`](file:///c:/mad/website/mygameonapp/src/features/claim/ClaimOrderPage.jsx)
+     - Menyelaraskan catatan arsitektur dari WhatsApp Alert menjadi Telegram Security Alert.
+- **Hasil Verifikasi**:
+  - `npm.cmd run build` $\rightarrow$ **Sukses 100% (PASS, 18.67s)**.
+  - Template workflow JSON tervalidasi sintaks dan strukturnya.
 
 ---
 

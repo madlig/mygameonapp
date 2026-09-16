@@ -66,9 +66,10 @@ Dokumen ini adalah catatan resmi (*audit trail*) dan riwayat kemajuan pengerjaan
        - Pembeli biasa $\rightarrow$ otomatis diarahkan ke `/library` (Koleksi Game).
        - Staf / Admin $\rightarrow$ otomatis diarahkan ke `/dashboard`.
      - Perlindungan Brute-force (*lockout timer* 5 percobaan) tetap dipertahankan.
+     - Penanganan spesifik kode error Firebase: `auth/operation-not-allowed` (notifikasi ramah untuk mengaktifkan provider di Firebase Console atau memakai registrasi email) dan `auth/unauthorized-domain`.
   3. **Routing Register**: [`src/routes/AppRouter.jsx`](file:///c:/mad/website/mygameonapp/src/routes/AppRouter.jsx)
      - Mendaftarkan rute `/register` yang otomatis membuka tab pendaftaran.
-- **Hasil Verifikasi**: Build `npm run build` sukses (PASS, 10.52s), rute `/login` dan `/register` return 200 OK.
+- **Hasil Verifikasi**: Build `npm run build` sukses (PASS, 10.45s), rute `/login` dan `/register` return 200 OK.
 
 ---
 

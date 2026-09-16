@@ -173,8 +173,17 @@ const LoginPage = ({ initialMode = 'login' }) => {
       }
     } catch (err) {
       console.error('Google Sign-in error:', err);
-      if (err?.code !== 'auth/popup-closed-by-user') {
-        setError('Gagal masuk dengan akun Google. Silakan coba lagi.');
+      const code = err?.code || '';
+      if (code === 'auth/operation-not-allowed') {
+        setError(
+          'Login Google belum diaktifkan di Firebase Console (Authentication > Sign-in method > Google). Silakan gunakan tab "Masuk ke Akun" atau "Daftar Baru" via Email di bawah.'
+        );
+      } else if (code === 'auth/unauthorized-domain') {
+        setError(
+          'Domain saat ini belum didaftarkan di Authorized Domains Firebase Console.'
+        );
+      } else if (code !== 'auth/popup-closed-by-user') {
+        setError('Gagal masuk dengan akun Google. Silakan coba lagi atau gunakan form email.');
       }
     } finally {
       setGoogleLoading(false);

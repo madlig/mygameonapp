@@ -37,6 +37,7 @@ const UserLibraryPage = () => {
   const { currentUser, userProfile, loginWithGoogle, logout, updateUserProfile, loading } = useAuth();
   
   const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [loginError, setLoginError] = useState('');
   const [shopeeInput, setShopeeInput] = useState('');
   const [isEditingShopee, setIsEditingShopee] = useState(false);
   const [isSavingShopee, setIsSavingShopee] = useState(false);
@@ -45,11 +46,21 @@ const UserLibraryPage = () => {
   // Handle Google Sign-in
   const handleGoogleLogin = async () => {
     setIsLoggingIn(true);
+    setLoginError('');
     try {
       await loginWithGoogle();
     } catch (err) {
       console.error('Login error:', err);
-      alert('Gagal login dengan akun Google. Silakan coba lagi.');
+      const code = err?.code || '';
+      if (code === 'auth/operation-not-allowed') {
+        setLoginError(
+          'Login Google belum diaktifkan di Firebase Console. Kamu tetap bisa masuk atau daftar akun dengan Email & Password.'
+        );
+      } else if (code === 'auth/unauthorized-domain') {
+        setLoginError('Domain ini belum didaftarkan di Authorized Domains Firebase Console.');
+      } else if (code !== 'auth/popup-closed-by-user') {
+        setLoginError('Gagal menghubungkan akun Google. Silakan coba lagi atau gunakan login email.');
+      }
     } finally {
       setIsLoggingIn(false);
     }
@@ -115,19 +126,50 @@ const UserLibraryPage = () => {
               Masuk dengan akun Google (Gmail) yang kamu gunakan saat memesan game untuk mengakses folder Google Drive langsung, update patch, dan status garansi purnajual.
             </p>
 
+            {/* Error banner */}
+            {loginError && (
+              <div className="mb-6 rounded-2xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-xs text-rose-300 max-w-md mx-auto text-left leading-relaxed">
+                <p className="font-bold text-rose-400 mb-1">⚠️ Kendala Autentikasi Google</p>
+                <p>{loginError}</p>
+                <div className="mt-2.5 pt-2 border-t border-rose-500/20 flex gap-2">
+                  <Link
+                    to="/login"
+                    className="px-3 py-1.5 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-[11px] font-bold text-white transition-colors"
+                  >
+                    Masuk dengan Email
+                  </Link>
+                  <Link
+                    to="/register"
+                    className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-[11px] font-bold text-slate-200 transition-colors"
+                  >
+                    Daftar Akun Baru
+                  </Link>
+                </div>
+              </div>
+            )}
+
             {/* Google Sign-In Button */}
-            <button
-              onClick={handleGoogleLogin}
-              disabled={isLoggingIn}
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-3 px-8 py-3.5 rounded-2xl bg-white hover:bg-slate-100 text-slate-900 font-extrabold text-sm transition-all shadow-xl hover:shadow-white/10 active:scale-95 disabled:opacity-50"
-            >
-              {isLoggingIn ? (
-                <Loader2 size={18} className="animate-spin text-slate-900" />
-              ) : (
-                <GoogleIcon className="w-5 h-5" />
-              )}
-              <span>{isLoggingIn ? 'Menghubungkan...' : 'Masuk dengan Akun Google'}</span>
-            </button>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+              <button
+                onClick={handleGoogleLogin}
+                disabled={isLoggingIn}
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-3 px-8 py-3.5 rounded-2xl bg-white hover:bg-slate-100 text-slate-900 font-extrabold text-sm transition-all shadow-xl hover:shadow-white/10 active:scale-95 disabled:opacity-50"
+              >
+                {isLoggingIn ? (
+                  <Loader2 size={18} className="animate-spin text-slate-900" />
+                ) : (
+                  <GoogleIcon className="w-5 h-5" />
+                )}
+                <span>{isLoggingIn ? 'Menghubungkan...' : 'Masuk dengan Akun Google'}</span>
+              </button>
+
+              <Link
+                to="/login"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 font-bold text-xs transition-colors"
+              >
+                <span>Masuk / Daftar Email</span>
+              </Link>
+            </div>
 
             {/* Feature Guarantees */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-8 mt-8 border-t border-white/5 text-[11px] text-slate-400">

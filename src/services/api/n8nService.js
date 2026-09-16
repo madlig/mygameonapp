@@ -75,6 +75,25 @@ export const n8nService = {
   },
 
   /**
+   * Dispatch Alert for Unverified / Suspicious Invoice Lookup
+   * @param {Object} params
+   * @param {string} params.invoice - Attempted invoice number
+   * @param {string} [params.userEmail] - Email of user if logged in
+   * @param {number} [params.attemptCount] - How many attempts so far
+   */
+  async dispatchUnverifiedInvoiceAlert({ invoice, userEmail = '', attemptCount = 1 }) {
+    return this.dispatchTelemetryAlert({
+      type: 'UNVERIFIED_INVOICE_ATTEMPT',
+      severity: 'WARNING',
+      invoice: invoice.trim(),
+      userEmail: userEmail.trim(),
+      attemptCount,
+      alertMessage: `🚨 Percobaan klaim nomor pesanan tidak terdaftar: #${invoice.trim()} (Percobaan ke-${attemptCount})${userEmail ? ` oleh ${userEmail}` : ''}`,
+      clientTime: new Date().toLocaleString('id-ID'),
+    });
+  },
+
+  /**
    * Dispatch client-side error or telemetry to n8n monitoring webhook
    * @param {Object} errorPayload
    */

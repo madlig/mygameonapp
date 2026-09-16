@@ -1,0 +1,112 @@
+{
+  "name": "MyGameON - Shopee Order Parser & WhatsApp Telemetry Alert",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "filters": {
+          "q": "from:info@mail.shopee.co.id subject:\"Siap Dikirim\""
+        }
+      },
+      "id": "1",
+      "name": "Gmail Trigger (Shopee Orders)",
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Ekstrak No. Pesanan, Username Pembeli, dan Daftar Game (Single & Multi-Item)\nconst item = $input.item;\nconst text = item.json.snippet || item.json.textPlain || item.json.html || '';\n\n// 1. Ekstrak Nomor Pesanan\nconst invoiceMatch = text.match(/#([A-Z0-9]{10,})/i);\nconst invoice = invoiceMatch ? invoiceMatch[1].trim().toUpperCase() : null;\n\n// 2. Ekstrak Username Pembeli\nconst buyerMatch = text.match(/pesanan ke\\s+([a-zA-Z0-9._]+)/i);\nconst buyerUsername = buyerMatch ? buyerMatch[1].trim() : 'Pembeli Shopee';\n\n// 3. Ekstrak Tanggal Pesanan\nconst dateMatch = text.match(/Tanggal Pesanan:\\s*([^\n\r]+)/i);\nconst orderDate = dateMatch ? dateMatch[1].trim() : new Date().toLocaleString('id-ID');\n\n// 4. Ekstrak Setiap Item Game (1., 2., 3., dst.)\nconst itemRegex = /(\\d+)\\.\\s+([^\\n\\r]+)(?:[\\r\\n]+Variasi:\\s*([^\\n\\r]*))?/g;\nconst items = [];\nlet match;\n\nwhile ((match = itemRegex.exec(text)) !== null) {\n  const rawTitle = match[2].trim();\n  const variation = (match[3] || '').trim();\n  \n  // Bersihkan embel-embel judul Shopee\n  const cleanTitle = rawTitle\n    .replace(/\\s*-\\s*Game PC.*$/i, '')\n    .replace(/\\s*-\\s*PC Offline.*$/i, '')\n    .replace(/\\s*-\\s*Bisa Auto Update.*$/i, '')\n    .trim();\n\n  const isSims4 = /sims 4/i.test(cleanTitle) || /sims 4/i.test(rawTitle);\n\n  items.push({\n    index: parseInt(match[1]),\n    title: cleanTitle,\n    rawTitle: rawTitle,\n    variation: variation,\n    isSims4: isSims4,\n    allowCC: /CC/i.test(variation)\n  });\n}\n\nif (!invoice || items.length === 0) {\n  return [];\n}\n\nreturn [{\n  json: {\n    invoice,\n    buyerUsername,\n    orderDate,\n    items,\n    totalGames: items.length,\n    hasSims4: items.some(i => i.isSims4),\n    status: 'ready',\n    createdAt: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "2",
+      "name": "Parse Shopee Email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "telemetry-alert",
+        "options": {}
+      },
+      "id": "3",
+      "name": "Webhook Telemetry Alert",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 520],
+      "webhookId": "telemetry-alert"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.body.type }}",
+              "value2": "UNVERIFIED_INVOICE_ATTEMPT"
+            }
+          ]
+        }
+      },
+      "id": "4",
+      "name": "Filter Unverified Attempt",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [460, 520]
+    },
+    {
+      "parameters": {
+        "notice": "Ganti node ini dengan WhatsApp Gateway Anda (misal Fonnte / Waha / WA Business Cloud API / Telegram Bot) untuk mengirim pesan darurat ke admin."
+      },
+      "id": "5",
+      "name": "Kirim Alert ke WA Admin (6285121309829)",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [680, 520]
+    }
+  ],
+  "connections": {
+    "Gmail Trigger (Shopee Orders)": {
+      "main": [
+        [
+          {
+            "node": "Parse Shopee Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook Telemetry Alert": {
+      "main": [
+        [
+          {
+            "node": "Filter Unverified Attempt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Unverified Attempt": {
+      "main": [
+        [
+          {
+            "node": "Kirim Alert ke WA Admin (6285121309829)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

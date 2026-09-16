@@ -229,6 +229,33 @@ service cloud.firestore {
     }
 
     // ========================================================
+    // SHOPEE ORDERS — Synced from Shopee emails / n8n
+    // ========================================================
+
+    match /shopee_orders/{invoice} {
+      // Public can read to verify their order in /claim
+      allow read: if true;
+      // Admin / service account can create or manage
+      allow create, delete: if isAdmin();
+      // Client can update status to 'claimed' only when previously 'ready' or 'unclaimed'
+      allow update: if isAdmin() || (
+        (resource.data.status == 'ready' || resource.data.status == 'unclaimed') &&
+        request.resource.data.status == 'claimed' &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'claimedByEmail', 'claimedAt', 'claimedUid'])
+      );
+    }
+
+    // ========================================================
+    // FAILED CLAIM ATTEMPTS — Security & Anti-Bruteforce audit
+    // ========================================================
+
+    match /failed_claim_attempts/{attemptId} {
+      allow create: if request.resource.data.invoice is string &&
+        request.resource.data.timestamp is timestamp;
+      allow read, update, delete: if isAdmin();
+    }
+
+    // ========================================================
     // ADMIN / OPERATIONAL COLLECTIONS (preserved from existing)
     // ========================================================
 

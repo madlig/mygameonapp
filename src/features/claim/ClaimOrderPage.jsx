@@ -1,33 +1,51 @@
 // src/features/claim/ClaimOrderPage.jsx
+//
+// Smart Auto-Detect Shopee Order Claim Page.
+// Strict Security: Manual title input is completely locked down.
+// Failed / Unverified lookups trigger an automated Telemetry Alert to Admin WhatsApp.
+
 import React, { useState, useEffect } from 'react';
 import { 
   CheckCircle2, AlertCircle, Loader2, Send, 
   HelpCircle, ArrowLeft, Gamepad2, ShieldCheck, Mail, ExternalLink,
   ShoppingBag, Disc, MessageSquare, Copy, Check, Sparkles, FolderDown,
-  Download, Clock, Info, UserCheck, Key
+  Download, Clock, Info, UserCheck, Key, ShieldAlert, Lock, Search,
+  AlertTriangle, RefreshCw
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { db, collection, addDoc, getDocs, query, where, serverTimestamp, setDoc, doc } from '../../config/firebaseConfig';
+import { 
+  db, collection, addDoc, getDoc, getDocs, query, where, 
+  serverTimestamp, setDoc, updateDoc, doc 
+} from '../../config/firebaseConfig';
 import n8nService from '../../services/api/n8nService';
-import { buildWhatsAppUrl } from '../../config/integrations';
+import { buildWhatsAppUrl, INTEGRATIONS } from '../../config/integrations';
 import WhatsAppIcon from '../../components/common/WhatsAppIcon';
 import Seo from '../../components/common/Seo';
+
+const MAX_FAILED_ATTEMPTS = 3;
+const LOCKOUT_DURATION_SEC = 300; // 5 minutes lockout for security
 
 const ClaimOrderPage = () => {
   const { currentUser, userProfile, updateUserProfile } = useAuth();
 
+  // Navigation steps: 'lookup' -> 'confirm' -> 'success'
+  const [step, setStep] = useState('lookup');
+
+  // Input states
   const [orderId, setOrderId] = useState('');
   const [email, setEmail] = useState('');
-  const [shopeeUsername, setShopeeUsername] = useState('');
-  const [orderType, setOrderType] = useState('sims4'); // 'sims4' or 'pcgame'
-  const [gameTitle, setGameTitle] = useState('');
   const [notes, setNotes] = useState('');
-  
-  const [status, setStatus] = useState('idle'); // 'idle', 'submitting', 'success', 'error'
-  const [errorMessage, setErrorMessage] = useState('');
-  const [fallbackWaUrl, setFallbackWaUrl] = useState('');
-  const [successData, setSuccessData] = useState(null);
+
+  // Verified order state from Firestore
+  const [verifiedOrder, setVerifiedOrder] = useState(null);
+
+  // Status & Telemetry
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [isClaiming, setIsClaiming] = useState(false);
+  const [lookupError, setLookupError] = useState(null); // { message, unverified: boolean, alreadyClaimed: boolean }
+  const [failedAttempts, setFailedAttempts] = useState(0);
+  const [lockoutTimer, setLockoutTimer] = useState(0);
   const [copiedKey, setCopiedKey] = useState(false);
 
   // Auto-fill from active auth session
@@ -37,16 +55,19 @@ const ClaimOrderPage = () => {
     }
   }, [currentUser, email]);
 
+  // Handle countdown lockout timer
   useEffect(() => {
-    if (userProfile?.shopeeUsername && !shopeeUsername) {
-      setShopeeUsername(userProfile.shopeeUsername);
-    }
-  }, [userProfile, shopeeUsername]);
+    if (lockoutTimer <= 0) return;
+    const timer = setInterval(() => {
+      setLockoutTimer((prev) => Math.max(0, prev - 1));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [lockoutTimer]);
 
   const copyLicenseKey = async () => {
-    if (!successData?.orderId) return;
+    if (!verifiedOrder?.invoice) return;
     try {
-      await navigator.clipboard.writeText(successData.orderId);
+      await navigator.clipboard.writeText(verifiedOrder.invoice);
       setCopiedKey(true);
       setTimeout(() => setCopiedKey(false), 3000);
     } catch {
@@ -54,149 +75,254 @@ const ClaimOrderPage = () => {
     }
   };
 
-  const handleSubmit = async (e) => {
+  // ─── STEP 1: VERIFY SHOPEE ORDER NUMBER ─────────────────────────
+  const handleVerifyOrder = async (e) => {
     e.preventDefault();
-    const cleanInvoice = orderId.trim().toUpperCase().replace(/\s+/g, '');
-    const cleanEmail = email.trim().toLowerCase();
-    const cleanShopee = shopeeUsername.trim().replace(/^@/, '');
-    const cleanGameTitle = orderType === 'pcgame' ? (gameTitle.trim() || 'Game PC Digital') : 'The Sims 4 All DLCs';
+    if (lockoutTimer > 0) return;
+
+    const cleanInvoice = orderId.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
 
     if (!cleanInvoice || cleanInvoice.length < 5) {
-      setErrorMessage('Nomor Pesanan Shopee tidak valid (minimal 5 karakter).');
-      setStatus('error');
+      setLookupError({
+        message: 'Nomor Pesanan Shopee tidak valid (minimal 5 karakter alfanumerik).',
+        unverified: false,
+      });
       return;
     }
 
-    if (!cleanEmail || !cleanEmail.includes('@')) {
-      setErrorMessage('Alamat Gmail wajib diisi dengan benar.');
-      setStatus('error');
-      return;
-    }
-
-    setStatus('submitting');
-    setErrorMessage('');
-    setFallbackWaUrl('');
+    setIsVerifying(true);
+    setLookupError(null);
 
     try {
-      // 1. Cek duplikasi klaim nomor pesanan di Firestore
-      const claimsRef = collection(db, 'claims');
-      const dupQuery = query(claimsRef, where('invoice', '==', cleanInvoice));
-      const dupSnap = await getDocs(dupQuery);
+      // 1. Cari langsung di koleksi shopee_orders (Doc ID = cleanInvoice)
+      let orderData = null;
+      const orderDocRef = doc(db, 'shopee_orders', cleanInvoice);
+      const orderSnap = await getDoc(orderDocRef);
 
-      if (!dupSnap.empty) {
-        const existingClaim = dupSnap.docs[0].data();
-        const claimDate = existingClaim.createdAt?.seconds 
-          ? new Date(existingClaim.createdAt.seconds * 1000).toLocaleDateString('id-ID')
-          : 'sebelumnya';
-
-        setErrorMessage(
-          `Nomor pesanan ${cleanInvoice} sudah pernah diajukan klaim pada tanggal ${claimDate}. Silakan periksa inbox Gmail Anda atau hubungi admin via WhatsApp.`
-        );
-        const waDup = buildWhatsAppUrl({
-          text: `Halo Admin MyGameON, saya ingin konfirmasi ulang klaim pesanan Shopee No: ${cleanInvoice} (Email: ${cleanEmail}).`,
-        });
-        setFallbackWaUrl(waDup);
-        setStatus('error');
-        return;
+      if (orderSnap.exists()) {
+        orderData = { id: orderSnap.id, ...orderSnap.data() };
+      } else {
+        // Fallback: query field 'invoice'
+        const q = query(collection(db, 'shopee_orders'), where('invoice', '==', cleanInvoice));
+        const qSnap = await getDocs(q);
+        if (!qSnap.empty) {
+          orderData = { id: qSnap.docs[0].id, ...qSnap.docs[0].data() };
+        }
       }
 
-      // 2. Simpan record klaim ke koleksi utama 'claims' di Firestore
+      // KASUS A: NOMOR PESANAN DITEMUKAN
+      if (orderData) {
+        // Cek jika pesanan sudah pernah diklaim sebelumnya
+        if (orderData.status === 'claimed') {
+          const claimDate = orderData.claimedAt?.seconds
+            ? new Date(orderData.claimedAt.seconds * 1000).toLocaleDateString('id-ID')
+            : 'sebelumnya';
+
+          setLookupError({
+            message: `Nomor pesanan ${cleanInvoice} sudah pernah diklaim pada ${claimDate} (${orderData.claimedByEmail || 'email terdaftar'}).`,
+            unverified: false,
+            alreadyClaimed: true,
+            invoice: cleanInvoice,
+          });
+          setIsVerifying(false);
+          return;
+        }
+
+        // Normalisasi format items (array games)
+        let normalizedItems = [];
+        if (Array.isArray(orderData.items) && orderData.items.length > 0) {
+          normalizedItems = orderData.items.map((item, idx) => ({
+            index: idx + 1,
+            title: typeof item === 'string' ? item : (item.title || item.cleanTitle || 'Game PC'),
+            rawTitle: item.rawTitle || (typeof item === 'string' ? item : item.title),
+            variation: item.variation || '',
+            isSims4: Boolean(item.isSims4 || /sims 4/i.test(typeof item === 'string' ? item : item.title)),
+            allowCC: Boolean(item.allowCC || (item.variation && /CC/i.test(item.variation))),
+          }));
+        } else if (orderData.gameTitle) {
+          // Format single game lama
+          normalizedItems = [{
+            index: 1,
+            title: orderData.gameTitle,
+            rawTitle: orderData.gameTitle,
+            variation: '',
+            isSims4: /sims 4/i.test(orderData.gameTitle),
+            allowCC: false,
+          }];
+        }
+
+        setVerifiedOrder({
+          ...orderData,
+          invoice: cleanInvoice,
+          items: normalizedItems,
+          hasSims4: normalizedItems.some((i) => i.isSims4),
+          totalGames: normalizedItems.length,
+        });
+
+        // Reset kegagalan dan pindah ke Step 2 (Konfirmasi)
+        setFailedAttempts(0);
+        setStep('confirm');
+      } else {
+        // KASUS B: NOMOR PESANAN TIDAK DITEMUKAN (POTENSI COBA-COBA / BRUTEFORCE)
+        const nextFailedCount = failedAttempts + 1;
+        setFailedAttempts(nextFailedCount);
+
+        // Kirim notifikasi darurat / telemetri alert ke WhatsApp Admin via n8n
+        try {
+          await n8nService.dispatchUnverifiedInvoiceAlert({
+            invoice: cleanInvoice,
+            userEmail: currentUser?.email || '',
+            attemptCount: nextFailedCount,
+          });
+        } catch (telemetryErr) {
+          console.warn('Telemetry dispatch notice:', telemetryErr);
+        }
+
+        // Catat jejak audit ke Firestore 'failed_claim_attempts'
+        try {
+          await addDoc(collection(db, 'failed_claim_attempts'), {
+            invoice: cleanInvoice,
+            timestamp: serverTimestamp(),
+            userEmail: currentUser?.email || '',
+            userId: currentUser?.uid || null,
+            userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : '',
+            attemptCount: nextFailedCount,
+          });
+        } catch (auditErr) {
+          console.warn('Audit record notice:', auditErr);
+        }
+
+        // Jika sudah 3 kali salah, aktifkan lockout timer 5 menit
+        if (nextFailedCount >= MAX_FAILED_ATTEMPTS) {
+          setLockoutTimer(LOCKOUT_DURATION_SEC);
+        }
+
+        setLookupError({
+          message: `Nomor pesanan #${cleanInvoice} belum terdaftar di sistem.`,
+          unverified: true,
+          invoice: cleanInvoice,
+          attemptCount: nextFailedCount,
+        });
+      }
+    } catch (err) {
+      console.error('Error verifying Shopee order:', err);
+      setLookupError({
+        message: 'Terjadi kendala koneksi saat menghubungi server verifikasi. Silakan coba sesaat lagi.',
+        unverified: false,
+      });
+    } finally {
+      setIsVerifying(false);
+    }
+  };
+
+  // ─── STEP 2: CONFIRM & CLAIM GAMES ──────────────────────────────
+  const handleConfirmClaim = async (e) => {
+    e.preventDefault();
+    if (!verifiedOrder) return;
+
+    const cleanEmail = email.trim().toLowerCase();
+    if (!cleanEmail || !cleanEmail.includes('@')) {
+      alert('Mohon masukkan alamat Gmail aktif Anda.');
+      return;
+    }
+
+    setIsClaiming(true);
+
+    try {
+      const invoice = verifiedOrder.invoice;
+      const shopeeUsername = verifiedOrder.buyerUsername || verifiedOrder.shopeeUsername || '';
+
+      // 1. Update status di shopee_orders menjadi 'claimed'
+      try {
+        const orderDocRef = doc(db, 'shopee_orders', invoice);
+        await updateDoc(orderDocRef, {
+          status: 'claimed',
+          claimedByEmail: cleanEmail,
+          claimedAt: serverTimestamp(),
+          claimedUid: currentUser?.uid || null,
+        });
+      } catch (upErr) {
+        console.warn('Update order status note:', upErr);
+      }
+
+      // 2. Simpan record klaim resmi ke Firestore koleksi 'claims'
       const claimPayload = {
-        invoice: cleanInvoice,
+        invoice,
         email: cleanEmail,
-        orderType,
-        gameTitle: cleanGameTitle,
-        shopeeUsername: cleanShopee,
+        orderType: verifiedOrder.hasSims4 ? 'sims4' : 'pcgame',
+        gameTitle: verifiedOrder.items.map((i) => i.title).join(', '),
+        items: verifiedOrder.items,
+        shopeeUsername,
         notes: notes.trim(),
         userId: currentUser?.uid || null,
         userDisplayName: currentUser?.displayName || '',
-        status: 'pending_verification', // 'pending_verification' | 'processed' | 'active'
-        source: 'web_claim',
+        status: 'active', // Otomatis aktif karena sudah diverifikasi dari invoice Shopee!
+        source: 'smart_claim_autodetect',
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       };
 
-      const newClaimDoc = await addDoc(claimsRef, claimPayload);
+      const newClaimDoc = await addDoc(collection(db, 'claims'), claimPayload);
 
-      // Jika user login, simpan juga sub-koleksi di users/{uid}/claims/{id} untuk sync offline
+      // 3. Simpan ke sub-koleksi users/{uid}/claims/{id} jika user login
       if (currentUser?.uid) {
         try {
           await setDoc(doc(db, 'users', currentUser.uid, 'claims', newClaimDoc.id), {
             ...claimPayload,
             claimId: newClaimDoc.id,
           });
-        } catch (subErr) {
-          console.warn('Sub-claim sync warning:', subErr);
-        }
 
-        // Jika profile belum punya shopeeUsername tapi diinput saat klaim, update profil user
-        if (cleanShopee && !userProfile?.shopeeUsername) {
-          try {
-            await updateUserProfile({ shopeeUsername: cleanShopee });
-          } catch {
-            // non-fatal
+          // Otomatis sinkronkan username Shopee ke profil user
+          if (shopeeUsername && !userProfile?.shopeeUsername) {
+            await updateUserProfile({ shopeeUsername });
           }
+        } catch (subErr) {
+          console.warn('Sub-claim sync note:', subErr);
         }
       }
 
-      // 3. Dispatch ke webhook otomatisasi n8n (atau fallback WhatsApp jika belum aktif)
-      let n8nResult;
+      // 4. Dispatch ke webhook otomatisasi n8n untuk share Google Drive / kirim lisensi
       try {
-        n8nResult = await n8nService.dispatchOrderClaim({
-          invoice: cleanInvoice,
+        await n8nService.dispatchOrderClaim({
+          invoice,
           email: cleanEmail,
-          orderType,
-          gameTitle: cleanGameTitle,
-          shopeeUsername: cleanShopee,
+          orderType: verifiedOrder.hasSims4 ? 'sims4' : 'pcgame',
+          gameTitle: claimPayload.gameTitle,
+          shopeeUsername,
         });
       } catch (n8nErr) {
-        console.warn('n8n dispatch warning:', n8nErr);
+        console.warn('n8n dispatch note:', n8nErr);
       }
 
-      const generatedWaUrl = (n8nResult && n8nResult.whatsappUrl) || buildWhatsAppUrl({
-        text: `Halo Admin MyGameON, saya sudah mengajukan klaim pesanan Shopee di website:\n- No. Pesanan: ${cleanInvoice}\n- Email Gmail: ${cleanEmail}\n- Username Shopee: ${cleanShopee ? `@${cleanShopee}` : '-'}\n- Kategori: ${orderType === 'sims4' ? 'The Sims 4 Complete Edition' : cleanGameTitle}\n\nMohon bantu verifikasi dan aktivasi ya min. Terima kasih!`,
-      });
-
-      setSuccessData({
-        orderId: cleanInvoice,
-        email: cleanEmail,
-        orderType,
-        gameTitle: cleanGameTitle,
-        shopeeUsername: cleanShopee,
-        whatsappUrl: generatedWaUrl,
-        claimId: newClaimDoc.id,
-      });
-
-      setStatus('success');
+      setStep('success');
     } catch (err) {
-      console.error('Claim order error:', err);
-      const waFallback = buildWhatsAppUrl({
-        text: `Halo Admin MyGameON, saya mengalami kendala saat klaim pesanan Shopee No: ${cleanInvoice}.\nEmail: ${cleanEmail}.\nMohon bantuannya ya min.`,
-      });
-      setFallbackWaUrl(waFallback);
-      setErrorMessage(err.message || 'Sistem klaim sedang sibuk. Silakan konfirmasi via WhatsApp.');
-      setStatus('error');
+      console.error('Error completing claim:', err);
+      alert('Gagal menyelesaikan klaim: ' + (err.message || 'Silakan hubungi WhatsApp admin.'));
+    } finally {
+      setIsClaiming(false);
     }
   };
 
   const handleReset = () => {
+    setStep('lookup');
     setOrderId('');
-    setGameTitle('');
     setNotes('');
-    setStatus('idle');
-    setErrorMessage('');
-    setFallbackWaUrl('');
-    setSuccessData(null);
+    setVerifiedOrder(null);
+    setLookupError(null);
   };
+
+  const waSupportUrl = (invoiceNum = '') => buildWhatsAppUrl({
+    text: `Halo Admin MyGameON, nomor pesanan Shopee saya #${invoiceNum || orderId.trim() || '...' } belum terdeteksi di sistem klaim. Mohon bantuannya ya min.`,
+  });
 
   return (
     <div className="min-h-screen bg-[#050608] text-slate-100 flex flex-col justify-between selection:bg-amber-400 selection:text-black">
       <Seo
         title="Klaim Pesanan Shopee — MyGameON"
-        description="Klaim pesanan game PC dan license key The Sims 4 dari toko resmi Shopee MyGameON secara kilat tanpa antre."
+        description="Sistem verifikasi otomatis pesanan Shopee MyGameON. Masukkan nomor pesanan untuk membuka akses game dan License Key The Sims 4 secara kilat."
       />
       
-      {/* Top Navigation */}
+      {/* Header */}
       <header className="border-b border-white/5 bg-[#0b0d12]/80 backdrop-blur-md px-6 py-4 flex items-center justify-between sticky top-0 z-40">
         <Link to="/" className="flex items-center gap-2 text-slate-300 hover:text-white transition-colors text-xs sm:text-sm font-semibold">
           <ArrowLeft size={16} />
@@ -209,7 +335,7 @@ const ClaimOrderPage = () => {
           </Link>
           <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            <span className="text-[11px] font-mono text-emerald-400 font-bold">Server Klaim Aktif</span>
+            <span className="text-[11px] font-mono text-emerald-400 font-bold">Verifikasi Shopee Aktif</span>
           </div>
         </div>
       </header>
@@ -227,7 +353,7 @@ const ClaimOrderPage = () => {
               Klaim Pesanan <span className="text-amber-400">Shopee</span>
             </h1>
             <p className="text-xs sm:text-sm text-slate-400 mt-2 max-w-md mx-auto leading-relaxed">
-              Masukkan Nomor Pesanan Shopee dan Gmail Anda untuk mendapatkan akses folder Google Drive resmi & License Key aktivasi kilat tanpa antre.
+              Sistem verifikasi otomatis MyGameON. Masukkan Nomor Pesanan Shopee Anda untuk mendeteksi seluruh judul game dan lisensi resmi secara instan.
             </p>
           </div>
 
@@ -249,79 +375,220 @@ const ClaimOrderPage = () => {
             </div>
           )}
 
-          {/* Card Form */}
-          {status !== 'success' ? (
+          {/* ═══════════════════════════════════════════════════════════════
+              STEP 1: LOOKUP NOMOR PESANAN SHOPEE (INPUT MANUAL DIKUNCI)
+          ═══════════════════════════════════════════════════════════════ */}
+          {step === 'lookup' && (
             <div className="bg-[#0b0d12] border border-white/10 rounded-3xl p-6 sm:p-8 shadow-2xl relative overflow-hidden">
               <div className="absolute top-0 right-0 w-40 h-40 bg-amber-400/5 rounded-full blur-3xl pointer-events-none" />
 
-              <form onSubmit={handleSubmit} className="space-y-5">
+              <form onSubmit={handleVerifyOrder} className="space-y-5">
                 
-                {/* Order Type Selector */}
-                <div>
-                  <label className="text-xs font-bold uppercase tracking-wider text-slate-400 block mb-2">
-                    Pilih Kategori Produk yang Dipesan:
-                  </label>
-                  <div className="grid grid-cols-2 gap-3">
-                    <button
-                      type="button"
-                      onClick={() => setOrderType('sims4')}
-                      className={`p-3.5 rounded-2xl border text-left transition-all flex items-center gap-3 ${
-                        orderType === 'sims4'
-                          ? 'border-amber-400 bg-amber-400/10 text-white font-bold shadow-sm'
-                          : 'border-white/5 bg-black/40 text-slate-400 hover:text-slate-200'
-                      }`}
-                    >
-                      <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${orderType === 'sims4' ? 'bg-amber-400 text-slate-950' : 'bg-white/5 text-slate-400'}`}>
-                        <Disc size={18} />
-                      </div>
-                      <div>
-                        <div className="text-xs font-bold text-white">The Sims 4</div>
-                        <div className="text-[10px] text-slate-400">Launcher & All DLCs</div>
-                      </div>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => setOrderType('pcgame')}
-                      className={`p-3.5 rounded-2xl border text-left transition-all flex items-center gap-3 ${
-                        orderType === 'pcgame'
-                          ? 'border-amber-400 bg-amber-400/10 text-white font-bold shadow-sm'
-                          : 'border-white/5 bg-black/40 text-slate-400 hover:text-slate-200'
-                      }`}
-                    >
-                      <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${orderType === 'pcgame' ? 'bg-amber-400 text-slate-950' : 'bg-white/5 text-slate-400'}`}>
-                        <Gamepad2 size={18} />
-                      </div>
-                      <div>
-                        <div className="text-xs font-bold text-white">Game PC Lainnya</div>
-                        <div className="text-[10px] text-slate-400">Direct Google Drive</div>
-                      </div>
-                    </button>
+                {/* Security Shield Notice */}
+                <div className="p-3.5 rounded-2xl bg-black/40 border border-white/5 flex items-start gap-3">
+                  <ShieldCheck size={18} className="text-amber-400 shrink-0 mt-0.5" />
+                  <div className="text-xs text-slate-300 leading-relaxed">
+                    <span className="font-bold text-white block mb-0.5">Sistem Verifikasi Anti-Manipulasi:</span>
+                    Judul game akan dibaca 100% otomatis dari data checkout Shopee toko kami. Pengisian judul manual dikunci untuk memastikan keaslian pesanan.
                   </div>
                 </div>
 
-                {/* Shopee Order ID */}
+                {/* Shopee Order ID Input */}
                 <div>
-                  <label className="text-xs font-bold uppercase tracking-wider text-slate-300 block mb-1.5">
-                    Nomor Pesanan Shopee <span className="text-amber-400">*</span>
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-300 block mb-1.5 flex items-center justify-between">
+                    <span>Nomor Pesanan Shopee</span>
+                    <span className="text-amber-400 text-[10px] lowercase font-mono">contoh: 2609142PXHW1PB</span>
                   </label>
-                  <input
-                    type="text"
-                    value={orderId}
-                    onChange={(e) => setOrderId(e.target.value)}
-                    placeholder="Contoh: 2409146VXXXXXX"
-                    className="w-full bg-black/40 border border-white/10 rounded-xl py-3 px-4 text-sm text-white placeholder:text-slate-600 outline-none focus:border-amber-400 transition-colors font-mono tracking-wider"
-                    required
-                  />
-                  <p className="text-[10px] text-slate-500 mt-1">
-                    Salin dari rincian pesanan Shopee Anda (Status pesanan: <em>Sudah Dikirim</em>).
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={orderId}
+                      onChange={(e) => {
+                        setOrderId(e.target.value);
+                        setLookupError(null);
+                      }}
+                      placeholder="Tempel / ketik nomor pesanan..."
+                      disabled={lockoutTimer > 0 || isVerifying}
+                      className="w-full bg-black/50 border border-white/10 rounded-2xl py-3.5 pl-4 pr-12 text-sm text-white placeholder:text-slate-600 outline-none focus:border-amber-400 transition-colors font-mono tracking-wider disabled:opacity-50"
+                      required
+                    />
+                    <div className="absolute inset-y-0 right-3.5 flex items-center pointer-events-none text-slate-500">
+                      <Search size={18} />
+                    </div>
+                  </div>
+                  <p className="text-[10px] text-slate-500 mt-1.5">
+                    Salin dari rincian pesanan Shopee Anda (Status: <em>Sudah Dikirim</em> atau <em>Perlu Dikirim</em>).
                   </p>
                 </div>
 
-                {/* Buyer Email */}
+                {/* Lockout Warning if bruteforce detected */}
+                {lockoutTimer > 0 && (
+                  <div className="p-4 bg-red-500/15 border border-red-500/30 text-red-300 text-xs rounded-2xl flex items-center gap-3">
+                    <Lock size={18} className="text-red-400 shrink-0" />
+                    <div>
+                      <strong className="block text-red-200">Akses Dibatasi Sementara ({lockoutTimer} detik)</strong>
+                      Terlalu banyak percobaan nomor pesanan yang tidak terdaftar. Sistem mengunci percobaan untuk mencegah spam.
+                    </div>
+                  </div>
+                )}
+
+                {/* Error Banner when lookup fails */}
+                {lookupError && (
+                  <div className="p-4 bg-red-500/10 border border-red-500/25 rounded-2xl text-xs space-y-3 animate-in fade-in">
+                    <div className="flex items-start gap-2.5 text-red-300">
+                      <AlertTriangle size={18} className="text-red-400 shrink-0 mt-0.5" />
+                      <div className="leading-relaxed">
+                        <strong className="text-red-200 block mb-0.5">
+                          {lookupError.alreadyClaimed ? 'Pesanan Sudah Diklaim' : 'Nomor Pesanan Tidak Ditemukan'}
+                        </strong>
+                        <span>{lookupError.message}</span>
+                      </div>
+                    </div>
+
+                    {/* Unverified Notice: Strictly redirect to WhatsApp Business */}
+                    {lookupError.unverified && (
+                      <div className="pt-2.5 border-t border-red-500/15 space-y-2.5">
+                        <p className="text-[11px] text-slate-400 leading-relaxed">
+                          Sistem mendeteksi nomor pesanan ini belum tersinkronisasi (biasanya butuh 1-2 menit setelah checkout). Demi keamanan transaksi, <strong>input manual tidak diizinkan</strong>.
+                        </p>
+                        <a
+                          href={waSupportUrl(lookupError.invoice)}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black py-3 px-4 rounded-xl text-xs flex items-center justify-center gap-2 transition-all shadow-md shadow-emerald-500/10"
+                        >
+                          <WhatsAppIcon className="w-4 h-4 fill-current shrink-0" />
+                          <span>Konfirmasi ke WhatsApp Business Toko</span>
+                        </a>
+                      </div>
+                    )}
+
+                    {lookupError.alreadyClaimed && (
+                      <div className="pt-2 border-t border-red-500/15">
+                        <a
+                          href={waSupportUrl(lookupError.invoice)}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-amber-400 hover:text-amber-300 font-bold underline inline-flex items-center gap-1 text-[11px]"
+                        >
+                          <MessageSquare size={13} />
+                          <span>Hubungi Admin jika ini adalah pesanan Anda</span>
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Verify Button */}
+                <button
+                  type="submit"
+                  disabled={isVerifying || lockoutTimer > 0 || !orderId.trim()}
+                  className="w-full bg-amber-400 hover:bg-amber-300 active:scale-98 text-slate-950 font-black py-3.5 px-6 rounded-2xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-amber-400/15 disabled:opacity-50 text-sm"
+                >
+                  {isVerifying ? (
+                    <>
+                      <Loader2 size={18} className="animate-spin text-slate-950" />
+                      <span>Memeriksa Data Pesanan Shopee...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Search size={18} className="stroke-[2.5]" />
+                      <span>Verifikasi & Deteksi Game Saya</span>
+                    </>
+                  )}
+                </button>
+              </form>
+
+              {/* Guarantees */}
+              <div className="mt-6 pt-5 border-t border-white/5 flex items-center justify-center gap-6 text-[11px] text-slate-400">
+                <span className="flex items-center gap-1.5">
+                  <ShieldCheck size={14} className="text-emerald-400" /> Deteksi Otomatis
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <CheckCircle2 size={14} className="text-emerald-400" /> Full Speed GDrive
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* ═══════════════════════════════════════════════════════════════
+              STEP 2: CONFIRM VERIFIED ORDER (AUTO-DETECTED GAMES)
+          ═══════════════════════════════════════════════════════════════ */}
+          {step === 'confirm' && verifiedOrder && (
+            <div className="bg-[#0b0d12] border border-emerald-500/30 rounded-3xl p-6 sm:p-8 shadow-2xl relative overflow-hidden animate-in fade-in zoom-in-95">
+              <div className="absolute top-0 right-0 w-48 h-48 bg-emerald-500/5 rounded-full blur-3xl pointer-events-none" />
+
+              {/* Header Verified */}
+              <div className="flex items-center justify-between pb-4 border-b border-white/10 mb-5">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center">
+                    <CheckCircle2 size={20} />
+                  </div>
+                  <div>
+                    <span className="text-[10px] uppercase font-bold text-emerald-400 tracking-wider">
+                      Pesanan Terverifikasi
+                    </span>
+                    <h3 className="text-sm font-black text-white font-mono">
+                      #{verifiedOrder.invoice}
+                    </h3>
+                  </div>
+                </div>
+
+                <div className="text-right">
+                  <span className="text-[11px] font-bold text-slate-300 bg-white/5 px-2.5 py-1 rounded-lg border border-white/5 block">
+                    @{verifiedOrder.buyerUsername || verifiedOrder.shopeeUsername || 'Pembeli Shopee'}
+                  </span>
+                </div>
+              </div>
+
+              {/* List of Detected Games */}
+              <div className="mb-6 space-y-2.5">
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-400 block">
+                  Game Terdeteksi dalam Pesanan Ini ({verifiedOrder.items?.length || 1} Game):
+                </label>
+
+                <div className="space-y-2">
+                  {verifiedOrder.items?.map((item, idx) => (
+                    <div
+                      key={idx}
+                      className="p-3.5 rounded-2xl bg-black/60 border border-white/10 flex items-center justify-between gap-3"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
+                          item.isSims4 ? 'bg-amber-400/20 text-amber-400' : 'bg-emerald-500/20 text-emerald-400'
+                        }`}>
+                          {item.isSims4 ? <Disc size={18} /> : <Gamepad2 size={18} />}
+                        </div>
+                        <div className="min-w-0">
+                          <h4 className="text-xs font-bold text-white truncate" title={item.title}>
+                            {idx + 1}. {item.title}
+                          </h4>
+                          {item.variation && (
+                            <span className="text-[10px] text-amber-400/90 font-medium">
+                              Variasi: {item.variation}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md shrink-0 ${
+                        item.isSims4 
+                          ? 'bg-amber-400/15 text-amber-400 border border-amber-400/30'
+                          : 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
+                      }`}>
+                        {item.isSims4 ? 'The Sims 4' : 'Game PC'}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Confirmation Form */}
+              <form onSubmit={handleConfirmClaim} className="space-y-4">
+                {/* Delivery Gmail */}
                 <div>
                   <label className="text-xs font-bold uppercase tracking-wider text-slate-300 block mb-1.5">
-                    Alamat Email (Gmail Aktif) <span className="text-amber-400">*</span>
+                    Alamat Email (Gmail Aktif Penerima) <span className="text-amber-400">*</span>
                   </label>
                   <div className="relative">
                     <input
@@ -336,46 +603,12 @@ const ClaimOrderPage = () => {
                       <Mail size={16} />
                     </div>
                   </div>
-                  <p className="text-[10px] text-slate-500 mt-1">
+                  <p className="text-[10px] text-slate-400 mt-1">
                     Folder Google Drive resmi akan dishare langsung ke alamat Gmail ini.
                   </p>
                 </div>
 
-                {/* Shopee Username (Optional for auto-match) */}
-                <div>
-                  <label className="text-xs font-bold uppercase tracking-wider text-slate-300 block mb-1.5">
-                    Username Shopee (Opsional)
-                  </label>
-                  <input
-                    type="text"
-                    value={shopeeUsername}
-                    onChange={(e) => setShopeeUsername(e.target.value)}
-                    placeholder="Contoh: username_shopee"
-                    className="w-full bg-black/40 border border-white/10 rounded-xl py-3 px-4 text-sm text-white placeholder:text-slate-600 outline-none focus:border-amber-400 transition-colors font-mono"
-                  />
-                  <p className="text-[10px] text-slate-500 mt-1">
-                    Membantu admin memverifikasi pesanan Anda secara otomatis tanpa perlu kirim tangkapan layar.
-                  </p>
-                </div>
-
-                {/* Optional: Game title if PC Game */}
-                {orderType === 'pcgame' && (
-                  <div>
-                    <label className="text-xs font-bold uppercase tracking-wider text-slate-300 block mb-1.5">
-                      Judul Game yang Dipesan <span className="text-amber-400">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={gameTitle}
-                      onChange={(e) => setGameTitle(e.target.value)}
-                      placeholder="Contoh: Black Myth Wukong / Spider-Man Remastered"
-                      className="w-full bg-black/40 border border-white/10 rounded-xl py-3 px-4 text-sm text-white placeholder:text-slate-600 outline-none focus:border-amber-400 transition-colors"
-                      required={orderType === 'pcgame'}
-                    />
-                  </div>
-                )}
-
-                {/* Catatan Tambahan (Opsional) */}
+                {/* Optional Notes */}
                 <div>
                   <label className="text-xs font-bold uppercase tracking-wider text-slate-400 block mb-1.5">
                     Catatan Tambahan (Opsional)
@@ -384,66 +617,48 @@ const ClaimOrderPage = () => {
                     type="text"
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
-                    placeholder="Contoh: Butuh bantuan remote TeamViewer / panduan install"
+                    placeholder="Contoh: Perlu panduan install atau kendala drive"
                     className="w-full bg-black/40 border border-white/10 rounded-xl py-2.5 px-4 text-xs text-white placeholder:text-slate-600 outline-none focus:border-amber-400 transition-colors"
                   />
                 </div>
 
-                {/* Error Banner */}
-                {status === 'error' && (
-                  <div className="p-4 bg-red-500/10 border border-red-500/20 text-red-400 text-xs rounded-2xl flex flex-col gap-2.5 animate-in fade-in">
-                    <div className="flex items-start gap-2.5">
-                      <AlertCircle size={17} className="shrink-0 text-red-400 mt-0.5" />
-                      <span className="leading-relaxed">{errorMessage}</span>
-                    </div>
-                    {fallbackWaUrl && (
-                      <div className="pt-2 border-t border-red-500/15">
-                        <a
-                          href={fallbackWaUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="inline-flex items-center gap-1.5 text-amber-400 hover:text-amber-300 font-bold transition-colors"
-                        >
-                          <MessageSquare size={14} />
-                          <span>Hubungi Admin via WhatsApp Toko</span>
-                        </a>
-                      </div>
+                {/* Submit & Back Buttons */}
+                <div className="pt-2 flex flex-col sm:flex-row gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => setStep('lookup')}
+                    disabled={isClaiming}
+                    className="sm:w-1/3 bg-white/5 hover:bg-white/10 text-slate-300 font-bold py-3 px-4 rounded-xl text-xs transition-colors text-center"
+                  >
+                    Ganti Nomor
+                  </button>
+
+                  <button
+                    type="submit"
+                    disabled={isClaiming}
+                    className="flex-1 bg-amber-400 hover:bg-amber-300 active:scale-98 text-slate-950 font-black py-3.5 px-6 rounded-xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-amber-400/15 disabled:opacity-50 text-xs sm:text-sm"
+                  >
+                    {isClaiming ? (
+                      <>
+                        <Loader2 size={18} className="animate-spin text-slate-950" />
+                        <span>Sedang Membuka Akses Game...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Send size={18} />
+                        <span>Klaim {verifiedOrder.totalGames} Game Sekarang</span>
+                      </>
                     )}
-                  </div>
-                )}
-
-                {/* Submit Button */}
-                <button
-                  type="submit"
-                  disabled={status === 'submitting'}
-                  className="w-full bg-amber-400 hover:bg-amber-300 active:scale-98 text-slate-950 font-black py-3.5 px-6 rounded-2xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-amber-400/15 disabled:opacity-50 text-sm"
-                >
-                  {status === 'submitting' ? (
-                    <>
-                      <Loader2 size={18} className="animate-spin text-slate-950" />
-                      <span>Sedang Mendaftarkan Klaim...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Send size={18} />
-                      <span>Klaim Akses Game Sekarang</span>
-                    </>
-                  )}
-                </button>
+                  </button>
+                </div>
               </form>
-
-              {/* Guarantees */}
-              <div className="mt-6 pt-5 border-t border-white/5 flex items-center justify-center gap-6 text-[11px] text-slate-400">
-                <span className="flex items-center gap-1.5">
-                  <ShieldCheck size={14} className="text-emerald-400" /> Garansi Berhasil Main
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <CheckCircle2 size={14} className="text-emerald-400" /> Full Speed GDrive
-                </span>
-              </div>
             </div>
-          ) : (
-            /* SUCCESS STATE */
+          )}
+
+          {/* ═══════════════════════════════════════════════════════════════
+              STEP 3: SUCCESS FULFILLMENT SCREEN
+          ═══════════════════════════════════════════════════════════════ */}
+          {step === 'success' && verifiedOrder && (
             <div className="bg-[#0b0d12] border border-emerald-500/30 rounded-3xl p-6 sm:p-8 shadow-2xl text-center animate-in fade-in zoom-in-95 relative overflow-hidden">
               <div className="absolute top-0 right-0 w-48 h-48 bg-emerald-500/5 rounded-full blur-3xl pointer-events-none" />
 
@@ -453,18 +668,18 @@ const ClaimOrderPage = () => {
 
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[11px] font-bold mb-3">
                 <Sparkles size={12} />
-                <span>Klaim Berhasil Dicatat</span>
+                <span>Klaim Berhasil Diverifikasi 100%</span>
               </span>
 
               <h3 className="text-xl sm:text-2xl font-black text-white mb-1">
-                Klaim Pesanan Terdaftar!
+                Akses Game Telah Dibuka!
               </h3>
               <p className="text-xs text-slate-300 mb-6 max-w-md mx-auto leading-relaxed">
-                Pesanan <span className="font-mono text-amber-400 font-bold">{successData?.orderId}</span> telah berhasil dihubungkan ke email <span className="font-semibold text-white">{successData?.email}</span>.
+                Pesanan <span className="font-mono text-amber-400 font-bold">#{verifiedOrder.invoice}</span> telah berhasil dihubungkan ke email <span className="font-semibold text-white">{email}</span>.
               </p>
 
-              {/* Specific Instructions: The Sims 4 vs PC Game */}
-              {successData?.orderType === 'sims4' ? (
+              {/* Sims 4 Key Callout if order contains The Sims 4 */}
+              {verifiedOrder.hasSims4 && (
                 <div className="bg-[#080B11] border border-amber-400/30 rounded-2xl p-4 sm:p-5 text-left mb-6 space-y-3">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
@@ -478,9 +693,8 @@ const ClaimOrderPage = () => {
                     </span>
                   </div>
 
-                  {/* Key Display & Copy */}
                   <div className="flex items-center justify-between gap-2 p-3 bg-black/60 rounded-xl border border-white/10 font-mono text-sm text-amber-300">
-                    <span className="truncate tracking-wider font-bold">{successData?.orderId}</span>
+                    <span className="truncate tracking-wider font-bold">{verifiedOrder.invoice}</span>
                     <button
                       type="button"
                       onClick={copyLicenseKey}
@@ -491,61 +705,53 @@ const ClaimOrderPage = () => {
                     </button>
                   </div>
 
-                  <div className="text-xs text-slate-300 space-y-1.5 leading-relaxed pt-1">
-                    <p><strong>Langkah Mudah Memulai:</strong></p>
-                    <p className="text-slate-400 pl-3">
-                      1. Download dan jalankan <strong>MyGameON Ultimate Launcher</strong>.<br />
-                      2. Masukkan Nomor Pesanan Shopee di atas saat diminta License Key.<br />
-                      3. Seluruh DLC The Sims 4 & fitur updater otomatis siap digunakan.
-                    </p>
-                  </div>
-                </div>
-              ) : (
-                <div className="bg-[#080B11] border border-emerald-500/30 rounded-2xl p-4 sm:p-5 text-left mb-6 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Gamepad2 size={16} className="text-emerald-400" />
-                      <span className="text-xs font-bold text-white uppercase tracking-wider">
-                        Akses Google Drive Game:
-                      </span>
-                    </div>
-                    <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
-                      Game PC
-                    </span>
-                  </div>
-
-                  <div className="p-3 bg-black/60 rounded-xl border border-white/10 text-xs text-slate-200">
-                    <div className="font-bold text-white mb-0.5">{successData?.gameTitle}</div>
-                    <div className="text-slate-400 text-[11px]">Email Penerima: {successData?.email}</div>
-                  </div>
-
-                  <div className="text-xs text-slate-400 space-y-1 leading-relaxed pl-3">
-                    <p>1. Folder Google Drive berkecepatan tinggi sedang dishare ke email Anda.</p>
-                    <p>2. Anda dapat memantau status pesanan kapan saja melalui menu <strong>Koleksi Game Saya</strong>.</p>
+                  <div className="text-xs text-slate-400 leading-relaxed pl-2">
+                    Gunakan nomor pesanan di atas sebagai <strong>License Key</strong> di aplikasi <em>MyGameON Ultimate Launcher</em>. Seluruh DLC & fitur updater otomatis langsung aktif.
                   </div>
                 </div>
               )}
 
+              {/* PC Games Instructions */}
+              <div className="bg-[#080B11] border border-emerald-500/30 rounded-2xl p-4 sm:p-5 text-left mb-6 space-y-2 text-xs text-slate-300">
+                <div className="flex items-center gap-2 font-bold text-emerald-400 mb-1">
+                  <FolderDown size={16} />
+                  <span>Daftar Game Masuk ke Koleksi Anda:</span>
+                </div>
+                <ul className="list-disc pl-5 space-y-1 text-slate-400">
+                  {verifiedOrder.items?.map((item, i) => (
+                    <li key={i}>
+                      <strong className="text-white">{item.title}</strong>
+                      {item.variation ? ` (${item.variation})` : ''}
+                    </li>
+                  ))}
+                </ul>
+                <p className="text-[11px] text-slate-500 pt-2 border-t border-white/5">
+                  Folder Google Drive telah dishare ke <strong>{email}</strong>. Cek tab <em>"Dibagikan kepada saya"</em> di Google Drive Anda.
+                </p>
+              </div>
+
               {/* Action Buttons */}
               <div className="flex flex-col gap-2.5">
-                <a
-                  href={successData?.whatsappUrl}
-                  target="_blank"
-                  rel="noreferrer"
+                <Link
+                  to="/library"
                   className="w-full bg-emerald-500 hover:bg-emerald-400 active:scale-98 text-slate-950 font-black py-3.5 px-4 rounded-2xl text-xs sm:text-sm flex items-center justify-center gap-2 transition-all shadow-lg shadow-emerald-500/15"
                 >
-                  <WhatsAppIcon className="w-4 h-4 fill-current shrink-0" />
-                  <span>Konfirmasi Kilat via WhatsApp Toko</span>
-                </a>
+                  <FolderDown size={16} />
+                  <span>Buka di Koleksi Game Saya</span>
+                </Link>
 
                 <div className="flex flex-col sm:flex-row gap-2.5">
-                  <Link
-                    to="/library"
+                  <a
+                    href={buildWhatsAppUrl({
+                      text: `Halo Admin MyGameON, saya sudah selesai klaim pesanan Shopee No: #${verifiedOrder.invoice} untuk ${verifiedOrder.items?.map((i) => i.title).join(', ')}. Terima kasih!`,
+                    })}
+                    target="_blank"
+                    rel="noreferrer"
                     className="flex-1 bg-white/5 hover:bg-white/10 text-slate-200 font-bold py-3 px-4 rounded-xl text-xs flex items-center justify-center gap-1.5 border border-white/10 transition-colors"
                   >
-                    <FolderDown size={14} className="text-emerald-400" />
-                    <span>Lihat di Koleksi Game</span>
-                  </Link>
+                    <WhatsAppIcon className="w-3.5 h-3.5 fill-emerald-400" />
+                    <span>Konfirmasi WA</span>
+                  </a>
 
                   <button
                     type="button"
@@ -562,7 +768,7 @@ const ClaimOrderPage = () => {
           {/* Footer Assistance */}
           <div className="mt-8 text-center text-xs text-slate-500 flex items-center justify-center gap-1.5">
             <HelpCircle size={14} />
-            <span>Butuh panduan instalasi atau kendala lisensi? Chat kami di Shopee atau WhatsApp resmi toko.</span>
+            <span>Butuh bantuan instalasi atau nomor pesanan belum terbaca? Hubungi WhatsApp resmi toko.</span>
           </div>
 
         </div>

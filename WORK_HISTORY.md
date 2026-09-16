@@ -144,6 +144,41 @@ Dokumen ini adalah catatan resmi (*audit trail*) dan riwayat kemajuan pengerjaan
 
 ---
 
+### [Milestone 06] — Smart Auto-Detect Klaim Shopee, Penguncian Input Manual, & Telemetri Alert WhatsApp
+- **Waktu Pengerjaan**: 2026-09-16
+- **Latar Belakang & Masalah**: 
+  1. Pembeli sebelumnya masih bisa memilih kategori dan mengetik judul game secara manual, yang berisiko manipulasi (misal checkout game murah tapi klaim game mahal) atau salah ketik nama game.
+  2. Pembeli yang checkout lebih dari 1 game (multi-item) dalam 1 invoice harus klaim berkali-kali.
+  3. Belum ada deteksi atau notifikasi langsung ke WhatsApp Business Admin jika ada pengunjung/bot yang mencoba-coba menebak nomor pesanan yang tidak terdaftar.
+- **Implementasi**:
+  1. **Penguncian Input Manual & Smart Auto-Detect V2**: [`src/features/claim/ClaimOrderPage.jsx`](file:///c:/mad/website/mygameonapp/src/features/claim/ClaimOrderPage.jsx)
+     - Menghapus total selector kategori dan input judul game manual.
+     - **Langkah 1 (Verifikasi)**: Pembeli hanya memasukkan Nomor Pesanan Shopee $\rightarrow$ sistem mencari di Firestore `shopee_orders/{invoice}`.
+     - **Langkah 2 (Ditemukan)**: Menampilkan kartu hijau pesanan terverifikasi (`@username_shopee`), rincian seluruh game yang dibeli (mendukung single game maupun multi-item / bundling seperti Spider-Man 2 + The Sims 3), dan konfirmasi Gmail penerima Google Drive.
+     - Tombol 1-klik klaim seluruh game sekaligus ke brankas `/library` dan menandai invoice sebagai `claimed`.
+  2. **Proteksi Anti-Bruteforce & Telemetri Alert WhatsApp Business**:
+     - Jika nomor pesanan tidak ditemukan:
+       - Sistem **TIDAK** membuka form manual.
+       - Sistem mencatat log audit ke koleksi `failed_claim_attempts`.
+       - Sistem menembakkan notifikasi peringatan (*Telemetry Alert*) via [`src/services/api/n8nService.js`](file:///c:/mad/website/mygameonapp/src/services/api/n8nService.js#L77-L95) ke webhook n8n agar admin menerima notifikasi darurat di WhatsApp Business secara real-time.
+       - Tampilan client menampilkan tombol hijau bantuan WhatsApp Business resmi dengan pesan komplain otomatis siap kirim.
+       - Perlindungan *lockout timer* 5 menit jika terjadi 3 kali percobaan salah berturut-turut.
+  3. **Keamanan Firestore**: [`firestore.rules`](file:///c:/mad/website/mygameonapp/firestore.rules#L230-L255)
+     - Menambahkan aturan `shopee_orders/{invoice}`: pembacaan publik untuk verifikasi, pembaruan status hanya diizinkan dari `ready` ke `claimed`.
+     - Menambahkan aturan `failed_claim_attempts/{id}` untuk audit jejak percobaan tidak valid.
+  4. **Template Otomatisasi n8n**: [`scripts/n8n-shopee-workflow-template.json`](file:///c:/mad/website/mygameonapp/scripts/n8n-shopee-workflow-template.json)
+     - Dibuat workflow template n8n yang siap di-import:
+       - Node 1: Gmail Trigger (membaca email Shopee `from:info@mail.shopee.co.id subject:"Siap Dikirim"`).
+       - Node 2: Regex Code Node (ekstrak invoice, buyer, items array berulang `1.`, `2.`, Sims 4 CC variation).
+       - Node 3: Webhook Telemetry Alert & Filter untuk notifikasi alert WhatsApp darurat ke nomor `6285121309829`.
+  5. **Ekspor Firebase Config**: [`src/config/firebaseConfig.js`](file:///c:/mad/website/mygameonapp/src/config/firebaseConfig.js#L35)
+     - Menambahkan ekspor `updateDoc` untuk kelancaran mutasi status dokumen pesanan.
+- **Hasil Verifikasi**:
+  - `npm run build` berhasil 100% tanpa error (PASS, 13.05s).
+  - HTTP Status: `GET /claim` $\rightarrow$ **200 OK**.
+
+---
+
 ## 📋 Rencana Kerja Berikutnya (Upcoming Tasks)
 1. **Poin 2 — Pengembangan Lanjutan Fitur "Can I Run It"**:
    - Peningkatan basis data perbandingan GPU/CPU diskrit vs integrated.

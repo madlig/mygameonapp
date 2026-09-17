@@ -6,7 +6,7 @@ Dokumen ini adalah catatan resmi (*audit trail*) dan riwayat kemajuan pengerjaan
 
 ## 📌 Status Terkini Proyek
 - **Branch Git**: `feature/brand-refresh-v2`
-- **Commit Hash Terakhir**: `d327b44` (*feat(n8n): migrate telemetry alert dispatcher from WhatsApp to native Telegram Bot*)
+- **Commit Hash Terakhir**: `94abc0f` (*feat(hardware): upgrade Can I Run It to V2 with FPS & resolution estimation, modern iGPU support, and optimization tips*)
 - **Environment**: Vite + React 19 + Tailwind CSS + Firebase Auth & Firestore
 - **Preview Server**: Running di `http://localhost:5173` (Daemon task)
 - **Status Joki & Overlay**: Subdomain `joki.mygameon.store` dan rute `/ticket/:id`, `/overlay` aman 100% dan terisolasi.
@@ -255,9 +255,34 @@ Dokumen ini adalah catatan resmi (*audit trail*) dan riwayat kemajuan pengerjaan
 
 ---
 
+### [Milestone 10] — Peningkatan Mesin Diagnosa Hardware "Can I Run It" V2 (FPS, Resolusi, & Modern iGPU)
+- **Waktu Pengerjaan**: 2026-09-17
+- **Latar Belakang & Masalah**: 
+  1. Fitur "Can I Run It" V1 sebelumnya hanya memberikan status biner (*Pass/Fail*) tanpa menginformasikan seberapa lancar (*frame rate / FPS*) game akan berjalan di laptop pembeli.
+  2. Laptop pelajar/kantoran modern yang menggunakan iGPU bertenaga (seperti Intel Iris Xe, Radeon 680M/780M) belum terdeteksi secara optimal dan sempat keliru dianggap tidak kuat untuk game populer seperti *The Sims 4* atau *GTA V*.
+- **Implementasi**:
+  1. **Pengayaan Basis Data & Logika Cerdas**: [`src/features/landing/utils/hardwareEngine.js`](file:///c:/mad/website/mygameonapp/src/features/landing/utils/hardwareEngine.js)
+     - Menambahkan kategori CPU terkini (Intel Core Ultra, Core Gen 13-14, AMD Ryzen 7000-9000, Apple Silicon M-Series).
+     - Menambahkan pemisahan kategori GPU: Onboard Jadul (Intel HD 4000), Onboard Standar (Intel UHD 620/Vega 3), dan Onboard Gaming Modern (Intel Iris Xe, Radeon 680M/780M).
+     - Menambahkan penanganan khusus judul populer (*The Sims 4* & *GTA V*) agar tidak keliru masuk ke beban game berat AAA hanya karena ukuran file instalan yang besar.
+     - Membangun kalkulator rasio daya komputasi ($0-100\%$) dengan rumus tertimbang ($w_{GPU}=0.55, w_{CPU}=0.30, w_{RAM}=0.15$).
+     - Estimasi FPS dinamis pada resolusi **1080p Full HD** dan **720p HD** beserta rekomendasi Graphic Preset (Low, Medium, High, Ultra).
+     - Generator tips optimasi performa otomatis (misal: rekomendasi FSR/DLSS, Dual-Channel RAM, dan panduan mod).
+  2. **Antarmuka Pengguna V2 Interaktif**: [`src/features/landing/components/CanIRunItBox.jsx`](file:///c:/mad/website/mygameonapp/src/features/landing/components/CanIRunItBox.jsx)
+     - Menambahkan bar visual indikator kelancaran ($0-100\%$) dengan gradien warna dinamis (Hijau, Kuning, Merah).
+     - Menambahkan 2 kartu estimasi performa: **1080p Full HD** vs **720p HD**.
+     - Menambahkan box tips setting & optimasi performa game.
+     - Menambahkan Smart Fallback CTA bagi device yang tidak kuat: tombol 1-klik *"Lihat Game Ringan"* menuju katalog game yang kompatibel.
+  3. **Penyempurnaan Modal Profil Hardware**: [`src/features/landing/components/DeviceProfileModal.jsx`](file:///c:/mad/website/mygameonapp/src/features/landing/components/DeviceProfileModal.jsx)
+     - Panduan pemilihan GPU yang lebih informatif bagi orang awam.
+- **Hasil Verifikasi**:
+  - Test suite mandiri Node.js $\rightarrow$ **100% PASS** (Case 1 Low Spek, Case 2 Modern iGPU, Case 3 RTX Gaming).
+  - `npm.cmd run build` $\rightarrow$ **Sukses 100% (PASS, 10.67s)**.
+
+---
+
 ## 📋 Rencana Kerja Berikutnya (Upcoming Tasks)
-1. **Poin 2 — Pengembangan Lanjutan Fitur "Can I Run It"**:
-   - Peningkatan basis data perbandingan GPU/CPU diskrit vs integrated.
-   - Penambahan perkiraan performa (estimasi FPS / kelancaran resolusi 1080p, 720p).
-2. **Poin 4 — Integrasi SEO & OpenGraph Dinamis**:
+1. **Poin 4 — Integrasi SEO & OpenGraph Dinamis**:
    - Peningkatan preview kartu media sosial saat link game dibagikan ke WhatsApp / Telegram.
+2. **Persiapan Rilis & Deploy ke Staging/Production (Vercel)**:
+   - Audit akhir env vars, merge ke branch production, dan uji domain utama `mygameon.store`.

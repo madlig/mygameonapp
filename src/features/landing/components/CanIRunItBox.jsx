@@ -2,7 +2,8 @@
 import React, { useState } from 'react';
 import { 
   Laptop, CheckCircle2, XCircle, AlertTriangle, 
-  Settings2, ArrowRight, Sparkles 
+  Settings2, ArrowRight, Sparkles, Monitor, Tv, 
+  Gauge, Lightbulb, Zap, ArrowUpRight 
 } from 'lucide-react';
 import { useDeviceProfile } from '../hooks/useDeviceProfile';
 import DeviceProfileModal from './DeviceProfileModal';
@@ -16,9 +17,16 @@ const CanIRunItBox = ({ game }) => {
   const result = isConfigured ? checkGame(game) : null;
   const title = game.title || game.name || 'Game ini';
 
+  // Helper untuk warna bar speedometer
+  const getScoreColor = (score) => {
+    if (score >= 80) return 'from-emerald-500 to-teal-400 text-emerald-400';
+    if (score >= 55) return 'from-amber-500 to-yellow-400 text-amber-400';
+    return 'from-rose-500 to-red-500 text-rose-400';
+  };
+
   return (
     <>
-      <div className="rounded-2xl border border-white/10 bg-[#070A0F] p-4 space-y-3">
+      <div className="rounded-2xl border border-white/10 bg-[#070A0F] p-4 space-y-3.5">
         
         {/* Header Bar */}
         <div className="flex items-center justify-between flex-wrap gap-2 pb-2.5 border-b border-white/10">
@@ -27,9 +35,14 @@ const CanIRunItBox = ({ game }) => {
               <Laptop size={16} />
             </div>
             <div>
-              <span className="text-xs font-black text-white tracking-tight block">
-                Can I Run It — Uji Kompatibilitas Hardware
-              </span>
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs font-black text-white tracking-tight block">
+                  Can I Run It V2 — Estimasi FPS & Resolusi
+                </span>
+                <span className="text-[9px] font-black px-1.5 py-0.2 rounded bg-amber-400/15 text-amber-400 border border-amber-400/30 uppercase">
+                  Engine V2
+                </span>
+              </div>
               <span className="text-[11px] text-slate-400">
                 {isConfigured 
                   ? `Device: ${profile.deviceType === 'laptop' ? 'Laptop' : 'PC'} (${profile.tierLabel})`
@@ -56,7 +69,7 @@ const CanIRunItBox = ({ game }) => {
                 Belum yakin laptopmu kuat untuk {title}?
               </p>
               <p className="text-[11px] text-slate-400 mt-0.5">
-                Masukkan tipe Processor, RAM, & VGA kamu dalam 3 klik untuk diagnosa instan.
+                Masukkan tipe Processor, RAM, & VGA kamu dalam 3 klik untuk diagnosa FPS & resolusi instan.
               </p>
             </div>
             <button
@@ -64,15 +77,42 @@ const CanIRunItBox = ({ game }) => {
               onClick={() => setIsModalOpen(true)}
               className="shrink-0 px-4 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs flex items-center gap-1.5 transition-all shadow-md shadow-amber-400/20 active:scale-95"
             >
+              <Sparkles size={14} />
               <span>Tes Spek Laptop Saya</span>
               <ArrowRight size={14} />
             </button>
           </div>
         ) : (
-          /* State B: Hasil Uji Can I Run It Komponen per Komponen */
+          /* State B: Hasil Diagnosa Lengkap V2 */
           <div className="space-y-3">
             
-            {/* Verdict Card */}
+            {/* 1. Visual Performance Score Bar */}
+            <div className="bg-white/[0.03] border border-white/10 rounded-xl p-3 space-y-1.5">
+              <div className="flex items-center justify-between text-xs">
+                <div className="flex items-center gap-1.5">
+                  <Gauge size={14} className={getScoreColor(result?.scorePercent).split(' ')[1]} />
+                  <span className="font-bold text-slate-300">Skor Kelancaran Hardware:</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className={`font-black text-sm ${getScoreColor(result?.scorePercent).split(' ')[1]}`}>
+                    {result?.scorePercent}%
+                  </span>
+                  <span className="text-[10px] text-slate-500 font-medium">
+                    ({result?.gameTierLabel || 'Standar Game'})
+                  </span>
+                </div>
+              </div>
+
+              {/* Progress Track */}
+              <div className="w-full h-2 rounded-full bg-white/10 overflow-hidden">
+                <div 
+                  className={`h-full rounded-full bg-gradient-to-r ${getScoreColor(result?.scorePercent).split(' ')[0]} transition-all duration-500`}
+                  style={{ width: `${result?.scorePercent || 0}%` }}
+                />
+              </div>
+            </div>
+
+            {/* 2. Verdict Card */}
             <div className={`p-3 rounded-xl border flex items-start gap-3 ${
               result?.verdict === 'optimal'
                 ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
@@ -102,7 +142,59 @@ const CanIRunItBox = ({ game }) => {
               </div>
             </div>
 
-            {/* Component-by-Component Comparison Grid */}
+            {/* 3. Estimasi Resolusi & FPS Cards (NEW V2) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+              
+              {/* Resolusi 1080p Card */}
+              <div className="p-3 rounded-xl bg-white/[0.03] border border-white/10 space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5 text-slate-400">
+                    <Monitor size={14} className="text-amber-400" />
+                    <span className="font-bold text-[11px] uppercase tracking-wider">1080p Full HD</span>
+                  </div>
+                  <span className={`text-[10px] font-black px-1.5 py-0.5 rounded ${
+                    result?.fps1080p.color === 'emerald' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'
+                  }`}>
+                    {result?.fps1080p.status}
+                  </span>
+                </div>
+                <div className="flex items-baseline justify-between pt-1">
+                  <span className="text-base sm:text-lg font-black text-white">
+                    {result?.fps1080p.range}
+                  </span>
+                  <span className="text-[11px] text-slate-400">
+                    Grafik: <strong className="text-slate-200">{result?.fps1080p.preset}</strong>
+                  </span>
+                </div>
+              </div>
+
+              {/* Resolusi 720p Card */}
+              <div className="p-3 rounded-xl bg-white/[0.03] border border-white/10 space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5 text-slate-400">
+                    <Tv size={14} className="text-cyan-400" />
+                    <span className="font-bold text-[11px] uppercase tracking-wider">720p HD (Hemat Daya)</span>
+                  </div>
+                  <span className={`text-[10px] font-black px-1.5 py-0.5 rounded ${
+                    result?.fps720p.color === 'emerald' ? 'bg-emerald-500/20 text-emerald-400' : 
+                    result?.fps720p.color === 'amber' ? 'bg-amber-500/20 text-amber-400' : 'bg-rose-500/20 text-rose-400'
+                  }`}>
+                    {result?.fps720p.status}
+                  </span>
+                </div>
+                <div className="flex items-baseline justify-between pt-1">
+                  <span className="text-base sm:text-lg font-black text-white">
+                    {result?.fps720p.range}
+                  </span>
+                  <span className="text-[11px] text-slate-400">
+                    Grafik: <strong className="text-slate-200">{result?.fps720p.preset}</strong>
+                  </span>
+                </div>
+              </div>
+
+            </div>
+
+            {/* 4. Component-by-Component Comparison Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
               
               {/* CPU Check */}
@@ -167,6 +259,42 @@ const CanIRunItBox = ({ game }) => {
 
             </div>
 
+            {/* 5. Smart Optimization Tips (NEW V2) */}
+            {Array.isArray(result?.tips) && result.tips.length > 0 && (
+              <div className="p-3 rounded-xl bg-amber-400/[0.04] border border-amber-400/20 space-y-1.5">
+                <div className="flex items-center gap-1.5 text-amber-400 text-xs font-bold">
+                  <Lightbulb size={14} className="shrink-0" />
+                  <span>Tips Optimasi & Rekomendasi Setting:</span>
+                </div>
+                <ul className="text-[11px] text-slate-300 space-y-1 pl-5 list-disc leading-relaxed">
+                  {result.tips.map((tip, idx) => (
+                    <li key={idx}>{tip}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* 6. Smart Fallback CTA untuk Device Tidak Kuat (NEW V2) */}
+            {!result?.isPlayable && (
+              <div className="p-3 rounded-xl bg-gradient-to-r from-purple-500/10 to-indigo-500/10 border border-purple-500/30 flex flex-col sm:flex-row items-center justify-between gap-2.5 text-center sm:text-left">
+                <div>
+                  <p className="text-xs font-bold text-white">
+                    Device kamu kurang kuat untuk {title}?
+                  </p>
+                  <p className="text-[11px] text-slate-300">
+                    Tenang, temukan ratusan game seru lainnya yang dijamin lancar di spesifikasi kamu!
+                  </p>
+                </div>
+                <a
+                  href="/catalog"
+                  className="shrink-0 px-3.5 py-1.5 rounded-lg bg-purple-500 hover:bg-purple-400 text-white font-bold text-xs flex items-center gap-1.5 transition-all shadow-md shadow-purple-500/20"
+                >
+                  <span>Lihat Game Ringan</span>
+                  <ArrowUpRight size={13} />
+                </a>
+              </div>
+            )}
+
           </div>
         )}
 
@@ -182,3 +310,4 @@ const CanIRunItBox = ({ game }) => {
 };
 
 export default CanIRunItBox;
+

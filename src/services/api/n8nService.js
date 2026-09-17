@@ -115,13 +115,25 @@ export const n8nService = {
   async dispatchTelemetryAlert(errorPayload) {
     if (!INTEGRATIONS.n8n.telemetryWebhookUrl) return;
 
+    const basePayload = {
+      ...errorPayload,
+      timestamp: new Date().toISOString(),
+      url: typeof window !== 'undefined' ? window.location.href : 'Web Claim',
+      userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : '',
+    };
+
+    const targetUrl = INTEGRATIONS.n8n.telemetryWebhookUrl;
+    // URL uji coba jika n8n sedang mode 'Listen for test event' (belum diaktifkan)
+    const testUrl = targetUrl.includes('/webhook/') 
+      ? targetUrl.replace('/webhook/', '/webhook-test/') 
+      : targetUrl;
+
     try {
-      await apiClient.post(INTEGRATIONS.n8n.telemetryWebhookUrl, {
-        ...errorPayload,
-        timestamp: new Date().toISOString(),
-        url: window.location.href,
-        userAgent: navigator.userAgent,
-      }, { timeoutMs: 5000 });
+      const res = await apiClient.post(targetUrl, basePayload, { timeoutMs: 4000 });
+      // Jika webhook produksi belum aktif (mengembalikan 404), otomatis kirim ke endpoint test webhook
+      if (!res.success && res.status === 404 && testUrl !== targetUrl) {
+        await apiClient.post(testUrl, basePayload, { timeoutMs: 4000 });
+      }
     } catch {
       // Silently ignore telemetry dispatch errors
     }

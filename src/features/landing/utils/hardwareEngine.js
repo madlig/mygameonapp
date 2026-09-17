@@ -1,66 +1,75 @@
 // src/features/landing/utils/hardwareEngine.js
 
 export const CPU_OPTIONS = [
-  { id: 'cpu_entry', label: 'Intel Celeron / Pentium / Core 2 Duo / AMD Athlon', score: 1, short: 'Celeron / Pentium / Athlon' },
-  { id: 'cpu_old_mid', label: 'Intel Core i3 / Core i5 Generasi Lama (Gen 1 - 7)', score: 2, short: 'Core i3/i5 Lawas' },
-  { id: 'cpu_modern_mid', label: 'Intel Core i3 (Gen 8+) / Core i5 (Gen 8-10) / AMD Ryzen 3 & 5 (Gen 1-3)', score: 3, short: 'Core i3/i5 Modern / Ryzen 3/5' },
-  { id: 'cpu_high', label: 'Intel Core i5 (Gen 11+) / Core i7 / Core i9 / AMD Ryzen 5 (Gen 5+) / Ryzen 7 & 9', score: 4, short: 'Core i5/i7/i9 High / Ryzen 7/9' },
-  { id: 'cpu_apple', label: 'Apple Silicon (M1 / M2 / M3 / M4)', score: 4, short: 'Apple M1/M2/M3' },
+  { id: 'cpu_entry', label: 'Intel Celeron / Pentium / Core 2 Duo / AMD Athlon (Entry/Lawas)', score: 1.0, short: 'Celeron / Pentium / Athlon' },
+  { id: 'cpu_old_mid', label: 'Intel Core i3 / Core i5 Generasi Lama (Gen 1 - 7) / AMD FX Series', score: 2.0, short: 'Core i3/i5 Lawas (Gen 1-7)' },
+  { id: 'cpu_modern_mid', label: 'Intel Core i3 (Gen 8+) / Core i5 (Gen 8-10) / AMD Ryzen 3 & 5 (Gen 1-3)', score: 3.2, short: 'Core i3/i5 Modern / Ryzen 3/5' },
+  { id: 'cpu_high', label: 'Intel Core i5 (Gen 11+) / Core i7 & i9 (Gen 8+) / AMD Ryzen 5 (Gen 5+) / Ryzen 7 & 9', score: 4.5, short: 'Core i5/i7/i9 High / Ryzen 7/9' },
+  { id: 'cpu_ultra', label: 'Intel Core Ultra / Core Gen 13-14 High / AMD Ryzen 7000-9000 Series (Enthusiast)', score: 5.5, short: 'Core Gen 13-14 / Ryzen 7000+' },
+  { id: 'cpu_apple', label: 'Apple Silicon (M1 / M2 / M3 / M4 / Pro / Max)', score: 4.5, short: 'Apple M-Series' },
 ];
 
 export const RAM_OPTIONS = [
   { id: 4, label: '4 GB RAM', gb: 4, score: 1 },
   { id: 8, label: '8 GB RAM (Standar Pelajar/Kantor)', gb: 8, score: 2 },
-  { id: 16, label: '16 GB RAM (Standar Gaming)', gb: 16, score: 3 },
-  { id: 32, label: '32 GB RAM atau Lebih (High-End)', gb: 32, score: 4 },
+  { id: 16, label: '16 GB RAM (Standar Gaming Modern)', gb: 16, score: 3 },
+  { id: 32, label: '32 GB RAM atau Lebih (High-End / Kreator)', gb: 32, score: 4 },
 ];
 
 export const GPU_OPTIONS = [
   { 
     id: 'gpu_onboard_old', 
-    label: 'Intel HD Graphics 3000/4000 (Onboard Lawas)', 
-    score: 1, 
+    label: 'Intel HD Graphics 2000/3000/4000 (Onboard Sangat Lawas)', 
+    score: 1.0, 
     vramGB: 0.5, 
     short: 'Intel HD Onboard Lawas',
     isDedicated: false 
   },
   { 
-    id: 'gpu_onboard_modern', 
-    label: 'Intel UHD / Iris Xe / AMD Radeon Vega (Onboard Modern)', 
-    score: 2, 
-    vramGB: 1.5, 
-    short: 'Intel UHD / Iris Xe / Vega Onboard',
+    id: 'gpu_onboard_standard', 
+    label: 'Intel UHD 620/630 / AMD Radeon Vega 3/6 (Onboard Standar Pelajar/Kantor)', 
+    score: 1.8, 
+    vramGB: 1.0, 
+    short: 'Intel UHD / Vega 3-6',
+    isDedicated: false 
+  },
+  { 
+    id: 'gpu_onboard_high', 
+    label: 'Intel Iris Xe / AMD Radeon Vega 7/8 / Radeon 680M/780M / Intel Arc iGPU (Onboard Gaming Modern)', 
+    score: 2.8, 
+    vramGB: 2.0, 
+    short: 'Iris Xe / Radeon 680M/780M',
     isDedicated: false 
   },
   { 
     id: 'gpu_entry_discrete', 
-    label: 'NVIDIA GT 730 / GT 1030 / GeForce MX 250/350/450', 
+    label: 'NVIDIA GT 730 / GT 1030 / GeForce MX 150/250/350/450 / GTX 750 Ti', 
     score: 2.5, 
-    vramGB: 2, 
-    short: 'NVIDIA GT / MX Series (Entry)',
+    vramGB: 2.0, 
+    short: 'GeForce GT / MX / GTX 750 Ti',
     isDedicated: true 
   },
   { 
     id: 'gpu_mid_gtx', 
-    label: 'NVIDIA GTX 1050 / GTX 1650 / GTX 1660 / AMD RX 570/580', 
-    score: 3.5, 
-    vramGB: 4, 
-    short: 'GTX 1050/1650/1660 / RX 580',
+    label: 'NVIDIA GTX 1050 / GTX 1060 / GTX 1650 / GTX 1660 / AMD RX 570/580', 
+    score: 3.6, 
+    vramGB: 4.0, 
+    short: 'GTX 1050/1650 / RX 580',
     isDedicated: true 
   },
   { 
     id: 'gpu_high_rtx', 
-    label: 'NVIDIA RTX 2060 / RTX 3050 / RTX 3060 / AMD RX 6600', 
-    score: 4.5, 
-    vramGB: 6, 
+    label: 'NVIDIA RTX 2060 / RTX 3050 / RTX 3060 / AMD RX 6600 / Intel Arc A750', 
+    score: 4.8, 
+    vramGB: 6.0, 
     short: 'RTX 2060/3050/3060 / RX 6600',
     isDedicated: true 
   },
   { 
     id: 'gpu_flagship', 
-    label: 'NVIDIA RTX 3070 / RTX 4060 / RTX 4070 ke atas', 
-    score: 5.5, 
-    vramGB: 8, 
+    label: 'NVIDIA RTX 3070 / RTX 4060 / RTX 4070 / RTX 4080 / AMD RX 7700+ (High-End)', 
+    score: 6.0, 
+    vramGB: 8.0, 
     short: 'RTX 3070/4060+ (Flagship)',
     isDedicated: true 
   },
@@ -74,25 +83,42 @@ export const DEVICE_TYPES = [
 export const STORAGE_PROFILE_KEY = 'mygameon_user_pc_profile';
 
 /**
+ * Mencari GPU berdasarkan ID dengan backward compatibility untuk opsi lama
+ */
+function resolveGpuOption(gpuId) {
+  if (!gpuId) return GPU_OPTIONS[2]; // Default Iris Xe
+  const direct = GPU_OPTIONS.find((g) => g.id === gpuId);
+  if (direct) return direct;
+  // Aliasing ID versi lama
+  if (gpuId === 'gpu_onboard_modern') return GPU_OPTIONS[2]; // gpu_onboard_high
+  return GPU_OPTIONS[2];
+}
+
+/**
  * Mengklasifikasikan hardware pembeli ke dalam tier yang tepat
  */
 export function classifyUserHardware({ cpuId, ramGB, gpuId, deviceType = 'laptop' }) {
-  const cpu = CPU_OPTIONS.find((c) => c.id === cpuId) || CPU_OPTIONS[1];
+  const cpu = CPU_OPTIONS.find((c) => c.id === cpuId) || CPU_OPTIONS[2];
   const ram = RAM_OPTIONS.find((r) => r.gb === Number(ramGB)) || RAM_OPTIONS[1];
-  const gpu = GPU_OPTIONS.find((g) => g.id === gpuId) || GPU_OPTIONS[1];
+  const gpu = resolveGpuOption(gpuId);
 
   let tier = 'low';
   let tierLabel = 'Device Low Spek';
   let badgeColor = 'emerald';
   let summary = 'Aman untuk game ringan, game klasik, indie, & emulator.';
 
-  // Penentuan kelas cerdas
-  if (!gpu.isDedicated || ram.gb <= 8 || gpu.score <= 2.5) {
+  // Penentuan kelas cerdas V2
+  if (!gpu.isDedicated && gpu.score < 2.5) {
     tier = 'low';
     tierLabel = 'Device Low Spek';
     badgeColor = 'emerald';
     summary = 'Cocok untuk game ringan (<15 GB), The Sims 4 standar, Stardew Valley, GTA San Andreas, & grafis 720p.';
-  } else if (gpu.score >= 4.5 && ram.gb >= 16 && cpu.score >= 4) {
+  } else if (!gpu.isDedicated && gpu.score >= 2.5 && ram.gb >= 8) {
+    tier = 'mid_igpu';
+    tierLabel = 'Laptop iGPU Modern';
+    badgeColor = 'amber';
+    summary = 'Kuat untuk GTA V, The Sims 4 All Packs, Valorant, Genshin Impact, & game e-sport/mainstream pada 720p/1080p Normal.';
+  } else if (gpu.isDedicated && gpu.score >= 4.5 && ram.gb >= 16 && cpu.score >= 4) {
     tier = 'high';
     tierLabel = 'Device High-End';
     badgeColor = 'purple';
@@ -101,7 +127,7 @@ export function classifyUserHardware({ cpuId, ramGB, gpuId, deviceType = 'laptop
     tier = 'mid';
     tierLabel = 'Device Menengah';
     badgeColor = 'amber';
-    summary = 'Lancar untuk GTA V, The Sims 4 All Packs, FIFA, Valorant, Genshin Impact, & game mainstream 15-50 GB.';
+    summary = 'Lancar untuk GTA V, The Sims 4 All Packs, FIFA, God of War, & game mainstream 15-50 GB.';
   }
 
   return {
@@ -130,34 +156,71 @@ export function classifyUserHardware({ cpuId, ramGB, gpuId, deviceType = 'laptop
 }
 
 /**
- * Menjalankan uji diagnosa "Can I Run It" secara head-to-head untuk game tertentu
+ * Menentukan profil beban spesifikasi game berdasarkan ukuran dan nama game
  */
-export function runCanIRunIt(game, profile) {
-  if (!game || !profile) {
-    return null;
-  }
-
-  const rawSize = game.fileSizeBytes || game.size || 0;
+export function determineGameRequirement(game) {
+  const rawSize = game?.fileSizeBytes || game?.size || 0;
   const sizeGB = typeof rawSize === 'number' && rawSize > 0 
     ? rawSize / (1024 * 1024 * 1024) 
     : (typeof rawSize === 'string' && rawSize.toLowerCase().includes('gb') ? parseFloat(rawSize) : 20);
 
-  const title = (game.title || game.name || '').toLowerCase();
+  const title = (game?.title || game?.name || '').toLowerCase();
 
-  // 1. Tentukan kebutuhan minimum game
-  let req = {
-    minRamGB: 4,
-    minCpuScore: 1,
-    minGpuScore: 1,
-    minGpuDedicated: false,
-    minCpuLabel: 'Intel Core 2 Duo / Core i3',
-    minGpuLabel: 'Intel HD Graphics 4000',
-    tier: 'low',
-  };
+  // 1. Pengecualian Khusus Judul Populer:
+  // The Sims 4 (Meskipun ukuran 60GB+ dengan All DLC, engine tetap ramah iGPU & laptop standar)
+  if (title.includes('sims 4') || title.includes('the sims')) {
+    return {
+      tier: 'medium',
+      tierLabel: 'Game Menengah (iGPU Ready)',
+      minRamGB: 8,
+      minCpuScore: 2.0,
+      minGpuScore: 1.8,
+      minGpuDedicated: false,
+      minCpuLabel: 'Intel Core i3 / AMD Ryzen 3',
+      minGpuLabel: 'Intel UHD / Iris Xe / Radeon Vega',
+      isSims4: true,
+    };
+  }
 
-  // Game Berat AAA
+  // GTA V (Ukuran ~70-90GB, tapi optimasi engine luar biasa enteng di iGPU Iris Xe / GTX 1050)
+  if (title.includes('gta v') || title.includes('grand theft auto v') || title.includes('gta 5')) {
+    return {
+      tier: 'medium',
+      tierLabel: 'Game Menengah',
+      minRamGB: 8,
+      minCpuScore: 2.5,
+      minGpuScore: 2.5,
+      minGpuDedicated: false,
+      minCpuLabel: 'Intel Core i3 Gen 8+ / Ryzen 3',
+      minGpuLabel: 'Intel Iris Xe / GTX 750 Ti / GTX 1050',
+      isSims4: false,
+    };
+  }
+
+  // Game Ringan Populer
   if (
-    sizeGB >= 50 ||
+    title.includes('stardew') || 
+    title.includes('terraria') || 
+    title.includes('san andreas') || 
+    title.includes('most wanted') || 
+    title.includes('minecraft') ||
+    title.includes('undertale')
+  ) {
+    return {
+      tier: 'light',
+      tierLabel: 'Game Ringan',
+      minRamGB: 4,
+      minCpuScore: 1.0,
+      minGpuScore: 1.0,
+      minGpuDedicated: false,
+      minCpuLabel: 'Intel Celeron / Core 2 Duo / Core i3',
+      minGpuLabel: 'Intel HD Graphics / Semua VGA',
+      isSims4: false,
+    };
+  }
+
+  // 2. Game Sangat Berat / AAA Grafis Tinggi
+  if (
     title.includes('cyberpunk') ||
     title.includes('red dead') ||
     title.includes('tekken 8') ||
@@ -167,82 +230,173 @@ export function runCanIRunIt(game, profile) {
     title.includes('spiderman') ||
     title.includes('spider-man') ||
     title.includes('starfield') ||
-    title.includes('alan wake 2')
+    title.includes('alan wake 2') ||
+    title.includes('ghost of tsushima') ||
+    title.includes('the last of us') ||
+    title.includes('hogwarts') ||
+    sizeGB >= 65
   ) {
-    req = {
-      minRamGB: 12,
+    return {
+      tier: 'ultra_heavy',
+      tierLabel: 'Game Berat AAA',
+      minRamGB: 16,
       minCpuScore: 3.5,
       minGpuScore: 3.5,
       minGpuDedicated: true,
       minCpuLabel: 'Intel Core i5 (Gen 8+) / Ryzen 5',
       minGpuLabel: 'NVIDIA GTX 1060 / GTX 1650 (VGA Dedicated)',
-      tier: 'high',
+      isSims4: false,
     };
-  } 
-  // Game Menengah
-  else if (
+  }
+
+  // 3. Game Menengah Populer
+  if (
     sizeGB >= 15 ||
-    title.includes('sims 4') ||
-    title.includes('gta v') ||
     title.includes('witcher') ||
     title.includes('fifa') ||
     title.includes('pes ') ||
+    title.includes('football') ||
     title.includes('naruto') ||
-    title.includes('assassin')
+    title.includes('assassin') ||
+    title.includes('resident evil') ||
+    title.includes('sekiro') ||
+    title.includes('elden ring') ||
+    title.includes('genshin') ||
+    title.includes('valorant')
   ) {
-    req = {
+    return {
+      tier: 'medium',
+      tierLabel: 'Game Menengah',
       minRamGB: 8,
-      minCpuScore: 2.5,
+      minCpuScore: 2.2,
       minGpuScore: 2.5,
       minGpuDedicated: false,
       minCpuLabel: 'Intel Core i3 / Core i5 / AMD Ryzen 3',
       minGpuLabel: 'Intel Iris Xe / NVIDIA GT 1030 / GTX 1050',
-      tier: 'mid',
+      isSims4: false,
     };
   }
 
-  // 2. Head-to-Head Check per Komponen
+  // 4. Fallback: Game Ringan / Klasik / Indie
+  return {
+    tier: 'light',
+    tierLabel: 'Game Ringan',
+    minRamGB: 4,
+    minCpuScore: 1.0,
+    minGpuScore: 1.0,
+    minGpuDedicated: false,
+    minCpuLabel: 'Intel Core 2 Duo / Celeron / Core i3',
+    minGpuLabel: 'Intel HD Graphics / Semua VGA',
+    isSims4: false,
+  };
+}
+
+/**
+ * Mesin Diagnosa "Can I Run It" V2:
+ * Mengkalkulasi Kompatibilitas Komponen, Estimasi FPS 1080p/720p, Preset Grafik, dan Tips Optimasi
+ */
+export function runCanIRunIt(game, profile) {
+  if (!game || !profile) {
+    return null;
+  }
+
+  const req = determineGameRequirement(game);
+
+  // 1. Head-to-Head Check per Komponen
   const cpuPass = profile.cpuScore >= req.minCpuScore;
   const ramPass = profile.ramGB >= req.minRamGB;
   const gpuPass = profile.gpuScore >= req.minGpuScore && (!req.minGpuDedicated || profile.isDedicatedGpu);
 
-  // 3. Rumuskan Hasil Diagnosa
   const allPass = cpuPass && ramPass && gpuPass;
   const onlyGpuFail = cpuPass && ramPass && !gpuPass;
   const onlyRamFail = cpuPass && !ramPass && gpuPass;
 
+  // 2. Kalkulasi Skor Rasio Kekuatan Hardware vs Beban Game (0 - 100%)
+  const hardwarePower = (profile.gpuScore * 0.55) + (profile.cpuScore * 0.30) + (Math.min(profile.ramGB, 16) / 4 * 0.15);
+  const demandPower = (req.minGpuScore * 0.55) + (req.minCpuScore * 0.30) + (Math.min(req.minRamGB, 16) / 4 * 0.15);
+  const powerRatio = hardwarePower / demandPower;
+
+  let scorePercent = Math.min(100, Math.max(15, Math.round(powerRatio * 70)));
+  if (!gpuPass) scorePercent = Math.min(45, scorePercent);
+  if (!ramPass) scorePercent = Math.max(20, scorePercent - 20);
+
+  // 3. Estimasi FPS & Preset Grafik
+  let fps1080p = { range: '60+ FPS', status: 'Sangat Mulus', preset: 'High / Ultra', color: 'emerald' };
+  let fps720p = { range: '60+ FPS', status: 'Sangat Enteng', preset: 'High', color: 'emerald' };
+  let performanceTier = 'ultra';
   let verdict = 'optimal';
-  let headline = 'Lancar di Laptop/PC Kamu!';
-  let message = 'Spesifikasi device kamu memenuhi kebutuhan minimum game ini. Siap dimainkan tanpa kendala.';
+  let headline = 'Lancar Maksimal di Laptop/PC Kamu!';
+  let message = 'Spesifikasi device kamu sangat bertenaga untuk game ini. Siap dimainkan dengan grafik tinggi.';
   let badgeColor = 'emerald';
 
   if (allPass) {
-    if (profile.tier === 'high' || (profile.gpuScore >= 4.5 && profile.ramGB >= 16)) {
+    if (powerRatio >= 1.45) {
+      performanceTier = 'ultra';
       verdict = 'optimal';
       headline = 'Lancar Maksimal (60+ FPS)!';
-      message = 'Device kamu memiliki performa tinggi untuk game ini. Bisa disetel di grafik Medium/High secara mulus.';
+      message = 'Device kamu memiliki performa tinggi. Siap dimainkan di setelan High / Ultra secara mulus.';
+      fps1080p = { range: '60+ FPS', status: 'Mulus Maksimal', preset: 'High / Ultra', color: 'emerald' };
+      fps720p = { range: '90+ FPS', status: 'Super Enteng', preset: 'Ultra', color: 'emerald' };
+      badgeColor = 'emerald';
+    } else if (powerRatio >= 1.15) {
+      performanceTier = 'high';
+      verdict = 'optimal';
+      headline = 'Lancar Mulus di 1080p!';
+      message = 'Device kamu sangat mumpuni. Disarankan grafik Medium / High untuk FPS stabil 50-60+.';
+      fps1080p = { range: '50 - 60 FPS', status: 'Lancar Stabil', preset: 'Medium / High', color: 'emerald' };
+      fps720p = { range: '60+ FPS', status: 'Sangat Mulus', preset: 'High', color: 'emerald' };
       badgeColor = 'emerald';
     } else {
+      performanceTier = 'medium';
       verdict = 'playable';
-      headline = 'Lancar Dimainkan!';
-      message = 'Device kamu memenuhi spesifikasi minimum. Disarankan setelan grafis Default / 1080p.';
+      headline = 'Lancar Dimainkan (Playable)!';
+      message = 'Device kamu memenuhi spesifikasi minimum. Disarankan setelan grafis Default / Medium 1080p.';
+      fps1080p = { range: '35 - 45 FPS', status: 'Cukup Nyaman', preset: 'Normal / Low', color: 'emerald' };
+      fps720p = { range: '50 - 60 FPS', status: 'Lebih Mulus', preset: 'Medium', color: 'emerald' };
       badgeColor = 'emerald';
     }
   } else if (onlyGpuFail) {
+    performanceTier = 'low';
     verdict = 'unsupported';
-    headline = 'GPU / VGA Belum Memadai (Bisa Lag)';
-    message = `Game ini butuh kartu grafis gaming (${req.minGpuLabel}), sedangkan device kamu menggunakan ${profile.gpuShort}. Game kemungkinan besar akan patah-patah atau drop FPS.`;
+    headline = 'GPU / VGA Belum Memadai';
+    message = `Game ini membutuhkan kartu grafis gaming (${req.minGpuLabel}), sedangkan laptopmu menggunakan ${profile.gpuShort}. Game kemungkinan besar akan patah-patah di 1080p.`;
+    fps1080p = { range: '< 20 FPS', status: 'Patah-Patah', preset: 'Tidak Disarankan', color: 'rose' };
+    fps720p = { range: '25 - 35 FPS', status: 'Batas Bawah', preset: 'Low + FSR', color: 'amber' };
     badgeColor = 'rose';
   } else if (onlyRamFail) {
+    performanceTier = 'low';
     verdict = 'unsupported';
     headline = 'Kapasitas RAM Kurang';
     message = `Game ini membutuhkan RAM minimal ${req.minRamGB} GB, sedangkan laptop kamu saat ini memiliki ${profile.ramGB} GB RAM.`;
+    fps1080p = { range: 'Stuttering', status: 'Sering Freeze', preset: 'Kurang RAM', color: 'rose' };
+    fps720p = { range: 'Stuttering', status: 'Sering Freeze', preset: 'Kurang RAM', color: 'rose' };
     badgeColor = 'rose';
   } else {
+    performanceTier = 'unsupported';
     verdict = 'unsupported';
     headline = 'Spek Belum Memadai';
     message = 'Device kamu belum memenuhi syarat minimum untuk memainkan game ini dengan nyaman.';
+    fps1080p = { range: '< 15 FPS', status: 'Lag Berat', preset: 'Tidak Kuat', color: 'rose' };
+    fps720p = { range: '< 20 FPS', status: 'Tidak Nyaman', preset: 'Tidak Kuat', color: 'rose' };
     badgeColor = 'rose';
+  }
+
+  // 4. Tips Optimasi Cerdas Berdasarkan Hardware & Game
+  const tips = [];
+  if (req.isSims4) {
+    tips.push('Game The Sims 4 sangat optimal di device ini. Kamu bisa memasang All DLC dan koleksi Mods/CC dengan lancar.');
+  }
+  if (req.tier === 'ultra_heavy') {
+    tips.push('Aktifkan fitur FSR (AMD) atau DLSS (NVIDIA) pada menu display di dalam game untuk mendongkrak performa hingga +20 FPS.');
+  }
+  if (!profile.isDedicatedGpu && profile.gpuId !== 'gpu_onboard_old') {
+    tips.push('Pastikan laptopmu memakai RAM konfigurasi Dual-Channel (2 keping) agar performa kartu grafis bawaan meningkat hingga 35%.');
+  }
+  if (profile.ramGB === 8 && req.minRamGB >= 12) {
+    tips.push('Disarankan menutup aplikasi lain seperti browser Chrome saat bermain agar RAM tidak habis.');
+  }
+  if (fps720p.range.includes('60') && fps1080p.range.includes('35')) {
+    tips.push('Jika ingin gerakan gameplay ekstra mulus seperti konsol, kamu bisa menurunkan resolusi layar game ke 720p (1280x720).');
   }
 
   return {
@@ -251,6 +405,11 @@ export function runCanIRunIt(game, profile) {
     message,
     badgeColor,
     isPlayable: allPass,
+    scorePercent,
+    performanceTier,
+    fps1080p,
+    fps720p,
+    tips,
     checks: {
       cpu: {
         pass: cpuPass,
@@ -269,5 +428,7 @@ export function runCanIRunIt(game, profile) {
       },
     },
     gameTier: req.tier,
+    gameTierLabel: req.tierLabel,
   };
 }
+

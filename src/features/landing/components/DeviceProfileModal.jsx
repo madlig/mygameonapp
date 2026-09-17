@@ -179,8 +179,8 @@ const DeviceProfileModal = ({ isOpen, onClose, onSaved }) => {
                 </option>
               ))}
             </select>
-            <p className="text-[11px] text-slate-400 mt-1.5">
-              *Jika laptopmu tidak punya stiker NVIDIA/AMD GeForce, pilih opsi <em>Onboard Modern (Intel UHD/Iris/Vega)</em>.
+            <p className="text-[11px] text-slate-400 mt-1.5 leading-relaxed">
+              *Jika laptopmu tidak memiliki stiker NVIDIA GeForce / AMD Radeon diskrit, pilih <em>Intel Iris Xe / Radeon 680M/780M</em> (laptop modern/gaming iGPU) atau <em>Intel UHD / Vega</em> (laptop standar kantor/pelajar).
             </p>
           </div>
 

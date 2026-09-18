@@ -2,6 +2,7 @@ import { db } from "../../../config/firebaseConfig";
 import { 
   collection, 
   doc, 
+  getDoc,
   setDoc, 
   updateDoc, 
   deleteDoc, 
@@ -289,4 +290,36 @@ export const computeLiveStatus = (settings, activeCustomers = []) => {
       subtext: note || 'Streamer sedang off stream.'
     };
   }
+};
+
+// ── Verify Admin Status for Login Guard ──
+export const verifyJokiAdminStatus = async (email, workspaces = []) => {
+  if (!email) return false;
+  const cleanEmail = String(email).toLowerCase().trim();
+
+  // 1. Super Admin whitelist (Madli)
+  if (
+    cleanEmail === 'madlighifari29@gmail.com' || 
+    cleanEmail === 'madlighifari@gmail.com' ||
+    cleanEmail.endsWith('@mygameon.store')
+  ) {
+    return true;
+  }
+
+  // 2. Check registered workspaces ownerEmail
+  if (workspaces && workspaces.some(w => w.ownerEmail && w.ownerEmail.toLowerCase().trim() === cleanEmail)) {
+    return true;
+  }
+
+  // 3. Check joki_admin_emails collection in Firestore
+  try {
+    const adminDoc = await getDoc(doc(db, 'joki_admin_emails', cleanEmail));
+    if (adminDoc.exists()) {
+      return true;
+    }
+  } catch (err) {
+    console.warn('Error checking joki_admin_emails in Firestore:', err);
+  }
+
+  return false;
 };

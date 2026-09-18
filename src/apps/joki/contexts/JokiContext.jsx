@@ -22,7 +22,7 @@ const PRICE_BASIC = 4000;
 const PRICE_VIP = 6000;
 const PRICE_VVIP = 10000;
 
-// Format slot display label e.g. "SLOT 1 Basic", "SLOT VIP 1", "SLOT VVIP 1"
+// Format slot display label e.g. "SLOT 1 Basic", "SLOT VIP 1", "SLOT VVIP 1", "SLOT 1 Joki Malam"
 export const formatSlotLabel = (slot, service = '', servicesList = []) => {
   if (!slot) return 'SLOT 1 Basic';
   const sStr = String(slot).trim();
@@ -42,26 +42,61 @@ export const formatSlotLabel = (slot, service = '', servicesList = []) => {
     const num = sStr.replace(/\D/g, '') || '1';
     return `SLOT VIP ${num}`;
   }
+
+  // Custom service match
+  if (servicesList && servicesList.length > 0) {
+    const customSrv = servicesList.find(s => 
+      s.tier !== 'Basic' && s.tier !== 'VIP' && s.tier !== 'VVIP' && (
+        sStr.toUpperCase().includes((s.tier || '').toUpperCase()) ||
+        sStr.toUpperCase().includes((s.id || '').toUpperCase()) ||
+        (s.name && sStr.toUpperCase().includes(s.name.toUpperCase())) ||
+        srvNorm === (s.tier || '').toUpperCase() ||
+        srvNorm === (s.id || '').toUpperCase() ||
+        (s.name && srvNorm === s.name.toUpperCase())
+      )
+    );
+    if (customSrv) {
+      const num = sStr.replace(/\D/g, '') || '1';
+      return `SLOT ${num} ${customSrv.name || customSrv.tier}`;
+    }
+  }
+
   const num = sStr.replace(/\D/g, '') || '1';
   return `SLOT ${num} ${basicName}`;
 };
 
 // Helper to determine customer's tier cleanly
-export const getCustomerTier = (customer) => {
+export const getCustomerTier = (customer, servicesList = []) => {
   if (!customer) return 'Basic';
   const sStr = String(customer.slot || '').toUpperCase();
   const srv = String(customer.service || '').toUpperCase();
 
   if (sStr.includes('VVIP') || srv.includes('VVIP')) return 'VVIP';
   if (sStr.includes('VIP') || srv.includes('VIP')) return 'VIP';
+
+  // Check custom services
+  if (servicesList && servicesList.length > 0) {
+    const customSrv = servicesList.find(s => 
+      s.tier !== 'Basic' && s.tier !== 'VIP' && s.tier !== 'VVIP' && (
+        sStr.includes((s.tier || '').toUpperCase()) ||
+        sStr.includes((s.id || '').toUpperCase()) ||
+        (s.name && sStr.includes(s.name.toUpperCase())) ||
+        srv === (s.tier || '').toUpperCase() ||
+        srv === (s.id || '').toUpperCase() ||
+        (s.name && srv === s.name.toUpperCase())
+      )
+    );
+    if (customSrv) return customSrv.tier;
+  }
+
   return 'Basic';
 };
 
 // Match customer to a slot definition object (Strict 1-to-1 matching by tier and slot number)
-export const matchCustomerToSlot = (customer, slotDef) => {
+export const matchCustomerToSlot = (customer, slotDef, servicesList = []) => {
   if (!customer || !customer.slot || !slotDef) return false;
 
-  const cTier = getCustomerTier(customer);
+  const cTier = getCustomerTier(customer, servicesList);
   if (cTier !== slotDef.tier) {
     return false; // Customer tier MUST match slotDef tier
   }
@@ -81,7 +116,7 @@ export const matchCustomerToSlot = (customer, slotDef) => {
 };
 
 export const JokiProvider = ({ children }) => {
-  const { currentUser, logout } = useAuth();
+  const { currentUser, isAdmin: authIsAdmin, logout } = useAuth();
   
   // Workspaces list & Active Workspace ID
   const [workspaces, setWorkspaces] = useState([]);
@@ -168,16 +203,20 @@ export const JokiProvider = ({ children }) => {
   // Auto-switch workspace based on logged in user's email
   useEffect(() => {
     if (currentUser?.email && workspaces.length > 0) {
-      const email = currentUser.email.toLowerCase();
+      const email = currentUser.email.toLowerCase().trim();
       
       // 1. If Super Admin -> lock to mygameon
-      if (email.includes('madli') || email.includes('mygameon')) {
+      if (
+        email === 'madlighifari29@gmail.com' || 
+        email === 'madlighifari@gmail.com' || 
+        email.endsWith('@mygameon.store')
+      ) {
         changeWorkspace('mygameon');
         return;
       }
 
       // 2. Check if email matches ownerEmail of an existing registered workspace
-      const matched = workspaces.find(w => w.ownerEmail && w.ownerEmail.toLowerCase() === email);
+      const matched = workspaces.find(w => w.ownerEmail && w.ownerEmail.toLowerCase().trim() === email);
       if (matched) {
         changeWorkspace(matched.id);
         return;
@@ -185,18 +224,20 @@ export const JokiProvider = ({ children }) => {
     }
   }, [currentUser, workspaces]);
 
-  // Check Permissions
-  const isSuperAdmin = currentUser?.email && (
-    currentUser.email.toLowerCase().includes('madli') || 
-    currentUser.email.toLowerCase().includes('mygameon')
+  // Check Permissions (Strict Whitelist & Connected to AuthContext / Firestore)
+  const isSuperAdmin = Boolean(
+    currentUser?.email && (
+      currentUser.email.toLowerCase().trim() === 'madlighifari29@gmail.com' || 
+      currentUser.email.toLowerCase().trim() === 'madlighifari@gmail.com' ||
+      currentUser.email.toLowerCase().trim().endsWith('@mygameon.store')
+    )
   );
 
-  const isAdmin = isSuperAdmin || (
-    currentUser?.email && (
-      currentUser.email.toLowerCase().includes('riyan') ||
-      currentUser.email.toLowerCase().includes('udin') ||
-      currentUser.email.toLowerCase().includes('admin') ||
-      workspaces.some(w => w.ownerEmail && w.ownerEmail.toLowerCase() === currentUser.email.toLowerCase())
+  const isAdmin = isSuperAdmin || Boolean(
+    authIsAdmin || (
+      currentUser?.email && (
+        workspaces.some(w => w.ownerEmail && w.ownerEmail.toLowerCase().trim() === currentUser.email.toLowerCase().trim())
+      )
     )
   );
 
@@ -337,7 +378,7 @@ export const JokiProvider = ({ children }) => {
     const occupiedKeys = new Set();
     
     activeCustomers.forEach(c => {
-      const matched = configuredSlots.find(s => matchCustomerToSlot(c, s));
+      const matched = configuredSlots.find(s => matchCustomerToSlot(c, s, services));
       if (matched) {
         occupiedKeys.add(matched.key);
       }
@@ -517,7 +558,8 @@ export const JokiProvider = ({ children }) => {
     configuredSlots,
     getServiceDetails,
     formatSlotLabel: (slot, service) => formatSlotLabel(slot, service, services),
-    matchCustomerToSlot,
+    matchCustomerToSlot: (customer, slotDef) => matchCustomerToSlot(customer, slotDef, services),
+    getCustomerTier: (customer) => getCustomerTier(customer, services),
     enableVvipSlot,
     priceBasic,
     priceVip,

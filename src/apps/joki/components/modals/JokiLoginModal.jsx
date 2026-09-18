@@ -1,9 +1,12 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../../../contexts/AuthContext';
+import { useJoki } from '../../contexts/JokiContext';
+import { verifyJokiAdminStatus } from '../../services/jokiFirebase';
 import { Lock, Mail, Key, X, Loader2 } from 'lucide-react';
 
 const JokiLoginModal = ({ isOpen, onClose, onSuccess }) => {
-  const { login, loginWithGoogle } = useAuth();
+  const { login, loginWithGoogle, logout } = useAuth();
+  const { workspaces } = useJoki();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -15,7 +18,16 @@ const JokiLoginModal = ({ isOpen, onClose, onSuccess }) => {
     try {
       setLoading(true);
       setErrorMsg('');
-      await loginWithGoogle();
+      const cred = await loginWithGoogle();
+      const userEmail = cred?.user?.email?.toLowerCase()?.trim();
+
+      const isAllowed = await verifyJokiAdminStatus(userEmail, workspaces);
+      if (!isAllowed) {
+        await logout();
+        setErrorMsg(`Akses ditolak: Akun Google (${userEmail || 'Anda'}) tidak terdaftar sebagai Admin Joki.`);
+        return;
+      }
+
       if (onSuccess) onSuccess();
       onClose();
     } catch (err) {
@@ -40,7 +52,16 @@ const JokiLoginModal = ({ isOpen, onClose, onSuccess }) => {
     try {
       setLoading(true);
       setErrorMsg('');
-      await login(email.trim(), password);
+      const cred = await login(email.trim(), password);
+      const userEmail = cred?.user?.email?.toLowerCase()?.trim() || email.trim().toLowerCase();
+
+      const isAllowed = await verifyJokiAdminStatus(userEmail, workspaces);
+      if (!isAllowed) {
+        await logout();
+        setErrorMsg(`Akses ditolak: Akun (${userEmail}) tidak memiliki izin Admin Joki.`);
+        return;
+      }
+
       if (onSuccess) onSuccess();
       onClose();
     } catch (err) {

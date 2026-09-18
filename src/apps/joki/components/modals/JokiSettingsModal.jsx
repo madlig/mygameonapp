@@ -19,7 +19,9 @@ import {
   ShieldCheck,
   Radio,
   Coffee,
-  Moon
+  Moon,
+  Sparkles,
+  Trash2
 } from 'lucide-react';
 import { updateJokiSettings } from '../../services/jokiFirebase';
 
@@ -114,32 +116,55 @@ const JokiSettingsModal = ({ isOpen, onClose }) => {
     }));
   };
 
+  const handleAddCustomService = () => {
+    const customCount = editableServices.filter(s => s.isCustom || (!['basic', 'vip', 'vvip'].includes(s.id))).length + 1;
+    const newService = {
+      id: `custom_${Date.now()}`,
+      name: `Layanan Kustom ${customCount}`,
+      tier: `CUSTOM_${customCount}`,
+      price: 5000,
+      slotCount: 1,
+      enabled: true,
+      isCustom: true
+    };
+    setEditableServices(prev => [...prev, newService]);
+    addToast('Layanan baru ditambahkan! Silakan sesuaikan nama dan tarif per jamnya.', 'info');
+  };
+
+  const handleDeleteCustomService = (serviceId) => {
+    setEditableServices(prev => prev.filter(s => s.id !== serviceId));
+    addToast('Layanan berhasil dihapus dari daftar.', 'info');
+  };
+
   const applySlotPreset = (presetType) => {
+    const customOnes = editableServices.filter(s => !['basic', 'vip', 'vvip'].includes(s.id));
+    let base = [];
     if (presetType === '4_2_1') {
-      setEditableServices(prev => [
-        { ...prev[0], slotCount: 4, enabled: true },
-        { ...prev[1], slotCount: 2, enabled: true },
-        { ...prev[2], slotCount: 1, enabled: true }
-      ]);
+      base = [
+        { ...editableServices[0], slotCount: 4, enabled: true },
+        { ...editableServices[1], slotCount: 2, enabled: true },
+        { ...editableServices[2], slotCount: 1, enabled: true }
+      ];
     } else if (presetType === '4_1_1') {
-      setEditableServices(prev => [
-        { ...prev[0], slotCount: 4, enabled: true },
-        { ...prev[1], slotCount: 1, enabled: true },
-        { ...prev[2], slotCount: 1, enabled: true }
-      ]);
+      base = [
+        { ...editableServices[0], slotCount: 4, enabled: true },
+        { ...editableServices[1], slotCount: 1, enabled: true },
+        { ...editableServices[2], slotCount: 1, enabled: true }
+      ];
     } else if (presetType === '3_2_1') {
-      setEditableServices(prev => [
-        { ...prev[0], slotCount: 3, enabled: true },
-        { ...prev[1], slotCount: 2, enabled: true },
-        { ...prev[2], slotCount: 1, enabled: true }
-      ]);
+      base = [
+        { ...editableServices[0], slotCount: 3, enabled: true },
+        { ...editableServices[1], slotCount: 2, enabled: true },
+        { ...editableServices[2], slotCount: 1, enabled: true }
+      ];
     } else if (presetType === '6_2_2') {
-      setEditableServices(prev => [
-        { ...prev[0], slotCount: 6, enabled: true },
-        { ...prev[1], slotCount: 2, enabled: true },
-        { ...prev[2], slotCount: 2, enabled: true }
-      ]);
+      base = [
+        { ...editableServices[0], slotCount: 6, enabled: true },
+        { ...editableServices[1], slotCount: 2, enabled: true },
+        { ...editableServices[2], slotCount: 2, enabled: true }
+      ];
     }
+    setEditableServices([...base, ...customOnes]);
     addToast('Preset slot berhasil diterapkan!', 'info');
   };
 
@@ -151,8 +176,16 @@ const JokiSettingsModal = ({ isOpen, onClose }) => {
       const vipSrv = editableServices.find(s => s.tier === 'VIP') || editableServices[1];
       const vvipSrv = editableServices.find(s => s.tier === 'VVIP') || editableServices[2];
 
+      const sanitizedServices = editableServices.map(s => ({
+        ...s,
+        name: (s.name || '').trim() || s.tier,
+        price: Math.max(500, Number(s.price) || 4000),
+        slotCount: Math.max(1, Math.min(12, Number(s.slotCount) || 1)),
+        enabled: Boolean(s.enabled)
+      }));
+
       await updateJokiSettings(activeWorkspaceId, {
-        services: editableServices,
+        services: sanitizedServices,
         priceBasic: Math.max(500, Number(basicSrv?.price) || 4000),
         priceVip: Math.max(500, Number(vipSrv?.price) || 6000),
         enableVvipSlot: Boolean(vvipSrv?.enabled),
@@ -517,12 +550,29 @@ const JokiSettingsModal = ({ isOpen, onClose }) => {
               </div>
             </div>
 
+            {/* Header: Title + Add Service Button */}
+            <div className="flex items-center justify-between pt-1">
+              <span className="text-xs font-black text-white flex items-center gap-1.5">
+                <DollarSign size={14} className="text-accent-yellow" />
+                <span>Daftar Layanan, Tarif & Alokasi Slot:</span>
+              </span>
+              <button
+                type="button"
+                onClick={handleAddCustomService}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-accent-purple/25 hover:bg-accent-purple/35 border border-accent-purple/40 text-accent-purple-light hover:text-white text-xs font-black transition-all cursor-pointer shadow-sm hover:scale-[1.02]"
+              >
+                <Plus size={13} />
+                <span>+ Buka Layanan Baru</span>
+              </button>
+            </div>
+
             {/* Services Editor Cards */}
             <div className="space-y-3">
               {editableServices.map((srv) => {
                 const isBasic = srv.tier === 'Basic';
                 const isVip = srv.tier === 'VIP';
                 const isVvip = srv.tier === 'VVIP';
+                const isCustom = Boolean(srv.isCustom || (!isBasic && !isVip && !isVvip));
                 const sName = srv.name || srv.tier;
                 const slotCount = Number(srv.slotCount) || 1;
 
@@ -530,6 +580,8 @@ const JokiSettingsModal = ({ isOpen, onClose }) => {
                   ? 'border-rose-500/40 bg-rose-500/10 text-rose-300'
                   : isVip
                   ? 'border-amber-500/40 bg-amber-500/10 text-amber-300'
+                  : isCustom
+                  ? 'border-purple-500/40 bg-purple-500/10 text-purple-300'
                   : 'border-cyan-500/40 bg-cyan-500/10 text-cyan-300';
 
                 // Generate slot name preview for this tier
@@ -551,33 +603,52 @@ const JokiSettingsModal = ({ isOpen, onClose }) => {
                         ? 'bg-gradient-to-b from-rose-500/[0.06] to-bg-surface/90 border-rose-500/30'
                         : isVip
                         ? 'bg-gradient-to-b from-amber-500/[0.06] to-bg-surface/90 border-amber-500/30'
+                        : isCustom
+                        ? 'bg-gradient-to-b from-purple-500/[0.08] to-bg-surface/90 border-purple-500/35 ring-1 ring-purple-500/20'
                         : 'bg-bg-surface/80 border-border-default'
                     }`}
                   >
-                    {/* Header Row: Tier Badge + Service Name Input + Enabled Toggle */}
+                    {/* Header Row: Tier Badge + Service Name Input + Enabled Toggle / Delete */}
                     <div className="flex items-center justify-between gap-3">
                       <div className="flex items-center gap-2 flex-1 min-w-0">
                         <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 border ${badgeTheme}`}>
-                          {isVvip ? <Gem size={14} /> : isVip ? <Crown size={14} /> : <Gamepad2 size={14} />}
+                          {isVvip ? <Gem size={14} /> : isVip ? <Crown size={14} /> : isCustom ? <Sparkles size={14} /> : <Gamepad2 size={14} />}
                         </div>
 
                         <div className="flex-1 min-w-0">
-                          <label className="text-[10px] font-bold text-text-dim uppercase block">
-                            Nama Layanan ({srv.tier})
-                          </label>
+                          <div className="flex items-center gap-1.5 mb-0.5">
+                            <label className="text-[10px] font-bold text-text-dim uppercase block">
+                              Nama Layanan {isCustom ? '(Kustom)' : `(${srv.tier})`}
+                            </label>
+                            {isCustom && (
+                              <span className="text-[9px] font-extrabold uppercase px-1.5 py-0.2 rounded bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                                Kustom
+                              </span>
+                            )}
+                          </div>
                           <input
                             type="text"
                             value={srv.name}
                             onChange={(e) => handleServiceChange(srv.id, 'name', e.target.value)}
-                            placeholder={`Nama Layanan ${srv.tier}...`}
+                            placeholder={isCustom ? 'Nama Layanan Kustom (misal: Joki Malam)...' : `Nama Layanan ${srv.tier}...`}
                             className="w-full bg-[#151821] border border-border-default rounded-lg py-1 px-2 text-xs text-white font-bold outline-none focus:border-accent-purple/50"
                           />
                         </div>
                       </div>
 
-                      {/* Enable/Disable toggle for VIP/VVIP */}
-                      {!isBasic && (
-                        <div className="shrink-0 text-right">
+                      {/* Action buttons: Delete (for custom) and Enable/Disable toggle */}
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        {isCustom && (
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteCustomService(srv.id)}
+                            className="p-1.5 rounded-xl text-rose-400 hover:text-white hover:bg-rose-500/20 border border-rose-500/30 transition-all cursor-pointer"
+                            title="Hapus Layanan Ini"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        )}
+                        {!isBasic && (
                           <button
                             type="button"
                             onClick={() => handleServiceChange(srv.id, 'enabled', !srv.enabled)}
@@ -589,8 +660,8 @@ const JokiSettingsModal = ({ isOpen, onClose }) => {
                           >
                             {srv.enabled ? '🟢 AKTIF' : '⚪ NONAKTIF'}
                           </button>
-                        </div>
-                      )}
+                        )}
+                      </div>
                     </div>
 
                     {srv.enabled && (
@@ -630,7 +701,7 @@ const JokiSettingsModal = ({ isOpen, onClose }) => {
                             </button>
 
                             <div className="flex-1 bg-[#151821] border border-border-default rounded-xl py-1.5 px-3 text-center text-xs font-mono font-black text-cyan-300">
-                              {slotCount} Slot ({srv.tier})
+                              {slotCount} Slot ({isCustom ? 'Kustom' : srv.tier})
                             </div>
 
                             <button
@@ -653,6 +724,8 @@ const JokiSettingsModal = ({ isOpen, onClose }) => {
                                     ? 'bg-rose-500/20 text-rose-200 border-rose-500/40' 
                                     : isVip 
                                     ? 'bg-amber-500/20 text-amber-200 border-amber-500/40' 
+                                    : isCustom
+                                    ? 'bg-purple-500/20 text-purple-200 border-purple-500/40'
                                     : 'bg-cyan-500/20 text-cyan-200 border-cyan-500/40'
                                 }`}
                               >

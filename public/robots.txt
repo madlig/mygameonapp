@@ -2,7 +2,7 @@
 User-agent: *
 Allow: /
 
-# Halaman privat / admin: jangan diindeks
+# Halaman privat / admin / tiket pembeli: jangan diindeks
 Disallow: /dashboard
 Disallow: /games
 Disallow: /task
@@ -12,5 +12,11 @@ Disallow: /feedback
 Disallow: /content
 Disallow: /about
 Disallow: /login
+Disallow: /claim
+Disallow: /ticket/
+Disallow: /ticket
+Disallow: /overlay/
+Disallow: /overlay
+Disallow: /joki/
 
 Sitemap: https://mygameon.store/sitemap.xml

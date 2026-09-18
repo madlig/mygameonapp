@@ -45,8 +45,17 @@ export const useDeviceProfile = () => {
     };
   }, []);
 
-  const saveProfile = useCallback(({ cpuId, ramGB, gpuId, deviceType }) => {
-    const classified = classifyUserHardware({ cpuId, ramGB, gpuId, deviceType });
+  const saveProfile = useCallback((input) => {
+    let classified;
+    if (input && input.tier && input.cpuShort) {
+      classified = {
+        ...input,
+        timestamp: new Date().toISOString(),
+      };
+    } else {
+      const { cpuId, ramGB, gpuId, deviceType } = input || {};
+      classified = classifyUserHardware({ cpuId, ramGB, gpuId, deviceType });
+    }
     try {
       localStorage.setItem(STORAGE_PROFILE_KEY, JSON.stringify(classified));
       setProfileState(classified);

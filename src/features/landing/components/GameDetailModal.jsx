@@ -19,6 +19,8 @@ import { getSteamCoverUrl, DEFAULT_STEAM_COVER } from '../utils/coverHelper';
 import { trackClickShopee, trackClickWhatsApp } from '../../../utils/metaPixel';
 import WhatsAppIcon from '../../../components/common/WhatsAppIcon';
 import CanIRunItBox from './CanIRunItBox';
+import { useDeviceProfile } from '../hooks/useDeviceProfile';
+import { determineGameRequirement } from '../utils/hardwareEngine';
 
 /**
  * Heuristik pendeteksi spesifikasi PC berdasarkan ukuran & data game
@@ -56,41 +58,43 @@ function resolveSystemSpecs(game) {
     };
   }
 
-  // Fallback heuristik cerdas berdasarkan ukuran file & genre
-  if (sizeGB < 15) {
+  // Gunakan engine cerdas pendeteksi beban hardware
+  const req = determineGameRequirement(game);
+
+  if (req.tier === 'light') {
     return {
       tier: 'low',
       tierLabel: 'Aman untuk Laptop Standar / Pelajar / Kantor',
       tierColor: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30',
       min: {
         os: 'Windows 10 / 11 (64-bit)',
-        cpu: 'Intel Core 2 Duo / Intel Core i3',
-        ram: '4 GB RAM',
-        gpu: 'Intel UHD Graphics 620 / NVIDIA GeForce GT 730',
+        cpu: req.minCpuLabel || 'Intel Core 2 Duo / Intel Core i3',
+        ram: `${req.minRamGB || 4} GB RAM`,
+        gpu: req.minGpuLabel || 'Intel HD Graphics / Semua VGA',
         storage: `${Math.ceil(sizeGB + 5)} GB Free Storage`,
-        directx: 'DirectX 11',
+        directx: 'DirectX 9 / 11',
       },
       rec: {
         os: 'Windows 10 / 11 (64-bit)',
         cpu: 'Intel Core i3 Gen 8+ / AMD Ryzen 3',
         ram: '8 GB RAM',
-        gpu: 'NVIDIA GeForce MX250 / GTX 1050',
+        gpu: 'Intel Iris Xe / NVIDIA GT 1030',
         storage: `${Math.ceil(sizeGB + 5)} GB SSD`,
         directx: 'DirectX 11',
       }
     };
   }
 
-  if (sizeGB >= 15 && sizeGB < 55) {
+  if (req.tier === 'medium') {
     return {
       tier: 'mid',
-      tierLabel: 'Mid-End (Disarankan Laptop/PC Gaming Entry)',
+      tierLabel: req.tierLabel || 'Mid-End (Disarankan Laptop/PC Gaming Entry)',
       tierColor: 'bg-amber-500/10 text-amber-400 border-amber-500/30',
       min: {
         os: 'Windows 10 (64-bit)',
-        cpu: 'Intel Core i5-4460 / AMD FX-6300',
-        ram: '8 GB RAM',
-        gpu: 'NVIDIA GeForce GTX 960 / AMD Radeon R9 280 (2GB VRAM)',
+        cpu: req.minCpuLabel || 'Intel Core i5-4460 / AMD FX-6300',
+        ram: `${req.minRamGB || 8} GB RAM`,
+        gpu: req.minGpuLabel || 'NVIDIA GTX 960 / AMD RX 560 (2GB VRAM)',
         storage: `${Math.ceil(sizeGB + 10)} GB Free Storage`,
         directx: 'DirectX 11 / 12',
       },
@@ -98,7 +102,7 @@ function resolveSystemSpecs(game) {
         os: 'Windows 10 / 11 (64-bit)',
         cpu: 'Intel Core i5-8400 / AMD Ryzen 5 2600',
         ram: '16 GB RAM',
-        gpu: 'NVIDIA GeForce GTX 1660 / AMD RX 580 (6GB VRAM)',
+        gpu: 'NVIDIA GeForce GTX 1650 / GTX 1660',
         storage: `${Math.ceil(sizeGB + 10)} GB SSD`,
         directx: 'DirectX 12',
       }
@@ -112,9 +116,9 @@ function resolveSystemSpecs(game) {
     tierColor: 'bg-rose-500/10 text-rose-400 border-rose-500/30',
     min: {
       os: 'Windows 10 (64-bit)',
-      cpu: 'Intel Core i7-6700 / AMD Ryzen 5 1600',
-      ram: '12 GB RAM',
-      gpu: 'NVIDIA GeForce GTX 1060 6GB / AMD Radeon RX 580',
+      cpu: req.minCpuLabel || 'Intel Core i7-6700 / AMD Ryzen 5 1600',
+      ram: `${req.minRamGB || 16} GB RAM`,
+      gpu: req.minGpuLabel || 'NVIDIA GeForce GTX 1060 6GB / RTX 3050',
       storage: `${Math.ceil(sizeGB + 15)} GB SSD Recommended`,
       directx: 'DirectX 12',
     },
@@ -130,6 +134,8 @@ function resolveSystemSpecs(game) {
 }
 
 const GameDetailModal = ({ game, isOpen, onClose }) => {
+  const { profile, isConfigured, checkGame } = useDeviceProfile();
+
   // Lock body scroll saat modal terbuka & listen to ESC
   useEffect(() => {
     if (!isOpen) return;
@@ -166,9 +172,10 @@ const GameDetailModal = ({ game, isOpen, onClose }) => {
   const shopeeUrl = game.shopee?.url || game.shopeeLink || INTEGRATIONS.shopeeStoreUrl;
 
   const specs = resolveSystemSpecs(game);
+  const diag = isConfigured && game ? checkGame(game) : null;
 
   const waOrderUrl = buildWhatsAppUrl({
-    text: `Halo Admin MyGameON, saya mau order game PC:\n- Judul: ${title}\n- Ukuran: ${formattedSize} (${version})\n- Tipe: ${packageType}\nMohon info nomor rekening dan total pembayarannya ya min.`,
+    text: `Halo Admin MyGameON, saya mau order game PC:\n- Judul: ${title}\n- Ukuran: ${formattedSize} (${version})\n- Spek Laptop: ${isConfigured ? `${profile.cpuShort}, ${profile.ramGB}GB RAM, ${profile.gpuShort} (${diag?.isPlayable ? 'Terverifikasi Lancar' : 'Perlu Penyesuaian'})` : 'Belum dicek'}\n- Email Google Drive: [Tulis alamat Gmail kamu di sini]\nMohon info nomor rekening dan total pembayarannya ya min.`,
   });
 
   return (
@@ -244,11 +251,11 @@ const GameDetailModal = ({ game, isOpen, onClose }) => {
               <div className="flex flex-wrap items-center gap-2 pt-1">
                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 text-xs font-bold">
                   <CheckCircle2 size={14} />
-                  <span>{packageType === 'PRE-INSTALLED' ? 'Tinggal Ekstrak & Main (Pre-Installed)' : packageType}</span>
+                  <span>{packageType === 'PRE-INSTALLED' ? 'Tinggal Ekstrak & Main (Bebas Crack Rumit)' : packageType}</span>
                 </span>
                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-white/5 text-slate-300 border border-white/10 text-xs font-semibold">
                   <FolderArchive size={14} className="text-amber-400" />
-                  <span>{partsCount > 1 ? `${partsCount} Part Download (Anti Corrupt)` : '1 File Utuh'}</span>
+                  <span>{partsCount > 1 ? `${partsCount} Part Download (Bebas Corrupt / MD5)` : '1 File Siap Download'}</span>
                 </span>
               </div>
 
@@ -398,7 +405,7 @@ const GameDetailModal = ({ game, isOpen, onClose }) => {
               </div>
               <div className="flex items-center gap-2">
                 <CheckCircle2 size={15} className="text-emerald-400 flex-shrink-0" />
-                <span>Garansi Link Aktif Selamanya</span>
+                <span>Akses Download GDrive Aktif 1 Tahun</span>
               </div>
               <div className="flex items-center gap-2">
                 <CheckCircle2 size={15} className="text-emerald-400 flex-shrink-0" />
@@ -421,7 +428,7 @@ const GameDetailModal = ({ game, isOpen, onClose }) => {
               href={shopeeUrl}
               target="_blank"
               rel="noopener noreferrer"
-              onClick={() => trackClickShopee(gameTitle)}
+              onClick={() => trackClickShopee(title)}
               className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-shopee-orange/40 bg-shopee-orange/10 hover:bg-shopee-orange/20 text-orange-400 hover:text-orange-300 font-bold text-xs sm:text-sm transition-all shadow-sm"
             >
               <ShoppingBag size={16} className="text-shopee-orange" />
@@ -433,7 +440,7 @@ const GameDetailModal = ({ game, isOpen, onClose }) => {
               href={waOrderUrl}
               target="_blank"
               rel="noopener noreferrer"
-              onClick={() => trackClickWhatsApp(gameTitle)}
+              onClick={() => trackClickWhatsApp(title)}
               className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs sm:text-sm transition-transform active:scale-95 shadow-lg shadow-emerald-500/25"
             >
               <WhatsAppIcon className="w-5 h-5 fill-current flex-shrink-0" />

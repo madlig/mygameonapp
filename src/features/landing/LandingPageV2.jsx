@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { 
   Loader2, PlusCircle, HelpCircle, 
   ShieldCheck, ArrowUpRight, ShoppingBag, Gamepad2, Search
@@ -8,10 +8,13 @@ import WhatsAppIcon from '../../components/common/WhatsAppIcon';
 import LandingNavbar from './components/LandingNavbar';
 import SearchHero from './components/SearchHero';
 import GameCardV2 from './components/GameCardV2';
-import GameDetailModal from './components/GameDetailModal';
+
 import BundlingSection from './components/BundlingSection';
 import SimsShowcaseSection from './components/SimsShowcaseSection';
 import ToolkitSection from './components/ToolkitSection';
+import HardwareCheckerSection from './components/HardwareCheckerSection';
+import WhyChooseUsSection from './components/WhyChooseUsSection';
+import FaqSection from './components/FaqSection';
 import { db, collection, getDocs, query, where, limit } from '../../config/firebaseConfig';
 import { buildWhatsAppUrl, INTEGRATIONS } from '../../config/integrations';
 import Seo from '../../components/common/Seo';
@@ -70,11 +73,11 @@ const FALLBACK_GAMES = [
 ];
 
 const LandingPageV2 = () => {
+  const navigate = useNavigate();
   const [games, setGames] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [specFilter, setSpecFilter] = useState('all');
-  const [selectedGame, setSelectedGame] = useState(null);
 
   // Fetch games from Firestore
   useEffect(() => {
@@ -229,7 +232,7 @@ const LandingPageV2 = () => {
                   <GameCardV2 
                     key={game.id} 
                     game={game} 
-                    onSelectGame={setSelectedGame}
+                    onSelectGame={(clickedGame) => navigate(`/game/${clickedGame.id}`)}
                     userSpec={specFilter}
                   />
                 ))}
@@ -292,16 +295,33 @@ const LandingPageV2 = () => {
           )}
         </section>
 
-        {/* 4. Bundling Packages (AOV Booster) */}
+        {/* 4. Can I Run It — Section Khusus Cek Kelancaran Spek (Awam-Friendly) */}
+        <HardwareCheckerSection 
+          games={games} 
+          onSelectGame={(selected) => {
+            const targetId = selected.id || selected.rawGame?.id;
+            if (targetId) {
+              navigate(`/game/${targetId}`);
+            }
+          }} 
+        />
+
+        {/* 5. Kenapa Pilih MyGameON? (Pilar Kepercayaan & Kenyamanan) */}
+        <WhyChooseUsSection />
+
+        {/* 6. Bundling Packages (AOV Booster) */}
         <BundlingSection />
 
-        {/* 5. The Sims 4 Launcher Showcase */}
+        {/* 8. The Sims 4 Launcher Showcase */}
         <SimsShowcaseSection />
 
-        {/* 6. Essential Gaming Toolkit */}
+        {/* 9. Pertanyaan yang Sering Ditanya (Interactive FAQ Accordion) */}
+        <FaqSection />
+
+        {/* 10. Essential Gaming Toolkit */}
         <ToolkitSection />
 
-        {/* 7. Shopee Self-Claim Banner Bar */}
+        {/* 11. Shopee Self-Claim Banner Bar */}
         <section className="px-4 sm:px-8 py-10 max-w-6xl mx-auto">
           <div className="bg-gradient-to-r from-amber-500/20 via-amber-400/10 to-transparent border border-amber-400/30 rounded-3xl p-6 sm:p-8 flex flex-col sm:flex-row items-center justify-between gap-6 shadow-xl">
             <div className="text-center sm:text-left">
@@ -355,13 +375,6 @@ const LandingPageV2 = () => {
           </div>
         </div>
       </footer>
-
-      {/* Interactive Game Detail Modal */}
-      <GameDetailModal
-        game={selectedGame}
-        isOpen={Boolean(selectedGame)}
-        onClose={() => setSelectedGame(null)}
-      />
     </div>
   );
 };

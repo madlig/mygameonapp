@@ -19,6 +19,7 @@ const OperationalPage = lazy(
 );
 const LandingPage = lazy(() => import('../features/landing/LandingPageV2'));
 const CatalogPage = lazy(() => import('../features/landing/CatalogPage'));
+const GameDetailPage = lazy(() => import('../features/landing/GameDetailPage'));
 const RequestGamePage = lazy(
   () => import('../features/landing/RequestGamePage')
 );
@@ -57,6 +58,7 @@ const AppRouter = () => {
         {/* Rute Publik tanpa Layout */}
         <Route path="/" element={<LandingPage />} />
         <Route path="/katalog" element={<CatalogPage />} />
+        <Route path="/game/:gameId" element={<GameDetailPage />} />
         <Route path="/ticket/:ticketId" element={<TicketPage />} />
         <Route path="/ticket/:workspaceId/:ticketId" element={<TicketPage />} />
         <Route path="/overlay" element={<OverlayPage />} />

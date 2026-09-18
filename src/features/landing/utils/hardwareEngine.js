@@ -80,6 +80,54 @@ export const DEVICE_TYPES = [
   { id: 'pc', label: 'PC Desktop' },
 ];
 
+export const AWAM_DEVICE_PRESETS = [
+  {
+    id: 'preset_student',
+    title: 'Laptop Santai / Kuliah',
+    subtitle: 'Asus Vivobook, Lenovo Ideapad, HP 14, Dell Inspiron',
+    badge: 'Paling Umum',
+    badgeColor: 'emerald',
+    specs: {
+      deviceType: 'laptop',
+      cpuId: 'cpu_old_mid',
+      ramGB: 8,
+      gpuId: 'gpu_onboard_standard',
+    },
+    specsSummary: 'Core i3 / Ryzen 3 • RAM 8GB • Intel UHD / iGPU',
+    description: 'Laptop standar untuk mengetik, kuliah, atau kantor tanpa kartu grafis gaming terpisah.',
+  },
+  {
+    id: 'preset_modern_thin',
+    title: 'Laptop Gaming Standar',
+    subtitle: 'Asus TUF, Lenovo LOQ, Acer Nitro, HP Victus, GTX/RTX entry',
+    badge: 'Populer',
+    badgeColor: 'amber',
+    specs: {
+      deviceType: 'laptop',
+      cpuId: 'cpu_modern_mid',
+      ramGB: 16,
+      gpuId: 'gpu_mid_gtx',
+    },
+    specsSummary: 'Core i5 / Ryzen 5 • RAM 16GB • GTX 1650 / RTX 2050/3050',
+    description: 'Laptop gaming standar yang siap melibas mayoritas game populer dan setting menengah-tinggi.',
+  },
+  {
+    id: 'preset_gaming',
+    title: 'PC / Laptop Sultan',
+    subtitle: 'ROG, Legion, Alienware, PC Rakitan RTX 4060 ke atas',
+    badge: 'Monster',
+    badgeColor: 'purple',
+    specs: {
+      deviceType: 'laptop',
+      cpuId: 'cpu_high',
+      ramGB: 16,
+      gpuId: 'gpu_high_rtx',
+    },
+    specsSummary: 'Core i7/Ryzen 7 • RAM 16-32GB • RTX 4060/4070+',
+    description: 'Perangkat monster dengan performa maksimal untuk grafis rata kanan ultra & ray tracing.',
+  },
+];
+
 export const STORAGE_PROFILE_KEY = 'mygameon_user_pc_profile';
 
 /**
@@ -159,6 +207,24 @@ export function classifyUserHardware({ cpuId, ramGB, gpuId, deviceType = 'laptop
  * Menentukan profil beban spesifikasi game berdasarkan ukuran dan nama game
  */
 export function determineGameRequirement(game) {
+  // Jika game memiliki data spesifikasi resmi (misal disinkronkan dari Steam API / Firestore)
+  if (game?.systemRequirements && typeof game.systemRequirements === 'object') {
+    const sys = game.systemRequirements;
+    const title = (game?.title || game?.name || '').toLowerCase();
+    return {
+      tier: sys.tier || 'medium',
+      tierLabel: sys.tierLabel || 'Spesifikasi Resmi',
+      minRamGB: Number(sys.minRamGB) || 8,
+      minCpuScore: Number(sys.minCpuScore) || 2.0,
+      minGpuScore: Number(sys.minGpuScore) || 2.0,
+      minGpuDedicated: Boolean(sys.minGpuDedicated),
+      minCpuLabel: sys.minCpuLabel || 'Intel Core i3 / AMD Ryzen 3',
+      minGpuLabel: sys.minGpuLabel || 'NVIDIA GTX / Intel Iris Xe',
+      isSims4: Boolean(sys.isSims4 || title.includes('sims 4') || title.includes('the sims')),
+      isOfficial: true,
+    };
+  }
+
   const rawSize = game?.fileSizeBytes || game?.size || 0;
   const sizeGB = typeof rawSize === 'number' && rawSize > 0 
     ? rawSize / (1024 * 1024 * 1024) 
@@ -166,8 +232,59 @@ export function determineGameRequirement(game) {
 
   const title = (game?.title || game?.name || '').toLowerCase();
 
-  // 1. Pengecualian Khusus Judul Populer:
-  // The Sims 4 (Meskipun ukuran 60GB+ dengan All DLC, engine tetap ramah iGPU & laptop standar)
+  // Deteksi game remaster, remake, atau porting engine modern (Unreal Engine 4/5, RE Engine)
+  const isDefinitiveOrRemaster = 
+    title.includes('definitive') || 
+    title.includes('remake') || 
+    title.includes('remaster') || 
+    title.includes('trilogy') ||
+    title.includes('special edition') ||
+    title.includes('enhanced edition') ||
+    title.includes('unreal');
+
+  // 1. Disambiguasi Khusus GTA San Andreas (Klasik 2004 vs Definitive Edition 2021)
+  if (title.includes('san andreas')) {
+    if (isDefinitiveOrRemaster) {
+      return {
+        tier: 'medium',
+        tierLabel: 'Game Menengah (Unreal Engine 4)',
+        minRamGB: 8,
+        minCpuScore: 2.8,
+        minGpuScore: 3.2,
+        minGpuDedicated: true,
+        minCpuLabel: 'Intel Core i5 Gen 8+ / AMD Ryzen 5',
+        minGpuLabel: 'NVIDIA GTX 760 / GTX 1050 (VGA Dedicated)',
+        isSims4: false,
+      };
+    }
+    return {
+      tier: 'light',
+      tierLabel: 'Game Ringan Klasik (Enteng)',
+      minRamGB: 4,
+      minCpuScore: 1.0,
+      minGpuScore: 1.0,
+      minGpuDedicated: false,
+      minCpuLabel: 'Intel Core 2 Duo / Celeron / Core i3',
+      minGpuLabel: 'Intel HD Graphics / Semua VGA',
+      isSims4: false,
+    };
+  }
+
+  // 2. Seri The Sims
+  if (title.includes('sims 1') || title.includes('sims 2')) {
+    return {
+      tier: 'light',
+      tierLabel: 'Game Ringan Klasik',
+      minRamGB: 4,
+      minCpuScore: 1.0,
+      minGpuScore: 1.0,
+      minGpuDedicated: false,
+      minCpuLabel: 'Intel Core 2 Duo / Core i3',
+      minGpuLabel: 'Intel HD Graphics / Semua VGA',
+      isSims4: false,
+    };
+  }
+
   if (title.includes('sims 4') || title.includes('the sims')) {
     return {
       tier: 'medium',
@@ -182,11 +299,11 @@ export function determineGameRequirement(game) {
     };
   }
 
-  // GTA V (Ukuran ~70-90GB, tapi optimasi engine luar biasa enteng di iGPU Iris Xe / GTX 1050)
+  // 3. GTA V (Optimasinya sangat bersahabat di iGPU Iris Xe maupun kartu entry)
   if (title.includes('gta v') || title.includes('grand theft auto v') || title.includes('gta 5')) {
     return {
       tier: 'medium',
-      tierLabel: 'Game Menengah',
+      tierLabel: 'Game Menengah Populer',
       minRamGB: 8,
       minCpuScore: 2.5,
       minGpuScore: 2.5,
@@ -197,34 +314,13 @@ export function determineGameRequirement(game) {
     };
   }
 
-  // Game Ringan Populer
-  if (
-    title.includes('stardew') || 
-    title.includes('terraria') || 
-    title.includes('san andreas') || 
-    title.includes('most wanted') || 
-    title.includes('minecraft') ||
-    title.includes('undertale')
-  ) {
-    return {
-      tier: 'light',
-      tierLabel: 'Game Ringan',
-      minRamGB: 4,
-      minCpuScore: 1.0,
-      minGpuScore: 1.0,
-      minGpuDedicated: false,
-      minCpuLabel: 'Intel Celeron / Core 2 Duo / Core i3',
-      minGpuLabel: 'Intel HD Graphics / Semua VGA',
-      isSims4: false,
-    };
-  }
-
-  // 2. Game Sangat Berat / AAA Grafis Tinggi
+  // 4. Game Sangat Berat / AAA Grafis Tinggi
   if (
     title.includes('cyberpunk') ||
     title.includes('red dead') ||
     title.includes('tekken 8') ||
     title.includes('black myth') ||
+    title.includes('wukong') ||
     title.includes('forza horizon') ||
     title.includes('god of war') ||
     title.includes('spiderman') ||
@@ -234,24 +330,32 @@ export function determineGameRequirement(game) {
     title.includes('ghost of tsushima') ||
     title.includes('the last of us') ||
     title.includes('hogwarts') ||
-    sizeGB >= 65
+    title.includes('frostpunk 2') ||
+    title.includes('dragons dogma 2') ||
+    title.includes('resident evil 4 remake') ||
+    title.includes('silent hill 2') ||
+    title.includes('stalker 2') ||
+    title.includes('hellblade') ||
+    title.includes('senua') ||
+    sizeGB >= 60
   ) {
     return {
       tier: 'ultra_heavy',
       tierLabel: 'Game Berat AAA',
       minRamGB: 16,
-      minCpuScore: 3.5,
-      minGpuScore: 3.5,
+      minCpuScore: 3.8,
+      minGpuScore: 4.0,
       minGpuDedicated: true,
-      minCpuLabel: 'Intel Core i5 (Gen 8+) / Ryzen 5',
-      minGpuLabel: 'NVIDIA GTX 1060 / GTX 1650 (VGA Dedicated)',
+      minCpuLabel: 'Intel Core i5 (Gen 10+) / Ryzen 5',
+      minGpuLabel: 'NVIDIA GTX 1660 / RTX 3050 (VGA Dedicated)',
       isSims4: false,
     };
   }
 
-  // 3. Game Menengah Populer
+  // 5. Game Menengah / Remaster / Modern 3D
   if (
-    sizeGB >= 15 ||
+    isDefinitiveOrRemaster ||
+    sizeGB >= 12 ||
     title.includes('witcher') ||
     title.includes('fifa') ||
     title.includes('pes ') ||
@@ -262,13 +366,24 @@ export function determineGameRequirement(game) {
     title.includes('sekiro') ||
     title.includes('elden ring') ||
     title.includes('genshin') ||
-    title.includes('valorant')
+    title.includes('valorant') ||
+    title.includes('motogp') ||
+    title.includes('call of duty') ||
+    title.includes('duty') ||
+    title.includes('generation zero') ||
+    title.includes('lego horizon') ||
+    title.includes('goat simulator') ||
+    title.includes('farming simulator') ||
+    title.includes('car mechanic simulator') ||
+    title.includes('autobahn') ||
+    title.includes('sledders') ||
+    title.includes('tropico 6')
   ) {
     return {
       tier: 'medium',
       tierLabel: 'Game Menengah',
       minRamGB: 8,
-      minCpuScore: 2.2,
+      minCpuScore: 2.5,
       minGpuScore: 2.5,
       minGpuDedicated: false,
       minCpuLabel: 'Intel Core i3 / Core i5 / AMD Ryzen 3',
@@ -277,10 +392,10 @@ export function determineGameRequirement(game) {
     };
   }
 
-  // 4. Fallback: Game Ringan / Klasik / Indie
+  // 6. Game Ringan / Klasik / Indie (Aman untuk Intel HD Graphics / Laptop Pelajar)
   return {
     tier: 'light',
-    tierLabel: 'Game Ringan',
+    tierLabel: 'Game Ringan Klasik',
     minRamGB: 4,
     minCpuScore: 1.0,
     minGpuScore: 1.0,

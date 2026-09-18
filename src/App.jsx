@@ -2,6 +2,8 @@
 
 import React, { useEffect } from 'react';
 import { AuthProvider } from './contexts/AuthContext';
+import { CartProvider } from './contexts/CartContext';
+import CartCheckoutModal from './features/cart/CartCheckoutModal';
 import AppRouter from './routes/AppRouter';
 import { initMetaPixel } from './utils/metaPixel';
 import FloatingWhatsApp from './components/FloatingWhatsApp';
@@ -20,10 +22,11 @@ const App = () => {
       {isJokiSubdomain ? (
         <JokiAppRouter />
       ) : (
-        <>
+        <CartProvider>
           <AppRouter />
+          <CartCheckoutModal />
           <FloatingWhatsApp />
-        </>
+        </CartProvider>
       )}
     </AuthProvider>
   );

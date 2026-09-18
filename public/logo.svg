@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 100" fill="none">
+  <!-- AMON Mascot: The M-Gamepad Controller Silhouette -->
+  <path 
+    d="M26 22 C16 22 10 32 10 46 C10 64 16 82 25 84 C34 86 41 74 46 60 C53 62 67 62 74 60 C79 74 86 86 95 84 C104 82 110 64 110 46 C110 32 104 22 94 22 C84 22 74 30 60 35 C46 30 36 22 26 22 Z" 
+    fill="#F59E0B"
+  />
+  <!-- C1 Focused Tilt Eyes: 8 deg inward angle -->
+  <g transform="rotate(8 39 48)">
+    <rect x="35" y="38" width="8.5" height="18" rx="4.25" fill="#090C12" />
+  </g>
+  <g transform="rotate(-8 81 48)">
+    <rect x="76.5" y="38" width="8.5" height="18" rx="4.25" fill="#090C12" />
+  </g>
+</svg>

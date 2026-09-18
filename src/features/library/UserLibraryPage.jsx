@@ -224,7 +224,7 @@ const UserLibraryPage = () => {
               </div>
               <div className="flex items-center justify-center gap-1.5">
                 <CheckCircle2 size={13} className="text-emerald-400" />
-                <span>Garansi Akses Selamanya</span>
+                <span>Akses Cloud Drive 1 Tahun</span>
               </div>
               <div className="flex items-center justify-center gap-1.5">
                 <CheckCircle2 size={13} className="text-emerald-400" />

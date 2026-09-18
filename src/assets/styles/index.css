@@ -30,6 +30,15 @@
   .transition-max-h {
     transition: max-height 0.32s ease;
   }
+  /* Hide scrollbar for Chrome, Safari, Edge, Opera */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  /* Hide scrollbar for IE, Edge and Firefox */
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
 }
 
 /* Nav blur backdrop */

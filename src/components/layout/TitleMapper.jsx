@@ -6,8 +6,10 @@ const pageTitles = {
   '/operational': 'Operational',
   '/operational/shift': 'Shift Workspace',
   '/feedback': 'Feedback',
+  '/content': 'Contents',
   '/about': 'About',
 };
 
 export const getPageTitle = (pathname) =>
-  pageTitles[pathname] || 'Page Not Found';
+  pageTitles[pathname] || 'Dashboard Admin';
+

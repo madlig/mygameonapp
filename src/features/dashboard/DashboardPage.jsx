@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useDashboardData } from './hooks/useDashboardData';
 import {
@@ -10,7 +10,11 @@ import {
   MegaphoneIcon,
   CalendarDaysIcon,
   ArrowTrendingUpIcon,
+  ShoppingBagIcon,
+  BanknotesIcon,
 } from '@heroicons/react/24/outline';
+import DirectOrdersTable from './components/DirectOrdersTable';
+import ProofPreviewModal from './components/ProofPreviewModal';
 
 // ─── Helpers ─────────────────────────────────────────────────
 const formatDeadline = (date) => {
@@ -153,7 +157,7 @@ const ActivityItem = ({ activity }) => {
 };
 
 // ─── Stat Card ───────────────────────────────────────────────
-const StatCard = ({ icon: Icon, label, value, color, href }) => {
+const StatCard = ({ icon: Icon, label, value, subtext, color, href }) => {
   const inner = (
     <div
       className="group relative rounded-xl overflow-hidden p-4 h-full transition-all hover:scale-[1.02] hover:shadow-lg"
@@ -168,7 +172,7 @@ const StatCard = ({ icon: Icon, label, value, color, href }) => {
         style={{ backgroundColor: color }}
       />
       <div className="relative">
-        <div className="flex items-center gap-3 mb-3">
+        <div className="flex items-center gap-3 mb-2">
           <div
             className="w-10 h-10 rounded-xl grid place-items-center flex-shrink-0"
             style={{
@@ -185,6 +189,11 @@ const StatCard = ({ icon: Icon, label, value, color, href }) => {
         <p className="text-2xl font-bold tabular-nums" style={{ color }}>
           {value}
         </p>
+        {subtext && (
+          <p className="text-[11px] text-[#7E8796] mt-1 font-medium">
+            {subtext}
+          </p>
+        )}
       </div>
     </div>
   );
@@ -219,9 +228,23 @@ const DashboardPage = () => {
     priorityTasks,
     importantRequests,
     recentActivities,
+    directOrders,
+    updateOrderStatus,
     loading,
     error,
   } = useDashboardData();
+
+  const [selectedOrder, setSelectedOrder] = useState(null);
+
+  const handleUpdateStatus = (orderId, newStatus) => {
+    updateOrderStatus(orderId, newStatus);
+    if (
+      selectedOrder &&
+      (selectedOrder.id === orderId || selectedOrder.invoiceId === orderId)
+    ) {
+      setSelectedOrder((prev) => ({ ...prev, status: newStatus }));
+    }
+  };
 
   if (loading) {
     return (
@@ -242,20 +265,8 @@ const DashboardPage = () => {
           ))}
         </div>
         {/* Skeleton sections */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {Array.from({ length: 2 }).map((_, i) => (
-            <div
-              key={i}
-              className="rounded-xl border border-[#2A2F39] bg-[#1A1F27] p-5 animate-pulse"
-            >
-              <div className="h-4 w-32 bg-[#2A2F39] rounded mb-4" />
-              <div className="space-y-3">
-                <div className="h-10 bg-[#2A2F39]/60 rounded-lg" />
-                <div className="h-10 bg-[#2A2F39]/60 rounded-lg" />
-                <div className="h-10 bg-[#2A2F39]/60 rounded-lg" />
-              </div>
-            </div>
-          ))}
+        <div className="grid grid-cols-1 gap-4">
+          <div className="rounded-xl border border-[#2A2F39] bg-[#1A1F27] p-5 animate-pulse h-64" />
         </div>
       </div>
     );
@@ -271,67 +282,109 @@ const DashboardPage = () => {
     );
   }
 
+  const hasPendingOrders = summaryStats.pendingDirectOrders > 0;
+
   return (
     <div className="p-4 sm:p-6 space-y-5">
-      {/* ── Reminder ── */}
-      <div className="rounded-xl border border-[#FFD100]/20 bg-[#FFD100]/[0.06] px-4 py-3 flex items-start gap-3">
-        <MegaphoneIcon className="w-5 h-5 text-[#FFD100] flex-shrink-0 mt-0.5" />
+      {/* ── Reminder Banner ── */}
+      <div
+        className={`rounded-xl border px-4 py-3 flex items-start gap-3 transition-colors ${
+          hasPendingOrders
+            ? 'border-amber-500/30 bg-amber-500/[0.08]'
+            : 'border-[#FFD100]/20 bg-[#FFD100]/[0.06]'
+        }`}
+      >
+        <MegaphoneIcon
+          className={`w-5 h-5 flex-shrink-0 mt-0.5 ${
+            hasPendingOrders ? 'text-amber-400 animate-bounce' : 'text-[#FFD100]'
+          }`}
+        />
         <p className="text-sm text-[#C8CFDA]">
-          <span className="font-semibold text-[#FFD100]">Reminder:</span> Pantau
-          task aktif dan request yang menunggu review.
+          {hasPendingOrders ? (
+            <>
+              <span className="font-bold text-amber-400">
+                Perhatian: Ada {summaryStats.pendingDirectOrders} pesanan web menunggu verifikasi!
+              </span>{' '}
+              Cek tabel di bawah, salin email Drive pembeli, dan kirim akses via WhatsApp.
+            </>
+          ) : (
+            <>
+              <span className="font-semibold text-[#FFD100]">Dashboard Terkini:</span> Pantau
+              pesanan web langsung, task prioritas, dan request game dari komunitas.
+            </>
+          )}
         </p>
       </div>
 
-      {/* ── Summary Stats ── */}
+      {/* ── Summary Stats Grid ── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <StatCard
+          icon={ShoppingBagIcon}
+          label="Pesanan Web QRIS"
+          value={summaryStats.totalDirectOrders}
+          subtext={
+            summaryStats.pendingDirectOrders > 0
+              ? `${summaryStats.pendingDirectOrders} perlu verifikasi`
+              : 'Semua pesanan selesai'
+          }
+          color="#FFD100"
+        />
+        <StatCard
+          icon={BanknotesIcon}
+          label="Omset Web Langsung"
+          value={formatCurrency(summaryStats.directOrdersRevenue)}
+          subtext="Total dari pesanan selesai"
+          color="#10B981"
+        />
+        <StatCard
           icon={PuzzlePieceIcon}
-          label="Games"
+          label="Katalog Game"
           value={summaryStats.totalGames}
+          subtext="Game terdaftar di web"
           color="#3B82F6"
           href="/games"
         />
         <StatCard
           icon={BriefcaseIcon}
-          label="Tasks"
+          label="Task Aktif"
           value={summaryStats.totalTasks}
-          color="#22C55E"
-          href="/task"
-        />
-        <StatCard
-          icon={ClipboardDocumentListIcon}
-          label="Requests"
-          value={summaryStats.totalRequests}
-          color="#F59E0B"
-          href="/requests"
-        />
-        <StatCard
-          icon={CurrencyDollarIcon}
-          label="Revenue Bulan Ini"
-          value={formatCurrency(summaryStats.monthlyRevenue)}
+          subtext="To Do & In Progress"
           color="#A855F7"
-          href="/operational"
+          href="/task"
         />
       </div>
 
-      {/* ── Operational Mini Stats ── */}
-      <div className="grid grid-cols-2 gap-3 sm:gap-4">
+      {/* ── Operational / Shopee Stats ── */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+        <div className="rounded-xl border border-purple-500/20 bg-purple-500/[0.07] px-4 py-3">
+          <div className="flex items-center gap-2 mb-1">
+            <CurrencyDollarIcon className="w-4 h-4 text-purple-400" />
+            <span className="text-[10px] font-semibold text-purple-400/70 uppercase tracking-wider">
+              Shopee Gross (Bulan Ini)
+            </span>
+          </div>
+          <p className="text-base font-bold text-purple-400 tabular-nums">
+            {formatCurrency(summaryStats.monthlyRevenue)}
+          </p>
+        </div>
+
         <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/[0.07] px-4 py-3">
           <div className="flex items-center gap-2 mb-1">
             <ArrowTrendingUpIcon className="w-4 h-4 text-emerald-400" />
             <span className="text-[10px] font-semibold text-emerald-400/70 uppercase tracking-wider">
-              Net Revenue
+              Shopee Net Revenue
             </span>
           </div>
           <p className="text-base font-bold text-emerald-400 tabular-nums">
             {formatCurrency(summaryStats.monthlyNetRevenue)}
           </p>
         </div>
+
         <div className="rounded-xl border border-orange-500/20 bg-orange-500/[0.07] px-4 py-3">
           <div className="flex items-center gap-2 mb-1">
             <ChartBarIcon className="w-4 h-4 text-orange-400" />
             <span className="text-[10px] font-semibold text-orange-400/70 uppercase tracking-wider">
-              Ad Spend
+              Shopee Ad Spend
             </span>
           </div>
           <p className="text-base font-bold text-orange-400 tabular-nums">
@@ -339,6 +392,13 @@ const DashboardPage = () => {
           </p>
         </div>
       </div>
+
+      {/* ── MAIN HIGHLIGHT: Direct Web Orders Table ── */}
+      <DirectOrdersTable
+        orders={directOrders}
+        onSelectOrder={(order) => setSelectedOrder(order)}
+        onUpdateStatus={handleUpdateStatus}
+      />
 
       {/* ── Middle Row: Tasks + Requests ── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -482,8 +542,17 @@ const DashboardPage = () => {
           </div>
         )}
       </SectionCard>
+
+      {/* ── Proof Preview Modal ── */}
+      <ProofPreviewModal
+        order={selectedOrder}
+        isOpen={Boolean(selectedOrder)}
+        onClose={() => setSelectedOrder(null)}
+        onUpdateStatus={handleUpdateStatus}
+      />
     </div>
   );
 };
 
 export default DashboardPage;
+

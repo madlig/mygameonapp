@@ -1,32 +1,32 @@
 export const faqItems = [
   {
-    question: 'Bagaimana cara membeli game di MyGameON?',
+    question: 'Apakah game-nya aman dan terlengkap?',
     answer:
-      'Cari game yang kamu inginkan di katalog, lalu klik tombol Shopee untuk melakukan pembelian. Setelah pembayaran dikonfirmasi, admin akan mengirimkan akses download ke email kamu.',
+      'Semua game kami adalah koleksi digital offline-verified bergaransi penuh, dan merupakan versi terlengkap (Complete Edition) beserta seluruh update & DLC-nya. Bebas virus dan malware karena diuji langsung sebelum dikirim.',
   },
   {
-    question: 'Berapa lama proses pengiriman setelah pembayaran?',
+    question: 'Bagaimana cara install game-nya?',
     answer:
-      'Pengiriman diproses segera selama admin sedang online — umumnya hanya 5–15 menit setelah pembayaran terkonfirmasi. Jika lebih dari itu, kemungkinan admin sedang tidak tersedia. Silakan hubungi kami via WhatsApp untuk konfirmasi.',
+      'Sangat mudah! Cukup download dari link Google Drive direct full speed yang kami sediakan, lalu ikuti panduan langkah demi langkah yang sudah disertakan. Admin kami juga siap membantu remote install via AnyDesk jika kamu membutuhkan bantuan.',
   },
   {
-    question: 'Apa itu MyGameON Sims Launcher?',
+    question: 'Bisa refund kalau game tidak jalan di laptop saya?',
     answer:
-      'MyGameON Sims Launcher adalah aplikasi khusus untuk mengelola DLC, Mods, dan CC The Sims 4. Dengan launcher ini, kamu bisa download dan install konten tambahan dengan mudah tanpa ribet.',
+      'Tentu bisa! Jika setelah dibimbing admin game tetap terbukti tidak bisa berjalan di laptop kamu, kami memberikan jaminan garansi refund 100% uang kembali.',
   },
   {
-    question: 'Apakah bisa request game yang belum tersedia?',
+    question: 'Apakah aman untuk laptop saya?',
     answer:
-      'Bisa! Gunakan fitur Request Game di website ini. Tim kami akan mengecek ketersediaan file dan memproses request kamu jika memungkinkan.',
+      '100% aman! File game murni tanpa aplikasi berbahaya. Fitur Cek Spek kami juga memberikan rekomendasi jujur di awal agar laptop kamu tidak dipaksa menjalankan game yang terlalu berat.',
   },
   {
-    question: 'Game yang saya download tidak bisa dibuka, bagaimana?',
+    question: 'Berapa lama proses pengiriman setelah order?',
     answer:
-      'Pastikan kamu sudah menginstall semua prerequisites yang dibutuhkan (DirectX, Visual C++, .NET Framework). Jika masih bermasalah, hubungi admin via WhatsApp untuk bantuan remote install.',
+      'Proses pengiriman kilat — umumnya hanya 1–5 menit setelah konfirmasi via WhatsApp atau klaim Shopee. Link Google Drive langsung aktif dan bisa kamu unduh kapan saja.',
   },
   {
-    question: 'Apakah ada layanan bantuan install?',
+    question: 'Apakah bisa request game PC yang belum ada di katalog?',
     answer:
-      'Ya! Kami menyediakan layanan remote install via AnyDesk/TeamViewer. Hubungi admin melalui WhatsApp untuk menjadwalkan sesi bantuan.',
+      'Bisa! Kami memiliki lebih dari 1.200 judul game di arsip cloud. Gunakan tombol "Request Game" di website atau langsung chat admin via WhatsApp.',
   },
 ];

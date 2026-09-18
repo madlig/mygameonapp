@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 340 70" fill="none">
+  <g transform="translate(5, 5) scale(0.6)">
+    <path 
+      d="M26 22 C16 22 10 32 10 46 C10 64 16 82 25 84 C34 86 41 74 46 60 C53 62 67 62 74 60 C79 74 86 86 95 84 C104 82 110 64 110 46 C110 32 104 22 94 22 C84 22 74 30 60 35 C46 30 36 22 26 22 Z" 
+      fill="#F59E0B"
+    />
+    <g transform="rotate(8 39 48)">
+      <rect x="35" y="38" width="8.5" height="18" rx="4.25" fill="#090C12" />
+    </g>
+    <g transform="rotate(-8 81 48)">
+      <rect x="76.5" y="38" width="8.5" height="18" rx="4.25" fill="#090C12" />
+    </g>
+  </g>
+  <!-- Typography: Inter/System Bold -->
+  <text x="88" y="47" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="34" font-weight="900" letter-spacing="-0.04em" fill="#FFFFFF">
+    MyGame<tspan fill="#F59E0B">ON</tspan>
+  </text>
+</svg>

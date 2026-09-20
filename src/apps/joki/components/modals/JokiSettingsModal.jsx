@@ -179,17 +179,17 @@ const JokiSettingsModal = ({ isOpen, onClose }) => {
       const sanitizedServices = editableServices.map(s => ({
         ...s,
         name: (s.name || '').trim() || s.tier,
-        price: Math.max(500, Number(s.price) || 4000),
+        price: Math.max(100, Number(s.price) || 4000),
         slotCount: Math.max(1, Math.min(12, Number(s.slotCount) || 1)),
         enabled: Boolean(s.enabled)
       }));
 
       await updateJokiSettings(activeWorkspaceId, {
         services: sanitizedServices,
-        priceBasic: Math.max(500, Number(basicSrv?.price) || 4000),
-        priceVip: Math.max(500, Number(vipSrv?.price) || 6000),
+        priceBasic: Math.max(100, Number(basicSrv?.price) || 4000),
+        priceVip: Math.max(100, Number(vipSrv?.price) || 6000),
         enableVvipSlot: Boolean(vvipSrv?.enabled),
-        priceVvip: Math.max(1000, Number(vvipSrv?.price) || 10000),
+        priceVvip: Math.max(100, Number(vvipSrv?.price) || 10000),
         updatedAt: Date.now()
       });
       addToast('✓ Pengaturan layanan, tarif, dan alokasi slot berhasil disimpan!', 'success');
@@ -675,8 +675,8 @@ const JokiSettingsModal = ({ isOpen, onClose }) => {
                             <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs font-black text-text-dim">Rp</span>
                             <input
                               type="number"
-                              step="500"
-                              min="500"
+                              step="any"
+                              min="100"
                               value={srv.price}
                               onChange={(e) => handleServiceChange(srv.id, 'price', e.target.value)}
                               className="w-full bg-[#151821] border border-border-default rounded-xl py-1.5 pl-8 pr-2 text-xs text-white font-mono font-black outline-none focus:border-cyan-500"

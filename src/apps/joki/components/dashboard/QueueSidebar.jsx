@@ -37,7 +37,9 @@ const DURATION_PRESETS = [
   { label: '1 Jam', amount: 1, unit: 'hour' },
   { label: '2 Jam', amount: 2, unit: 'hour' },
   { label: '3 Jam', amount: 3, unit: 'hour' },
-  { label: '4 Jam', amount: 4, unit: 'hour' },
+  { label: '5 Jam', amount: 5, unit: 'hour' },
+  { label: '12 Jam', amount: 12, unit: 'hour' },
+  { label: '24 Jam', amount: 24, unit: 'hour' },
 ];
 
 const QueueSidebar = ({ onStartFromQueue, onRequestClearQueue }) => {

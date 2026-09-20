@@ -29,8 +29,9 @@ const DURATION_PRESETS = [
   { label: '1 Jam', hours: 1 },
   { label: '2 Jam', hours: 2 },
   { label: '3 Jam', hours: 3 },
-  { label: '4 Jam', hours: 4 },
   { label: '5 Jam', hours: 5 },
+  { label: '12 Jam', hours: 12 },
+  { label: '24 Jam (1H)', hours: 24 },
 ];
 
 const AddJokiModal = ({ isOpen, onClose }) => {
@@ -417,7 +418,7 @@ const AddJokiModal = ({ isOpen, onClose }) => {
           </div>
 
           {/* Duration Presets */}
-          <div className="grid grid-cols-6 gap-1.5">
+          <div className="grid grid-cols-4 sm:grid-cols-7 gap-1.5">
             {DURATION_PRESETS.map((preset) => (
               <button
                 key={preset.label}
